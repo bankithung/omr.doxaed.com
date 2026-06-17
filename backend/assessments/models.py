@@ -30,6 +30,9 @@ class Test(OwnerScopedModel):
     attempt_number = models.PositiveIntegerField(default=1)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=DRAFT)
 
+    class Meta(OwnerScopedModel.Meta):
+        ordering = ["-created_at", "id"]
+
     def __str__(self):
         return self.title
 

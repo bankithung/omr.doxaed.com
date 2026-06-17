@@ -67,3 +67,31 @@ class ClassApiTests(APITestCase):
     def test_requires_auth(self):
         self.client.credentials()
         self.assertEqual(self.client.get("/api/v1/classes/").status_code, 401)
+
+
+class TestApiTests(ClassApiTests):  # reuse _auth/setUp (cache.clear included)
+    def _make_class(self):
+        return self.client.post("/api/v1/classes/", {"name": "C"}, format="json").data["id"]
+
+    def test_create_test_with_marking(self):
+        cid = self._make_class()
+        r = self.client.post("/api/v1/tests/", {
+            "class_group": cid, "title": "T1", "subject": "Math",
+            "marking_scheme": {"marks_per_correct": "2", "negative_marks_per_wrong": "0.5"},
+        }, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["marking_scheme"]["marks_per_correct"], "2.00")
+
+    def test_cannot_use_others_class(self):
+        cid = self._make_class()
+        self._auth(self.b)
+        r = self.client.post("/api/v1/tests/", {"class_group": cid, "title": "X"}, format="json")
+        self.assertIn(r.status_code, (400, 404))
+
+    def test_retest_links_and_increments(self):
+        cid = self._make_class()
+        tid = self.client.post("/api/v1/tests/", {"class_group": cid, "title": "T1"}, format="json").data["id"]
+        r = self.client.post(f"/api/v1/tests/{tid}/retest/")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["parent_test"], tid)
+        self.assertEqual(r.data["attempt_number"], 2)
