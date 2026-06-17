@@ -1,36 +1,69 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from rest_framework import generics
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .emails import send_password_reset_email, send_verification_email
+from .emails import (
+    send_account_exists_email,
+    send_password_reset_email,
+    send_verification_email,
+)
 from .serializers import MeSerializer, RegisterSerializer
 from .tokens import read_uid_token
 
 User = get_user_model()
 
+_REGISTER_SUCCESS = {"detail": "Check your email to verify your account."}
 
-class RegisterView(generics.CreateAPIView):
+
+class RegisterView(APIView):
+    """Registration endpoint with no-enumeration: always returns 201."""
+
     permission_classes = [AllowAny]
-    serializer_class = RegisterSerializer
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "register"
 
-    def perform_create(self, serializer):
-        user = serializer.save()
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+
+        # Check whether email already exists *before* full validation so we
+        # can skip the password-validation step for duplicates (avoids leaking
+        # information via error messages).
+        email = (request.data.get("email") or "").strip().lower()
+        existing_user = User.objects.filter(email__iexact=email).first() if email else None
+
+        if existing_user:
+            # Silent duplicate: notify the existing user and return identical
+            # success response — caller cannot distinguish new vs existing.
+            send_account_exists_email(existing_user)
+            return Response(_REGISTER_SUCCESS, status=status.HTTP_201_CREATED)
+
+        # New email: validate fully (password included).
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(
+            email=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+            full_name=serializer.validated_data.get("full_name", ""),
+        )
         send_verification_email(user)
+        return Response(_REGISTER_SUCCESS, status=status.HTTP_201_CREATED)
 
 
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verify_email"
 
     def post(self, request):
         user = read_uid_token(request.data.get("uid"), request.data.get("token"))
