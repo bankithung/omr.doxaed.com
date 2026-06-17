@@ -942,3 +942,500 @@ class OrgGenerateTests(_OrgApiBase):
             format="json",
         )
         self.assertIn(r.status_code, (400, 403))
+
+
+# ===========================================================================
+# Phase 6 Task 3 — Org management endpoints: create, invite, accept, members,
+# roles, audit log.
+# ===========================================================================
+
+class _OrgMgmtBase(APITestCase):
+    """Base for Task-3 management tests.
+
+    Users:
+      admin_user  — org admin
+      member_user — org member
+      outside_user — registered but NOT in org
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+        self.admin_user = User.objects.create_user(
+            email="admin@mgmt.com", password="Str0ng!pass"
+        )
+        self.member_user = User.objects.create_user(
+            email="member@mgmt.com", password="Str0ng!pass"
+        )
+        self.outside_user = User.objects.create_user(
+            email="outside@mgmt.com", password="Str0ng!pass"
+        )
+
+        # Create org via the API so the setUp mirrors real usage.
+        self._login(self.admin_user)
+        r = self.client.post(
+            "/api/v1/organizations/", {"name": "MgmtOrg"}, format="json"
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        self.org_id = r.data["id"]
+
+        # Manually add member_user as an active member.
+        from organizations.models import Organization
+        org = Organization.objects.get(pk=self.org_id)
+        OrganizationMembership.objects.create(
+            organization=org,
+            user=self.member_user,
+            role=OrganizationMembership.MEMBER,
+            status=OrganizationMembership.ACTIVE,
+        )
+
+    def _login(self, user):
+        r = self.client.post(
+            "/api/v1/auth/login/",
+            {"email": user.email, "password": "Str0ng!pass"},
+            format="json",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
+
+
+# ---------------------------------------------------------------------------
+# P) Create org
+# ---------------------------------------------------------------------------
+
+class OrgCreateTests(_OrgMgmtBase):
+    def test_create_org_returns_201_with_role(self):
+        """Creating an org returns 201 and the creator's role is 'admin'."""
+        self._login(self.admin_user)
+        r = self.client.post(
+            "/api/v1/organizations/", {"name": "NewOrg"}, format="json"
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["name"], "NewOrg")
+        self.assertEqual(r.data["role"], "admin")
+
+    def test_creator_is_active_admin_member(self):
+        """After creation the creator is an active admin OrganizationMembership."""
+        self._login(self.admin_user)
+        r = self.client.post(
+            "/api/v1/organizations/", {"name": "AnotherOrg"}, format="json"
+        )
+        org_id = r.data["id"]
+        m = OrganizationMembership.objects.get(
+            organization_id=org_id, user=self.admin_user
+        )
+        self.assertEqual(m.role, "admin")
+        self.assertEqual(m.status, "active")
+
+    def test_org_appears_in_list(self):
+        """After creation the org shows up in GET /organizations/."""
+        r = self.client.get("/api/v1/organizations/")
+        self.assertEqual(r.status_code, 200)
+        org_ids = [o["id"] for o in r.data]
+        self.assertIn(self.org_id, org_ids)
+
+    def test_create_org_missing_name_returns_400(self):
+        self._login(self.admin_user)
+        r = self.client.post("/api/v1/organizations/", {}, format="json")
+        self.assertEqual(r.status_code, 400)
+
+    def test_audit_log_created_on_org_create(self):
+        """org.created AuditLog entry is created when the org is created."""
+        log = AuditLog.objects.filter(
+            organization_id=self.org_id, action="org.created"
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.actor, self.admin_user)
+
+
+# ---------------------------------------------------------------------------
+# Q) List orgs
+# ---------------------------------------------------------------------------
+
+class OrgListTests(_OrgMgmtBase):
+    def test_member_sees_org_in_list(self):
+        """member_user is an active member → org appears in their GET /organizations/."""
+        self._login(self.member_user)
+        r = self.client.get("/api/v1/organizations/")
+        self.assertEqual(r.status_code, 200)
+        org_ids = [o["id"] for o in r.data]
+        self.assertIn(self.org_id, org_ids)
+
+    def test_outside_user_does_not_see_org(self):
+        """outside_user has no membership → empty list."""
+        self._login(self.outside_user)
+        r = self.client.get("/api/v1/organizations/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data), 0)
+
+    def test_removed_member_does_not_see_org(self):
+        """Removed members are not active → org disappears from list."""
+        OrganizationMembership.objects.filter(
+            organization_id=self.org_id, user=self.member_user
+        ).update(status="removed")
+        self._login(self.member_user)
+        r = self.client.get("/api/v1/organizations/")
+        self.assertEqual(r.status_code, 200)
+        org_ids = [o["id"] for o in r.data]
+        self.assertNotIn(self.org_id, org_ids)
+
+
+# ---------------------------------------------------------------------------
+# R) Invite + accept flow
+# ---------------------------------------------------------------------------
+
+class InviteAcceptTests(_OrgMgmtBase):
+    def setUp(self):
+        super().setUp()
+        self.invite_email = "newbie@mgmt.com"
+        self.newbie = User.objects.create_user(
+            email=self.invite_email, password="Str0ng!pass"
+        )
+
+    def _invite(self, email=None, role="member"):
+        self._login(self.admin_user)
+        return self.client.post(
+            f"/api/v1/organizations/{self.org_id}/invite/",
+            {"email": email or self.invite_email, "role": role},
+            format="json",
+        )
+
+    def test_admin_can_invite(self):
+        """Admin can send an invitation → 201 + token in response."""
+        r = self._invite()
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertIn("token", r.data)
+
+    def test_invite_creates_invitation_object(self):
+        """An Invitation row is created after a successful invite."""
+        self._invite()
+        inv = Invitation.objects.filter(
+            organization_id=self.org_id, email=self.invite_email
+        ).first()
+        self.assertIsNotNone(inv)
+        self.assertIsNone(inv.accepted_at)
+
+    def test_invite_sends_email(self):
+        """Inviting sends an email to the invited address (console backend captured)."""
+        from django.core import mail
+        self._invite()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.invite_email, mail.outbox[0].to)
+        self.assertIn("accept-invite", mail.outbox[0].body)
+
+    def test_member_cannot_invite(self):
+        """A member (not admin) cannot invite → 403."""
+        self._login(self.member_user)
+        r = self.client.post(
+            f"/api/v1/organizations/{self.org_id}/invite/",
+            {"email": "x@x.com", "role": "member"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_outside_user_cannot_invite(self):
+        """An outside user (not a member at all) cannot invite → 403/404."""
+        self._login(self.outside_user)
+        r = self.client.post(
+            f"/api/v1/organizations/{self.org_id}/invite/",
+            {"email": "x@x.com", "role": "member"},
+            format="json",
+        )
+        self.assertIn(r.status_code, (403, 404))
+
+    def test_inviting_existing_active_member_returns_400(self):
+        """Inviting an already-active member → 400."""
+        r = self._invite(email=self.member_user.email)
+        self.assertEqual(r.status_code, 400)
+
+    def test_invite_creates_audit_log(self):
+        """An AuditLog entry is created when an invitation is sent."""
+        self._invite()
+        log = AuditLog.objects.filter(
+            organization_id=self.org_id, action="member.invited"
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.actor, self.admin_user)
+
+    def test_newbie_accepts_invitation_becomes_member(self):
+        """Invited user accepts → active membership created, AuditLog added."""
+        r = self._invite()
+        token = r.data["token"]
+
+        self._login(self.newbie)
+        r = self.client.post(
+            "/api/v1/invitations/accept/", {"token": token}, format="json"
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+
+        m = OrganizationMembership.objects.filter(
+            organization_id=self.org_id, user=self.newbie
+        ).first()
+        self.assertIsNotNone(m)
+        self.assertEqual(m.status, "active")
+
+        log = AuditLog.objects.filter(
+            organization_id=self.org_id, action="member.joined"
+        ).first()
+        self.assertIsNotNone(log)
+
+    def test_accepted_member_sees_org_in_list(self):
+        """After accepting, the org appears in the new member's /organizations/."""
+        r = self._invite()
+        token = r.data["token"]
+
+        self._login(self.newbie)
+        self.client.post("/api/v1/invitations/accept/", {"token": token}, format="json")
+
+        r = self.client.get("/api/v1/organizations/")
+        org_ids = [o["id"] for o in r.data]
+        self.assertIn(self.org_id, org_ids)
+
+    def test_wrong_email_user_accept_returns_403(self):
+        """A user whose email doesn't match the invitation gets 403."""
+        r = self._invite()
+        token = r.data["token"]
+
+        self._login(self.outside_user)
+        r = self.client.post(
+            "/api/v1/invitations/accept/", {"token": token}, format="json"
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_expired_token_returns_400(self):
+        """An expired invitation returns 400."""
+        self._invite()
+        inv = Invitation.objects.filter(organization_id=self.org_id).first()
+        inv.expires_at = timezone.now() - timezone.timedelta(seconds=1)
+        inv.save(update_fields=["expires_at"])
+
+        self._login(self.newbie)
+        r = self.client.post(
+            "/api/v1/invitations/accept/",
+            {"token": str(inv.token)},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_already_accepted_token_returns_400(self):
+        """Re-accepting an already-accepted invitation → 400."""
+        r = self._invite()
+        token = r.data["token"]
+
+        self._login(self.newbie)
+        self.client.post("/api/v1/invitations/accept/", {"token": token}, format="json")
+        # Second time:
+        r = self.client.post("/api/v1/invitations/accept/", {"token": token}, format="json")
+        self.assertEqual(r.status_code, 400)
+
+    def test_invalid_token_returns_400(self):
+        """Garbage token → 400."""
+        self._login(self.newbie)
+        import uuid
+        r = self.client.post(
+            "/api/v1/invitations/accept/",
+            {"token": str(uuid.uuid4())},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+
+# ---------------------------------------------------------------------------
+# S) Member list
+# ---------------------------------------------------------------------------
+
+class MemberListTests(_OrgMgmtBase):
+    def test_admin_can_list_members(self):
+        """Admin can GET /organizations/{id}/members/ → list of active memberships."""
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/members/")
+        self.assertEqual(r.status_code, 200)
+        emails = [m["email"] for m in r.data]
+        self.assertIn(self.admin_user.email, emails)
+        self.assertIn(self.member_user.email, emails)
+
+    def test_member_can_list_members(self):
+        """A regular member can also list the members."""
+        self._login(self.member_user)
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/members/")
+        self.assertEqual(r.status_code, 200)
+
+    def test_outside_user_gets_403_or_404(self):
+        """Non-member cannot list members."""
+        self._login(self.outside_user)
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/members/")
+        self.assertIn(r.status_code, (403, 404))
+
+    def test_nonexistent_org_returns_404(self):
+        r = self.client.get("/api/v1/organizations/99999/members/")
+        self.assertEqual(r.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# T) Role changes + last-admin protection
+# ---------------------------------------------------------------------------
+
+class MemberRoleTests(_OrgMgmtBase):
+    def test_admin_can_change_member_role(self):
+        """Admin can promote member to admin via PATCH."""
+        r = self.client.patch(
+            f"/api/v1/organizations/{self.org_id}/members/{self.member_user.id}/",
+            {"role": "admin"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["role"], "admin")
+
+        log = AuditLog.objects.filter(
+            organization_id=self.org_id, action="member.role_changed"
+        ).first()
+        self.assertIsNotNone(log)
+
+    def test_member_cannot_change_roles(self):
+        """A member (not admin) cannot PATCH roles → 403."""
+        self._login(self.member_user)
+        r = self.client.patch(
+            f"/api/v1/organizations/{self.org_id}/members/{self.admin_user.id}/",
+            {"role": "member"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_cannot_demote_only_admin(self):
+        """Cannot demote the sole admin to member → 400."""
+        r = self.client.patch(
+            f"/api/v1/organizations/{self.org_id}/members/{self.admin_user.id}/",
+            {"role": "member"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        # Admin is still admin.
+        m = OrganizationMembership.objects.get(
+            organization_id=self.org_id, user=self.admin_user
+        )
+        self.assertEqual(m.role, "admin")
+
+    def test_can_demote_admin_when_another_admin_exists(self):
+        """Can demote admin when another admin exists."""
+        # Promote member to admin first.
+        self.client.patch(
+            f"/api/v1/organizations/{self.org_id}/members/{self.member_user.id}/",
+            {"role": "admin"},
+            format="json",
+        )
+        # Now demote original admin.
+        r = self.client.patch(
+            f"/api/v1/organizations/{self.org_id}/members/{self.admin_user.id}/",
+            {"role": "member"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# U) Remove member + last-admin protection
+# ---------------------------------------------------------------------------
+
+class MemberRemoveTests(_OrgMgmtBase):
+    def test_admin_can_remove_member(self):
+        """Admin can DELETE a member → status set to removed + audit log."""
+        r = self.client.delete(
+            f"/api/v1/organizations/{self.org_id}/members/{self.member_user.id}/"
+        )
+        self.assertEqual(r.status_code, 204)
+        m = OrganizationMembership.objects.get(
+            organization_id=self.org_id, user=self.member_user
+        )
+        self.assertEqual(m.status, "removed")
+
+        log = AuditLog.objects.filter(
+            organization_id=self.org_id, action="member.removed"
+        ).first()
+        self.assertIsNotNone(log)
+
+    def test_member_cannot_remove_others(self):
+        """A member cannot delete other members → 403."""
+        self._login(self.member_user)
+        r = self.client.delete(
+            f"/api/v1/organizations/{self.org_id}/members/{self.admin_user.id}/"
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_cannot_remove_only_admin(self):
+        """Cannot remove the sole active admin → 400."""
+        r = self.client.delete(
+            f"/api/v1/organizations/{self.org_id}/members/{self.admin_user.id}/"
+        )
+        self.assertEqual(r.status_code, 400)
+        m = OrganizationMembership.objects.get(
+            organization_id=self.org_id, user=self.admin_user
+        )
+        self.assertEqual(m.status, "active")
+
+    def test_can_remove_admin_when_another_admin_exists(self):
+        """Can remove admin when a second admin exists."""
+        # Promote member to admin first.
+        self.client.patch(
+            f"/api/v1/organizations/{self.org_id}/members/{self.member_user.id}/",
+            {"role": "admin"},
+            format="json",
+        )
+        r = self.client.delete(
+            f"/api/v1/organizations/{self.org_id}/members/{self.admin_user.id}/"
+        )
+        self.assertEqual(r.status_code, 204)
+
+    def test_removed_member_no_longer_in_list(self):
+        """After removal, the member no longer appears in the member list."""
+        self.client.delete(
+            f"/api/v1/organizations/{self.org_id}/members/{self.member_user.id}/"
+        )
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/members/")
+        emails = [m["email"] for m in r.data]
+        self.assertNotIn(self.member_user.email, emails)
+
+
+# ---------------------------------------------------------------------------
+# V) Audit log endpoint
+# ---------------------------------------------------------------------------
+
+class AuditLogEndpointTests(_OrgMgmtBase):
+    def test_admin_can_get_audit_log(self):
+        """Admin can GET /organizations/{id}/audit/ → list of AuditLog entries."""
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/audit/")
+        self.assertEqual(r.status_code, 200)
+        # org.created was logged at creation time.
+        results = r.data.get("results", r.data)
+        actions = [entry["action"] for entry in results]
+        self.assertIn("org.created", actions)
+
+    def test_member_cannot_get_audit_log(self):
+        """A plain member cannot see the audit log → 403."""
+        self._login(self.member_user)
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/audit/")
+        self.assertEqual(r.status_code, 403)
+
+    def test_outside_user_cannot_get_audit_log(self):
+        """Non-member cannot get audit log → 403/404."""
+        self._login(self.outside_user)
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/audit/")
+        self.assertIn(r.status_code, (403, 404))
+
+    def test_audit_log_entries_newest_first(self):
+        """Audit log is ordered newest-first."""
+        # Trigger more entries.
+        self.client.post(
+            f"/api/v1/organizations/{self.org_id}/invite/",
+            {"email": "x@x.com", "role": "member"},
+            format="json",
+        )
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/audit/")
+        results = r.data.get("results", r.data)
+        if len(results) >= 2:
+            from django.utils.dateparse import parse_datetime
+            ts0 = parse_datetime(results[0]["created_at"])
+            ts1 = parse_datetime(results[1]["created_at"])
+            self.assertGreaterEqual(ts0, ts1)
+
+    def test_nonexistent_org_audit_returns_404(self):
+        r = self.client.get("/api/v1/organizations/99999/audit/")
+        self.assertEqual(r.status_code, 404)
