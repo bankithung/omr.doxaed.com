@@ -213,17 +213,18 @@ function StepDetails({ classId, onNext }) {
     }
     setSaving(true)
     try {
-      const test = await createTest({
+      const payload = {
         class_group: classId,
         title: title.trim(),
-        subject: subject.trim(),
+        ...(subject.trim() && { subject: subject.trim() }),
         marking_scheme: {
-          marks_per_correct: marksPerCorrect,
-          negative_marks_per_wrong: negativeMarks,
+          marks_per_correct: parseFloat(marksPerCorrect) || 0,
+          negative_marks_per_wrong: parseFloat(negativeMarks) || 0,
           partial_marking: partialMarking,
           multiple_correct_allowed: multipleCorrectAllowed,
         },
-      })
+      }
+      const test = await createTest(payload)
       onNext(test.id, multipleCorrectAllowed)
     } catch (err) {
       const detail =
