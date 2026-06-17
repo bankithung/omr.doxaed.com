@@ -1,15 +1,14 @@
 # OMRFlow — Memory Index
 
-**Status:** Phase 3 (OMR generation) — DONE (2026-06-17). Next: Phase 4 (Scanning & grading).
+**Status:** Phase 4 (Scanning & grading) — DONE (2026-06-17). Next: Phase 5 (Analytics & export — finishes MVP).
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
-**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–3.
+**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–4.
 
 ## Next steps
-- Phase 4 (Scanning & grading — HARDEST) per `prompts/OMR_ENGINE_SPEC.md` + `BUILD_ROADMAP.md`:
-  ScanBatch/ScanJob, async OpenCV pipeline (QR→fiducials→warp→roll dots→answer fill-ratio→stitch→
-  grade vs the per-sheet `answer_key`)→StudentResult/QuestionResponse, manual review queue, progress.
-  See `current-state.md` → "generator↔scanner contract" (the descriptor) and build a fixture set early.
-- Done: Phase 0 · Phase 1 (auth, 26 tests) · Phase 2 (assessments, 45 tests) · Phase 3 (OMR gen, 126 tests).
+- Phase 5 (Analytics & export — COMPLETES THE MVP = Phases 1–5) per `prompts/PRD.md` (E7):
+  test-level/student-level/improvement analytics, CSV/Excel + PDF report, Recharts dashboards.
+  Aggregation endpoints (scoped). See `current-state.md` for the result data model + patterns.
+- Done: Phase 0 · 1 (auth) · 2 (assessments) · 3 (OMR gen) · 4 (scan/grade). 233 backend tests.
 
 ## Key facts
 - DB: `omrflow`, user `postgres`, password `postgress`, localhost:5432 (no Docker). PG18.

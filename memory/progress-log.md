@@ -18,3 +18,7 @@
   (geometry descriptor, deterministic shuffle/answer_key, ReportLab generator, gated generation
   endpoint + batch PDF). QR round-trip test passes; rendered sheet visually validated (clean
   fiducials/grids after a header-layout fix). 126 tests green.
+- 2026-06-17 — Phase 4 complete (branch `phase-4`): OpenCV scanning/grading pipeline (align/read/
+  grade/stitch) + synthetic simulator enabling a full generate→fill→scan→grade round-trip
+  (perfect-score test). Scan upload (eager) + review queue endpoints + React UI. Reviewed
+  grading-sound & scope-secure; 3 review-queue bugs fixed. 233 tests green.

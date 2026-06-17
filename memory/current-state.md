@@ -1,47 +1,42 @@
 # Current State
 
-- 2026-06-17: **Phase 3 (Roster & OMR generation) complete** (branch `phase-3` → merged to `main`).
-  Roster + Student (Fernet-encrypted `full_name`, named+roll OR count-only). The OMR engine:
-  `geometry` (canonical-pixel template descriptor), `shuffle` (deterministic per-sheet
-  question/option order + answer_key), `codes` (sheet_code), `generator` (ReportLab → multi-page
-  PDF with QR/fiducials/roll-grid/answer-grid). Generation endpoint `POST /api/v1/omr/generate/`
-  (one OmrSheet/student, batch PDF via PyMuPDF, free-tier gates ≤10 students/gen & ≤5 gens/day).
-  **126 backend tests green.** QR round-trip test passes (rendered sheet's QR decodes back).
-  **Visually validated** — a rendered sheet looks clean (fiducial quiet zones, readable grids).
-  React: roster mgmt + generate-sheets flow (download batch PDF). The Phase-0 owner-scope DB
-  constraint validated on real tables (Phase 2).
-- **Next:** Phase 4 (Scanning & grading — the hardest phase) per `prompts/OMR_ENGINE_SPEC.md` +
-  `BUILD_ROADMAP.md`: ScanBatch/ScanJob models, async (Celery — or eager-in-dev) OpenCV pipeline
-  (QR decode → fiducial detect → perspective warp → roll-dot read → answer-bubble fill-ratio with
-  hysteresis → multi-page stitch → grade against the per-sheet answer_key → StudentResult/
-  QuestionResponse), a manual review queue for low-confidence reads, progress endpoint. Build a
-  labeled fixture set EARLY (the generator can produce + simulate filled sheets for tests).
-- Done: Phase 0 (foundations) · Phase 1 (auth) · Phase 2 (assessments) · Phase 3 (OMR generation).
+- 2026-06-17: **Phase 4 (Scanning & grading) complete** (branch `phase-4` → merged to `main`).
+  The full OMR engine round-trips: **generate → fill → scan → grade**. OpenCV pipeline
+  (`omr/scan/`): `align` (QR decode → fiducial detect → perspective warp to canonical),
+  `read` (roll + answer bubbles via fill-ratio + hysteresis), `grade` (per-sheet answer_key +
+  MarkingScheme), `pipeline` (orchestrate, multi-page stitch, review flags, StudentResult/
+  QuestionResponse/ReviewItem). A **synthetic simulator** (`omr/simulate.py`) fills generated
+  sheets at descriptor coords → enables a full automated round-trip (perfect-score test passes).
+  Endpoints: `POST /omr/scan/` (eager/sync processing in dev), batch progress, results, review
+  queue + resolve. **233 backend tests green**; reviewed GRADING-SOUND & SCOPE-SECURE (live
+  cross-tenant probe). React: scan upload+progress, results table+drilldown, review queue.
+- **Next:** Phase 5 (Analytics & export — COMPLETES THE MVP) per `prompts/PRD.md` (E7) +
+  `BUILD_ROADMAP.md`: test-level analytics (score distribution, average/median, toppers,
+  hardest/most-missed questions, per-option choice distribution), student-level (accuracy by
+  topic), improvement view across a test→retest series (deltas/trends), CSV/Excel export +
+  printable PDF report, charts via Recharts. Aggregation endpoints (scoped) + React dashboards.
+- Done: Phase 0 · 1 (auth, 26) · 2 (assessments, 45) · 3 (OMR gen, 126) · 4 (scan/grade, 233 total).
 
-## The generator↔scanner contract (CRITICAL for Phase 4)
-Each `OmrSheet` stores `template_descriptor` (canonical 100-DPI, top-left-origin PIXEL coords:
-fiducials, roll_grid origin/pitch/radius, qr region, answer_bubbles list of {q_pos, page,
-options:[{label,cx,cy,r}]}, page_map) PLUS `question_order`/`option_order`/`answer_key`. The Phase-4
-scanner MUST: decode the QR (`{sheet_code}|{page}|{total}`) → load the OmrSheet → detect the 4
-fiducials → warp the scan to the canonical px space → read bubbles at the descriptor's exact cx/cy/r
-→ grade detected printed-labels through `answer_key` + the test's MarkingScheme. The generator draws
-at these exact descriptor coords (verified by the QR round-trip + visual check), so the scanner must
-read at the same coords. NEVER grade against the test default order — always the sheet's answer_key.
+## The OMR engine (recap for analytics + future)
+StudentResult (score/max/correct/wrong/blank/needs_review) + QuestionResponse (q_pos, marked,
+is_correct, flagged) per student per test. Retest chain via `Test.parent_test`/`attempt_number`;
+improvement analytics compare a student's StudentResults across the chain. Grading always uses the
+OmrSheet's stored `answer_key` (per-sheet shuffle). Low-confidence reads → ReviewItem (never guessed).
 
-## Architecture patterns (recap; FOLLOW)
-- Direct `OwnerScopedModel` → `ScopedModelViewSet` (IsInScope). Child-scoped (Student→Roster,
-  OmrSheet/ScanJob→Test) → `IsAuthenticated` + queryset filtered through the parent's scope.
-- PII: `common.encryption.EncryptedTextField` (Fernet, key `FIELD_ENCRYPTION_KEY` from env).
-- Free-tier gates enforced server-side; over cap → 403 with an upgrade message.
+## Architecture patterns (recap)
+- Direct `OwnerScopedModel` → `ScopedModelViewSet` (IsInScope). Child-scoped (everything under a
+  Test: Question, OmrSheet, ScanJob, StudentResult, ReviewItem, …) → `IsAuthenticated` + queryset
+  filtered through `test__user` (or `omr_sheet__test__user`, `scan_job__batch__test__user`).
+- PII: `common.encryption.EncryptedTextField`. Free-tier gates server-side (403 + upgrade msg).
+- Scanning is EAGER/sync in dev (no Celery broker); Celery+Redis = a prod/Phase-8 enhancement.
 
 ## Deferred follow-ups
-- **Phase 4:** scanning uses Celery+Redis per spec; for local no-Docker dev, run Celery eager
-  (`task_always_eager`) or install Memurai/Redis — defer the broker, process synchronously in dev.
-  Build a fixture set (clean/faint/double/skewed). Print at known DPI; fiducial detection robustness
-  tuned against fixtures.
-- **Phase 6:** `IsInScope` org-membership path. **Phase 8:** register enumeration, verify-email
-  throttle, account lockout, code-splitting. **Phase 3 leftover:** question/option image upload API
-  (models have ImageField; serializers omit — text-only MVP).
+- **Phase 8 hardening:** Celery+Redis async scanning; threshold (FILL_HIGH/LOW) calibration vs real
+  photos; fiducial detection robustness vs logos; cropped review-region images; register enumeration;
+  verify-email throttle; account lockout; frontend code-splitting (bundle ~890 kB).
+- **Phase 6:** `IsInScope` org-membership path. **Phase 3 leftover:** question/option image upload API.
+- **Partial-marking note:** a question with net-zero partial credit counts as wrong_count (documented).
 
 ## Resolved
-- Phase-1 AllowAny applied. Phase-2 child-scope 403 bug fixed. Phase-3 sheet header/fiducial overlaps fixed.
+- Phase-1 AllowAny. Phase-2 child-scope 403. Phase-3 sheet header overlaps. Phase-4 review-queue
+  (needs_review clear, double_mark dedup, no_qr surfaced).
