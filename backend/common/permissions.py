@@ -1,17 +1,32 @@
 from rest_framework.permissions import IsAuthenticated
 
+from organizations.models import OrganizationMembership
+
 
 class IsInScope(IsAuthenticated):
     """Global default permission. Requires authentication everywhere, and at the object level
-    confirms the row belongs to the requester's solo scope.
+    confirms the row belongs to the requester's current scope.
 
-    Phase 0 implements the solo (user) path. Organization-scoped object access depends on
-    membership, which is modeled in Phase 6; until then org-scoped objects are denied here and
-    list endpoints must scope their querysets via ScopedQuerySet.in_scope().
+    Solo scope  : obj.user_id == request.user.id
+    Org scope   : obj.organization_id is set AND the user is an active member of that org.
     """
 
     def has_object_permission(self, request, view, obj):
+        if not request.user.is_authenticated:
+            return False
+
+        # Solo path: object owned by this user directly.
         user_id = getattr(obj, "user_id", None)
-        if user_id is not None:
-            return request.user.is_authenticated and user_id == request.user.id
+        if user_id is not None and user_id == request.user.id:
+            return True
+
+        # Org path: object owned by an organization the user actively belongs to.
+        org_id = getattr(obj, "organization_id", None)
+        if org_id is not None:
+            return OrganizationMembership.objects.filter(
+                organization_id=org_id,
+                user=request.user,
+                status=OrganizationMembership.ACTIVE,
+            ).exists()
+
         return False

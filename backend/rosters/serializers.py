@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from common.scope import parent_in_scope
+
 from .models import Roster, Student
 
 
@@ -10,8 +12,8 @@ class StudentSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
 
     def validate_roster(self, value):
-        user = self.context["request"].user
-        if value.user_id != user.id:
+        request = self.context["request"]
+        if not parent_in_scope(value, request):
             raise serializers.ValidationError("Roster not found in your account.")
         return value
 
@@ -30,7 +32,7 @@ class RosterSerializer(serializers.ModelSerializer):
     def validate_class_group(self, value):
         if value is None:
             return value
-        user = self.context["request"].user
-        if value.user_id != user.id:
+        request = self.context["request"]
+        if not parent_in_scope(value, request):
             raise serializers.ValidationError("Class group not found in your account.")
         return value

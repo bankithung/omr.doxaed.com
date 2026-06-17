@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from common.scope import scope_kwargs
 from common.viewsets import ScopedModelViewSet
 
 from .models import ClassGroup, MarkingScheme, Option, Question, Test
@@ -29,7 +30,7 @@ class TestViewSet(ScopedModelViewSet):
     def retest(self, request, pk=None):
         original = self.get_object()
         clone = Test.objects.create(
-            user=request.user,
+            **scope_kwargs(request),
             created_by=request.user,
             class_group=original.class_group,
             title=original.title,

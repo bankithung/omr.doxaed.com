@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from common.scope import parent_in_scope
+
 from .models import ClassGroup, MarkingScheme, Option, Question, Test
 
 
@@ -41,8 +43,8 @@ class TestSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "parent_test", "attempt_number", "created_at", "updated_at")
 
     def validate_class_group(self, value):
-        user = self.context["request"].user
-        if value.user_id != user.id:
+        request = self.context["request"]
+        if not parent_in_scope(value, request):
             raise serializers.ValidationError("Class not found in your account.")
         return value
 
@@ -81,8 +83,8 @@ class QuestionSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
 
     def validate_test(self, value):
-        user = self.context["request"].user
-        if value.user_id != user.id:
+        request = self.context["request"]
+        if not parent_in_scope(value, request):
             raise serializers.ValidationError("Test not found in your account.")
         return value
 
