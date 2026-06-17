@@ -117,6 +117,13 @@ EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="OMRFlow <no-reply@omrflow.local>")
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
+# ---------------------------------------------------------------------------
+# Razorpay
+# ---------------------------------------------------------------------------
+RAZORPAY_KEY_ID = env("RAZORPAY_KEY_ID", default="rzp_test_PLACEHOLDER")
+RAZORPAY_KEY_SECRET = env("RAZORPAY_KEY_SECRET", default="PLACEHOLDER_SECRET")
+RAZORPAY_WEBHOOK_SECRET = env("RAZORPAY_WEBHOOK_SECRET", default="whsec_test")
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True

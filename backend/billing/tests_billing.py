@@ -496,3 +496,401 @@ class PerOrgEventFKTest(TestCase):
         """Solo scan: organization can be null."""
         event = ScanEvent.objects.create(user=self.user)
         self.assertIsNone(event.organization)
+
+
+# ---------------------------------------------------------------------------
+# Task 2 tests: gateway + subscribe endpoint + signature-verified webhook
+# ---------------------------------------------------------------------------
+
+import hashlib
+import hmac
+import json
+from unittest.mock import patch
+
+from django.test import TestCase, override_settings
+from rest_framework.test import APIClient
+
+
+WEBHOOK_SECRET = "test_webhook_secret_xyz"
+
+# Override Razorpay settings for all Task 2 tests.
+RAZORPAY_TEST_SETTINGS = {
+    "RAZORPAY_KEY_ID": "rzp_test_FAKE",
+    "RAZORPAY_KEY_SECRET": "fake_secret",
+    "RAZORPAY_WEBHOOK_SECRET": WEBHOOK_SECRET,
+}
+
+
+def _make_sig(body_bytes: bytes, secret: str = WEBHOOK_SECRET) -> str:
+    """Compute the real HMAC-SHA256 signature (what Razorpay would send)."""
+    return hmac.new(secret.encode(), body_bytes, hashlib.sha256).hexdigest()
+
+
+def _webhook_body(event: str, sub_id: str, current_end: int | None = None) -> bytes:
+    """Build a minimal Razorpay-style webhook JSON payload."""
+    entity = {"id": sub_id}
+    if current_end is not None:
+        entity["current_end"] = current_end
+    payload = {
+        "event": event,
+        "payload": {
+            "subscription": {
+                "entity": entity,
+            }
+        },
+    }
+    return json.dumps(payload).encode()
+
+
+@override_settings(**RAZORPAY_TEST_SETTINGS)
+class SubscribeEndpointTest(TestCase):
+    """Tests for POST /api/v1/billing/organizations/{id}/subscribe/."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin_user = make_user("sub_admin")
+        self.member_user = make_user("sub_member")
+        self.org = make_org(self.admin_user, "SubOrg")
+
+        # Give member_user a non-admin membership.
+        OrganizationMembership.objects.create(
+            organization=self.org,
+            user=self.member_user,
+            role=OrganizationMembership.MEMBER,
+            status=OrganizationMembership.ACTIVE,
+        )
+
+        self.team_plan = get_team_plan()
+        get_free_plan()
+
+        self.subscribe_url = f"/api/v1/billing/organizations/{self.org.pk}/subscribe/"
+
+    # ------------------------------------------------------------------
+    # Happy path: admin subscribes with a mocked gateway
+    # ------------------------------------------------------------------
+
+    def test_admin_subscribe_creates_subscription(self):
+        """Admin POST subscribe (mocked gateway) → 201, Subscription(created) created."""
+        self.client.force_authenticate(user=self.admin_user)
+        fake_result = {
+            "id": "sub_fake123",
+            "short_url": "https://rzp.io/i/fake",
+            "status": "created",
+        }
+        with patch("billing.gateway.create_subscription", return_value=fake_result):
+            resp = self.client.post(
+                self.subscribe_url,
+                {"plan_code": "team"},
+                format="json",
+            )
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["subscription_id"], "sub_fake123")
+        self.assertEqual(resp.data["short_url"], "https://rzp.io/i/fake")
+        self.assertEqual(resp.data["key_id"], "rzp_test_FAKE")
+
+        sub = Subscription.objects.get(organization=self.org)
+        self.assertEqual(sub.status, Subscription.CREATED)
+        self.assertEqual(sub.razorpay_subscription_id, "sub_fake123")
+        self.assertEqual(sub.plan, self.team_plan)
+
+    def test_subscribe_idempotent_update(self):
+        """Calling subscribe again updates the existing Subscription row."""
+        self.client.force_authenticate(user=self.admin_user)
+        fake1 = {"id": "sub_first", "short_url": "", "status": "created"}
+        fake2 = {"id": "sub_second", "short_url": "", "status": "created"}
+
+        with patch("billing.gateway.create_subscription", return_value=fake1):
+            self.client.post(self.subscribe_url, {"plan_code": "team"}, format="json")
+
+        with patch("billing.gateway.create_subscription", return_value=fake2):
+            resp = self.client.post(self.subscribe_url, {"plan_code": "team"}, format="json")
+
+        self.assertEqual(resp.status_code, 201)
+        # Still only one Subscription for the org.
+        self.assertEqual(Subscription.objects.filter(organization=self.org).count(), 1)
+        sub = Subscription.objects.get(organization=self.org)
+        self.assertEqual(sub.razorpay_subscription_id, "sub_second")
+
+    # ------------------------------------------------------------------
+    # Non-admin → 403
+    # ------------------------------------------------------------------
+
+    def test_non_admin_subscribe_forbidden(self):
+        """A member (non-admin) gets a 403 when trying to subscribe."""
+        self.client.force_authenticate(user=self.member_user)
+        fake_result = {"id": "sub_nope", "short_url": "", "status": "created"}
+        with patch("billing.gateway.create_subscription", return_value=fake_result):
+            resp = self.client.post(
+                self.subscribe_url,
+                {"plan_code": "team"},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(Subscription.objects.filter(organization=self.org).exists())
+
+    def test_unauthenticated_subscribe_forbidden(self):
+        """Unauthenticated request → 401."""
+        resp = self.client.post(self.subscribe_url, {"plan_code": "team"}, format="json")
+        self.assertIn(resp.status_code, (401, 403))
+
+    # ------------------------------------------------------------------
+    # Bad plan_code → 400
+    # ------------------------------------------------------------------
+
+    def test_bad_plan_code_returns_400(self):
+        """Unknown plan_code → 400 with detail message."""
+        self.client.force_authenticate(user=self.admin_user)
+        resp = self.client.post(
+            self.subscribe_url,
+            {"plan_code": "nonexistent"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertIn("plan_code", resp.data["detail"])
+
+    def test_missing_plan_code_returns_400(self):
+        """Empty plan_code → 400."""
+        self.client.force_authenticate(user=self.admin_user)
+        resp = self.client.post(self.subscribe_url, {}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    # ------------------------------------------------------------------
+    # Non-member of org → 403
+    # ------------------------------------------------------------------
+
+    def test_non_member_subscribe_forbidden(self):
+        """User not in the org at all → 403."""
+        outsider = make_user("outsider_sub")
+        self.client.force_authenticate(user=outsider)
+        resp = self.client.post(
+            self.subscribe_url,
+            {"plan_code": "team"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+
+@override_settings(**RAZORPAY_TEST_SETTINGS)
+class WebhookSignatureTest(TestCase):
+    """Tests for POST /api/v1/billing/webhook/."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.webhook_url = "/api/v1/billing/webhook/"
+
+        # Create a Subscription in 'created' state so webhook can update it.
+        self.user = make_user("wh_user")
+        self.org = make_org(self.user, "WebhookOrg")
+        get_free_plan()
+        self.team_plan = get_team_plan()
+        self.sub = Subscription.objects.create(
+            organization=self.org,
+            plan=self.team_plan,
+            status=Subscription.CREATED,
+            razorpay_subscription_id="sub_wh_abc",
+        )
+
+    # ------------------------------------------------------------------
+    # subscription.activated → status = active
+    # ------------------------------------------------------------------
+
+    def test_valid_signature_activated_sets_active(self):
+        """Valid HMAC signature + subscription.activated → Subscription becomes active."""
+        body = _webhook_body("subscription.activated", "sub_wh_abc")
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.ACTIVE)
+
+    def test_valid_signature_charged_sets_active(self):
+        """subscription.charged event also sets status to active."""
+        body = _webhook_body("subscription.charged", "sub_wh_abc")
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.ACTIVE)
+
+    def test_activated_stores_current_period_end(self):
+        """subscription.activated with current_end timestamp → stored on the Subscription."""
+        import time
+
+        future_ts = int(time.time()) + 30 * 86400  # 30 days from now
+        body = _webhook_body("subscription.activated", "sub_wh_abc", current_end=future_ts)
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.sub.refresh_from_db()
+        self.assertIsNotNone(self.sub.current_period_end)
+
+    # ------------------------------------------------------------------
+    # subscription.cancelled → status = canceled
+    # ------------------------------------------------------------------
+
+    def test_valid_signature_cancelled_sets_canceled(self):
+        """subscription.cancelled → Subscription becomes canceled."""
+        # First activate it.
+        self.sub.status = Subscription.ACTIVE
+        self.sub.save(update_fields=["status"])
+
+        body = _webhook_body("subscription.cancelled", "sub_wh_abc")
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.CANCELED)
+
+    # ------------------------------------------------------------------
+    # subscription.halted → status = past_due
+    # ------------------------------------------------------------------
+
+    def test_valid_signature_halted_sets_past_due(self):
+        """subscription.halted → Subscription becomes past_due."""
+        body = _webhook_body("subscription.halted", "sub_wh_abc")
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.PAST_DUE)
+
+    # ------------------------------------------------------------------
+    # INVALID signature → 400 (KEY security test)
+    # ------------------------------------------------------------------
+
+    def test_invalid_signature_returns_400(self):
+        """Wrong HMAC signature → 400 and Subscription status unchanged."""
+        original_status = self.sub.status
+        body = _webhook_body("subscription.activated", "sub_wh_abc")
+        bad_sig = "deadbeef" * 8  # wrong signature
+
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=bad_sig,
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, original_status)
+
+    def test_missing_signature_returns_400(self):
+        """Missing X-Razorpay-Signature header → 400."""
+        body = _webhook_body("subscription.activated", "sub_wh_abc")
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            # no HTTP_X_RAZORPAY_SIGNATURE header
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.CREATED)
+
+    def test_tampered_body_returns_400(self):
+        """Valid signature computed over original body, but body was tampered → 400."""
+        original_body = _webhook_body("subscription.activated", "sub_wh_abc")
+        sig = _make_sig(original_body)
+
+        # Tamper: change the subscription ID in the body.
+        tampered_body = _webhook_body("subscription.activated", "sub_DIFFERENT")
+
+        resp = self.client.post(
+            self.webhook_url,
+            data=tampered_body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    # ------------------------------------------------------------------
+    # Idempotency
+    # ------------------------------------------------------------------
+
+    def test_duplicate_activated_event_idempotent(self):
+        """Delivering the same activation event twice is safe."""
+        body = _webhook_body("subscription.activated", "sub_wh_abc")
+        sig = _make_sig(body)
+
+        for _ in range(2):
+            resp = self.client.post(
+                self.webhook_url,
+                data=body,
+                content_type="application/json",
+                HTTP_X_RAZORPAY_SIGNATURE=sig,
+            )
+            self.assertEqual(resp.status_code, 200)
+
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.ACTIVE)
+
+    # ------------------------------------------------------------------
+    # Unknown subscription ID → 200 (ack gracefully)
+    # ------------------------------------------------------------------
+
+    def test_unknown_subscription_id_returns_200(self):
+        """Webhook for a subscription ID we don't know → 200 (acked, ignored)."""
+        body = _webhook_body("subscription.activated", "sub_UNKNOWN_ID")
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200)
+        # Our subscription is unaffected.
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.CREATED)
+
+    # ------------------------------------------------------------------
+    # verify_webhook_signature unit test
+    # ------------------------------------------------------------------
+
+    def test_verify_webhook_signature_correct(self):
+        """Unit test: verify_webhook_signature returns True for a correct signature."""
+        from billing.gateway import verify_webhook_signature
+
+        body = b"hello world"
+        sig = hmac.new(WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+        self.assertTrue(verify_webhook_signature(body, sig))
+
+    def test_verify_webhook_signature_wrong(self):
+        """Unit test: verify_webhook_signature returns False for a wrong signature."""
+        from billing.gateway import verify_webhook_signature
+
+        body = b"hello world"
+        self.assertFalse(verify_webhook_signature(body, "wrongsig"))
+
+    def test_verify_webhook_signature_empty(self):
+        """Unit test: verify_webhook_signature returns False for empty signature."""
+        from billing.gateway import verify_webhook_signature
+
+        body = b"hello world"
+        self.assertFalse(verify_webhook_signature(body, ""))
