@@ -15,6 +15,8 @@ import Profile from "@/routes/Profile"
 import Classes from "@/routes/Classes"
 import TestList from "@/routes/TestList"
 import TestWizard from "@/routes/TestWizard"
+import Rosters from "@/routes/Rosters"
+import RosterDetail from "@/routes/RosterDetail"
 
 function Nav() {
   const { user, logout } = useAuth()
@@ -34,9 +36,14 @@ function Nav() {
         Style Guide
       </Link>
       {user && (
-        <Link to="/classes" className="text-muted-foreground hover:text-foreground">
-          Classes
-        </Link>
+        <>
+          <Link to="/classes" className="text-muted-foreground hover:text-foreground">
+            Classes
+          </Link>
+          <Link to="/rosters" className="text-muted-foreground hover:text-foreground">
+            Rosters
+          </Link>
+        </>
       )}
 
       <div className="ml-auto flex items-center gap-3">
@@ -117,6 +124,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <TestWizard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rosters"
+          element={
+            <ProtectedRoute>
+              <Rosters />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rosters/:id"
+          element={
+            <ProtectedRoute>
+              <RosterDetail />
             </ProtectedRoute>
           }
         />
