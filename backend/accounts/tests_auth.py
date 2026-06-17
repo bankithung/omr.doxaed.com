@@ -1,10 +1,19 @@
 from django.core import mail
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from accounts.tokens import make_uid_token
 
 User = get_user_model()
+
+
+# Base class that clears the Django cache before each test so DRF throttle
+# counts don't accumulate across test cases when running the full suite.
+class NoThrottleTestCase(APITestCase):
+    def _pre_setup(self):
+        cache.clear()
+        super()._pre_setup()
 
 
 class RegisterTests(APITestCase):
@@ -41,7 +50,7 @@ class VerifyEmailTests(APITestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-class LoginTests(APITestCase):
+class LoginTests(NoThrottleTestCase):
     def setUp(self):
         self.u = User.objects.create_user(email="l@example.com", password="Str0ng!pass", full_name="L")
 
@@ -56,7 +65,7 @@ class LoginTests(APITestCase):
         self.assertEqual(resp.status_code, 401)
 
 
-class LogoutTests(APITestCase):
+class LogoutTests(NoThrottleTestCase):
     def setUp(self):
         self.u = User.objects.create_user(email="o@example.com", password="Str0ng!pass")
         r = self.client.post("/api/v1/auth/login/", {"email": "o@example.com", "password": "Str0ng!pass"}, format="json")
@@ -69,3 +78,47 @@ class LogoutTests(APITestCase):
         self.client.credentials()
         again = self.client.post("/api/v1/auth/token/refresh/", {"refresh": self.refresh}, format="json")
         self.assertEqual(again.status_code, 401)
+
+
+class PasswordResetTests(NoThrottleTestCase):
+    def test_request_sends_email_for_existing_user(self):
+        User.objects.create_user(email="p@example.com", password="Str0ng!pass")
+        resp = self.client.post("/api/v1/auth/password-reset/", {"email": "p@example.com"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_request_unknown_email_still_200_no_email(self):
+        resp = self.client.post("/api/v1/auth/password-reset/", {"email": "nobody@example.com"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_confirm_sets_new_password(self):
+        u = User.objects.create_user(email="c@example.com", password="OldPass!123")
+        uid, token = make_uid_token(u)
+        resp = self.client.post("/api/v1/auth/password-reset-confirm/",
+            {"uid": uid, "token": token, "new_password": "Brand!New9"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        u.refresh_from_db()
+        self.assertTrue(u.check_password("Brand!New9"))
+
+
+class MeTests(NoThrottleTestCase):
+    def setUp(self):
+        self.u = User.objects.create_user(email="m@example.com", password="Str0ng!pass", full_name="Me")
+        r = self.client.post("/api/v1/auth/login/", {"email": "m@example.com", "password": "Str0ng!pass"}, format="json")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
+
+    def test_get_me(self):
+        resp = self.client.get("/api/v1/auth/me/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["email"], "m@example.com")
+
+    def test_patch_full_name(self):
+        resp = self.client.patch("/api/v1/auth/me/", {"full_name": "Renamed"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.u.refresh_from_db()
+        self.assertEqual(self.u.full_name, "Renamed")
+
+    def test_me_requires_auth(self):
+        self.client.credentials()
+        self.assertEqual(self.client.get("/api/v1/auth/me/").status_code, 401)
