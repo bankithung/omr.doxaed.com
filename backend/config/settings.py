@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     # third-party
     "rest_framework",
     "corsheaders",
+    "rest_framework_simplejwt.token_blacklist",
     # local
     "common",
     "accounts",
@@ -93,16 +94,27 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ),
-    "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "120/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min",
+        "user": "120/min",
+        "login": "5/min",
+        "register": "5/min",
+        "password_reset": "5/min",
+    },
 }
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:5173"])
+
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="OMRFlow <no-reply@omrflow.local>")
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
