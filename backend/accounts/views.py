@@ -69,6 +69,7 @@ class LogoutView(APIView):
 class MeView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = MeSerializer
+    http_method_names = ["get", "patch", "head", "options"]
 
     def get_object(self):
         return self.request.user
