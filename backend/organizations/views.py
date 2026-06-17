@@ -7,6 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+import billing.limits as billing_limits
+
 from .emails import send_invitation_email
 from .models import AuditLog, Invitation, Organization, OrganizationMembership
 from .serializers import (
@@ -126,6 +128,18 @@ class InviteView(APIView):
         membership = require_membership(request, org_id, role=OrganizationMembership.ADMIN)
         org = membership.organization
 
+        # ---- seat gate -------------------------------------------------------
+        if not billing_limits.can_add_seat(org):
+            return Response(
+                {
+                    "detail": (
+                        "Seat limit reached for your plan. "
+                        "Upgrade to add more staff."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = InviteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
@@ -217,6 +231,22 @@ class AcceptInviteView(APIView):
             )
 
         org = invitation.organization
+
+        # ---- seat gate (re-check at accept time) -----------------------------
+        # An invite created while the org was on a paid plan can be accepted
+        # after a downgrade.  Re-check the seat gate before granting a NEW active
+        # seat.  Re-accepting your own already-active seat must still work, so
+        # only gate when the user is not already an active member.
+        already_active = OrganizationMembership.objects.filter(
+            organization=org,
+            user=request.user,
+            status=OrganizationMembership.ACTIVE,
+        ).exists()
+        if not already_active and not billing_limits.can_add_seat(org):
+            return Response(
+                {"detail": "Seat limit reached for this organization's plan."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Create or re-activate membership.
         membership, created = OrganizationMembership.objects.get_or_create(

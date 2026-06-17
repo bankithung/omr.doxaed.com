@@ -1073,6 +1073,25 @@ class _OrgMgmtBase(APITestCase):
             status=OrganizationMembership.ACTIVE,
         )
 
+        # Grant the org an active Team subscription so the seat gate (free=1)
+        # does not block invite/management tests (this org already has 2 members).
+        from billing.models import Plan, Subscription
+        team_plan, _ = Plan.objects.get_or_create(
+            code=Plan.TEAM,
+            defaults={
+                "name": "Team",
+                "price_inr": "500.00",
+                "seat_limit": 50,
+                "students_per_generation_limit": None,
+                "generations_per_day_limit": None,
+                "monthly_scan_limit": 5000,
+            },
+        )
+        Subscription.objects.update_or_create(
+            organization=org,
+            defaults={"plan": team_plan, "status": Subscription.ACTIVE},
+        )
+
     def _login(self, user):
         r = self.client.post(
             "/api/v1/auth/login/",

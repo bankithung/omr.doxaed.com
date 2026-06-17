@@ -34,6 +34,7 @@ import Analytics from "@/routes/Analytics"
 import Organizations from "@/routes/Organizations"
 import OrgMembers from "@/routes/OrgMembers"
 import AcceptInvite from "@/routes/AcceptInvite"
+import Billing from "@/routes/Billing"
 
 function OrgSwitcher() {
   const { orgs, activeOrg, setActiveOrg } = useOrg()
@@ -269,6 +270,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AcceptInvite />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizations/:id/billing"
+          element={
+            <ProtectedRoute>
+              <Billing />
             </ProtectedRoute>
           }
         />

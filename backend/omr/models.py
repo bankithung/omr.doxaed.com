@@ -98,6 +98,7 @@ class ScanJob(models.Model):
 class GenerationEvent(models.Model):
     """
     One row per generation call — used to enforce the ≤5 generations/day free-tier gate.
+    organization is set when the generation happens in an org scope (null = solo user).
     """
 
     user = models.ForeignKey(
@@ -110,6 +111,13 @@ class GenerationEvent(models.Model):
         on_delete=models.CASCADE,
         related_name="generation_events",
     )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="generation_events",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -117,6 +125,40 @@ class GenerationEvent(models.Model):
 
     def __str__(self):
         return f"GenerationEvent user={self.user_id} test={self.test_id} at {self.created_at}"
+
+
+class ScanEvent(models.Model):
+    """
+    One row per scan job processed — used to enforce the monthly scan limit per org.
+    organization is set when the scan happens in an org scope (null = solo user).
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="scan_events",
+    )
+    test = models.ForeignKey(
+        "assessments.Test",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="scan_events",
+    )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="scan_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"ScanEvent user={self.user_id} org={self.organization_id} at {self.created_at}"
 
 
 class OmrSheet(models.Model):
