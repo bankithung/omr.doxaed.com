@@ -36,3 +36,14 @@ api.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+export const authApi = {
+  register: (d) => api.post("/auth/register/", d),
+  verifyEmail: (d) => api.post("/auth/verify-email/", d),
+  login: (d) => api.post("/auth/login/", d),
+  logout: (refresh) => api.post("/auth/logout/", { refresh }),
+  passwordReset: (email) => api.post("/auth/password-reset/", { email }),
+  passwordResetConfirm: (d) => api.post("/auth/password-reset-confirm/", d),
+  me: () => api.get("/auth/me/"),
+  updateMe: (d) => api.patch("/auth/me/", d),
+}
