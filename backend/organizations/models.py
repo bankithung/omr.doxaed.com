@@ -48,6 +48,9 @@ class OrganizationMembership(models.Model):
                 name="uniq_org_membership",
             )
         ]
+        indexes = [
+            models.Index(fields=["organization", "status"], name="orgmembership_org_status_idx"),
+        ]
 
     def __str__(self):
         return f"{self.user} @ {self.organization} ({self.role})"
@@ -98,6 +101,9 @@ class AuditLog(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "created_at"], name="auditlog_org_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.action} by {self.actor} in {self.organization}"

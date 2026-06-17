@@ -35,6 +35,10 @@ class StudentResult(models.Model):
 
     class Meta:
         ordering = ["-graded_at", "id"]
+        indexes = [
+            models.Index(fields=["test", "student"], name="studentresult_test_student_idx"),
+            models.Index(fields=["graded_at"], name="studentresult_graded_at_idx"),
+        ]
 
     def __str__(self):
         return f"StudentResult test={self.test_id} student={self.student_id} score={self.score}"
@@ -64,6 +68,9 @@ class QuestionResponse(models.Model):
 
     class Meta:
         ordering = ["q_pos", "id"]
+        indexes = [
+            models.Index(fields=["student_result", "question"], name="qresponse_result_question_idx"),
+        ]
 
     def __str__(self):
         return f"QuestionResponse result={self.student_result_id} q_pos={self.q_pos}"

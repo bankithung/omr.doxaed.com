@@ -196,3 +196,14 @@ AXES_FAILURE_LIMIT = env.int("AXES_FAILURE_LIMIT", default=5)
 AXES_COOLOFF_TIME = 1  # hours
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 AXES_RESET_ON_SUCCESS = True
+
+# ---------------------------------------------------------------------------
+# Celery: async task processing (eager/inline in dev & tests; async in prod)
+# ---------------------------------------------------------------------------
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="")
+# CELERY_TASK_ALWAYS_EAGER=True (default) → .delay() runs synchronously inline.
+# Set CELERY_TASK_ALWAYS_EAGER=False in production (with a real broker).
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=True)
+# Propagate exceptions from eager tasks so tests see them as real failures.
+CELERY_TASK_EAGER_PROPAGATES = True

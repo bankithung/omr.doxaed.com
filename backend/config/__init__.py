@@ -1,0 +1,5 @@
+# This ensures the Celery app is always imported when Django starts, so that
+# shared_task will use this app and CELERY_TASK_ALWAYS_EAGER is respected in tests.
+from .celery import app as celery_app  # noqa: F401
+
+__all__ = ("celery_app",)
