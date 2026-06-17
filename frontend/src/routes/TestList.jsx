@@ -275,7 +275,7 @@ export default function TestList() {
                 <TableHead>Subject</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Attempt</TableHead>
-                <TableHead className="w-48 text-right">Actions</TableHead>
+                <TableHead className="w-72 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -299,6 +299,15 @@ export default function TestList() {
                         onClick={() => setGenerateTest(test)}
                       >
                         Generate sheets
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/tests/${test.id}/scan`}>Scan</Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/tests/${test.id}/results`}>Results</Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/tests/${test.id}/review`}>Review</Link>
                       </Button>
                       <Button
                         variant="outline"
