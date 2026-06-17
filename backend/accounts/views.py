@@ -85,6 +85,8 @@ class PasswordResetView(APIView):
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         user = read_uid_token(request.data.get("uid"), request.data.get("token"))

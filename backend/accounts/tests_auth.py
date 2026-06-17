@@ -101,6 +101,23 @@ class PasswordResetTests(NoThrottleTestCase):
         u.refresh_from_db()
         self.assertTrue(u.check_password("Brand!New9"))
 
+    def test_confirm_invalid_token_400(self):
+        from accounts.tokens import make_uid_token
+        u = User.objects.create_user(email="badtok@example.com", password="OldPass!123")
+        uid, _ = make_uid_token(u)
+        resp = self.client.post("/api/v1/auth/password-reset-confirm/",
+            {"uid": uid, "token": "not-a-valid-token", "new_password": "Brand!New9"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_confirm_weak_password_400(self):
+        from accounts.tokens import make_uid_token
+        u = User.objects.create_user(email="weakpw@example.com", password="OldPass!123")
+        uid, token = make_uid_token(u)
+        resp = self.client.post("/api/v1/auth/password-reset-confirm/",
+            {"uid": uid, "token": token, "new_password": "password"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("new_password", resp.data)
+
 
 class MeTests(NoThrottleTestCase):
     def setUp(self):
