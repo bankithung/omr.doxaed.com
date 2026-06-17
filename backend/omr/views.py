@@ -31,6 +31,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from assessments.models import Test
+from common.scope import parent_in_scope, scope_filter
 from omr.codes import make_sheet_code
 from omr.geometry import build_template
 from omr.generator import render_sheet_pdf
@@ -84,7 +85,7 @@ class GenerateView(APIView):
         except Test.DoesNotExist:
             return Response({"test": "Test not found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if test.user_id != request.user.id:
+        if not parent_in_scope(test, request):
             return Response(
                 {"test": "Test not found in your account."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -95,7 +96,7 @@ class GenerateView(APIView):
         except Roster.DoesNotExist:
             return Response({"roster": "Roster not found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if roster.user_id != request.user.id:
+        if not parent_in_scope(roster, request):
             return Response(
                 {"roster": "Roster not found in your account."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -273,7 +274,7 @@ class OmrSheetListView(generics.ListAPIView):
     serializer_class = OmrSheetSerializer
 
     def get_queryset(self):
-        qs = OmrSheet.objects.filter(test__user=self.request.user)
+        qs = OmrSheet.objects.filter(scope_filter(self.request, "test__"))
         test_id = self.request.query_params.get("test")
         if test_id:
             qs = qs.filter(test_id=test_id)
@@ -337,7 +338,7 @@ class ScanUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if test.user_id != request.user.id:
+        if not parent_in_scope(test, request):
             return Response(
                 {"test": "Test not found in your account."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -438,4 +439,4 @@ class ScanBatchDetailView(generics.RetrieveAPIView):
     serializer_class = ScanBatchSerializer
 
     def get_queryset(self):
-        return ScanBatch.objects.filter(test__user=self.request.user)
+        return ScanBatch.objects.filter(scope_filter(self.request, "test__"))

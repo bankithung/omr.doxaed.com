@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.scope import scope_filter
 from results.models import QuestionResponse, ReviewItem, StudentResult
 from results.serializers import (
     ResolveReviewSerializer,
@@ -37,7 +38,7 @@ class StudentResultListView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = StudentResult.objects.filter(
-            test__user=self.request.user
+            scope_filter(self.request, "test__")
         ).prefetch_related("responses")
         test_id = self.request.query_params.get("test")
         if test_id:
@@ -58,14 +59,15 @@ class ReviewItemListView(generics.ListAPIView):
     serializer_class = ReviewItemSerializer
 
     def get_queryset(self):
-        user = self.request.user
         test_id = self.request.query_params.get("test")
 
-        # Filter open items scoped to this user. Include both:
-        #   - items tied to an OmrSheet (most flags), via omr_sheet__test__user
-        #   - orphaned items with no OmrSheet (e.g. no_qr), via scan_job__batch__test__user
+        # Filter open items scoped to the current scope (solo or org). Include both:
+        #   - items tied to an OmrSheet (most flags), via omr_sheet__test__
+        #   - orphaned items with no OmrSheet (e.g. no_qr), via scan_job__batch__test__
+        sf_omr = scope_filter(self.request, "omr_sheet__test__")
+        sf_scan = scope_filter(self.request, "scan_job__batch__test__")
         qs = ReviewItem.objects.filter(
-            Q(omr_sheet__test__user=user) | Q(scan_job__batch__test__user=user),
+            sf_omr | sf_scan,
             resolved=False,
         ).distinct()
         if test_id:
@@ -89,13 +91,12 @@ class ResolveReviewItemView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        # Scope check: must belong to request.user via either the omr_sheet's
-        # test OR (for orphaned items like no_qr) the scan_job's batch's test.
+        # Scope check: must belong to the current scope (solo or org) via either
+        # the omr_sheet's test OR (for orphaned items like no_qr) the scan_job's batch's test.
+        sf_omr = scope_filter(request, "omr_sheet__test__")
+        sf_scan = scope_filter(request, "scan_job__batch__test__")
         review_item = get_object_or_404(
-            ReviewItem.objects.filter(
-                Q(omr_sheet__test__user=request.user)
-                | Q(scan_job__batch__test__user=request.user),
-            ),
+            ReviewItem.objects.filter(sf_omr | sf_scan),
             pk=pk,
             resolved=False,
         )

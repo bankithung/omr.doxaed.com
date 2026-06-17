@@ -466,3 +466,479 @@ class IsInScopePermissionTests(_OrgApiBase):
         # A in solo mode
         r = self.client.get(f"/api/v1/classes/{class_id}/")
         self.assertIn(r.status_code, (403, 404))
+
+
+# ---------------------------------------------------------------------------
+# Phase 6 Task 2 — helpers shared across child-resource org tests
+# ---------------------------------------------------------------------------
+
+def _make_org_test_fixture(org, user_a, user_b):
+    """
+    Create an org-owned ClassGroup + Test + 3 Questions with options (A=correct).
+    Returns (class_group, test, questions).
+    """
+    from assessments.models import ClassGroup, MarkingScheme, Option, Question, Test
+
+    cg = ClassGroup.objects.create(organization=org, created_by=user_a, name="OrgCG")
+    t = Test.objects.create(
+        organization=org,
+        created_by=user_a,
+        class_group=cg,
+        title="OrgTest",
+        subject="Math",
+    )
+    MarkingScheme.objects.create(test=t, marks_per_correct=1)
+    questions = []
+    for i in range(3):
+        q = Question.objects.create(test=t, order_index=i, text=f"OrgQ{i}", topic=f"T{i}")
+        for label in ["A", "B", "C", "D"]:
+            Option.objects.create(question=q, label=label, text=label, is_correct=(label == "A"))
+        questions.append(q)
+    return cg, t, questions
+
+
+def _make_org_roster(org, user_a, n_students=2):
+    """Create an org-owned Roster with n_students students."""
+    from rosters.models import Roster, Student
+
+    roster = Roster.objects.create(organization=org, created_by=user_a, name="OrgRoster")
+    students = []
+    for i in range(n_students):
+        s = Student.objects.create(
+            roster=roster,
+            roll_number=f"{i + 1:02d}",
+            full_name=f"OrgStudent{i + 1}",
+        )
+        students.append(s)
+    return roster, students
+
+
+def _make_org_omr_sheet(test, student, seed=1):
+    """Create a minimal OmrSheet for an org-owned test + student."""
+    from assessments.models import Question
+    from omr.models import OmrSheet
+
+    questions = list(test.questions.order_by("order_index", "id"))
+    q_ids = [q.id for q in questions]
+    option_order = {str(q.id): ["A", "B", "C", "D"] for q in questions}
+    answer_key = {str(i): ["A"] for i in range(len(questions))}
+    return OmrSheet.objects.create(
+        test=test,
+        student=student,
+        sheet_code=f"ORG-SHEET-{seed:04d}",
+        human_readable_code=f"OS{seed:04d}",
+        question_order=q_ids,
+        option_order=option_order,
+        answer_key=answer_key,
+        page_count=1,
+        shuffle_version=seed,
+    )
+
+
+def _make_org_result(test, student, omr_sheet, score=2):
+    """Create a StudentResult for an org-scoped sheet."""
+    from decimal import Decimal
+    from results.models import QuestionResponse, StudentResult
+
+    result = StudentResult.objects.create(
+        test=test,
+        student=student,
+        omr_sheet=omr_sheet,
+        score=Decimal(str(score)),
+        max_score=Decimal("3"),
+        correct_count=score,
+        wrong_count=3 - score,
+        blank_count=0,
+    )
+    questions = list(test.questions.order_by("order_index", "id"))
+    for i, q in enumerate(questions):
+        is_correct = i < score
+        QuestionResponse.objects.create(
+            student_result=result,
+            question=q,
+            q_pos=i,
+            marked_options=["A"] if is_correct else ["B"],
+            is_correct=is_correct,
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# J) Org-shared Questions (child of org-owned Test)
+# ---------------------------------------------------------------------------
+
+class OrgSharedQuestionsTests(_OrgApiBase):
+    """
+    A creates an org-owned Test with Questions.
+    B (same org) can list/retrieve those questions.
+    C (different org) gets empty list / 404.
+    Solo users still isolated.
+    """
+
+    def setUp(self):
+        super().setUp()
+        _, self.test, self.questions = _make_org_test_fixture(self.org, self.a, self.b)
+
+    def test_org_member_b_can_list_questions(self):
+        """B (member of org1) can list questions of an org1-owned test."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/questions/?test={self.test.id}",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        ids_returned = {item["id"] for item in r.data["results"]}
+        for q in self.questions:
+            self.assertIn(q.id, ids_returned)
+
+    def test_org_member_b_can_retrieve_question_detail(self):
+        """B can GET a specific question that belongs to an org-owned test."""
+        self._login(self.b)
+        q = self.questions[0]
+        r = self.client.get(f"/api/v1/questions/{q.id}/", **self._org_header())
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["id"], q.id)
+
+    def test_cross_org_member_sees_zero_questions(self):
+        """C (org2 admin) gets no questions for org1's test via org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/questions/?test={self.test.id}",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+    def test_cross_org_question_detail_is_404(self):
+        """C (org2) cannot retrieve an org1 question, even with org2 header."""
+        self._login(self.c)
+        q = self.questions[0]
+        r = self.client.get(f"/api/v1/questions/{q.id}/", **self._org_header(self.org2))
+        self.assertEqual(r.status_code, 404)
+
+    def test_solo_user_does_not_see_org_questions(self):
+        """A in solo mode does not see org-owned questions (scope mismatch)."""
+        # A operates in solo scope (no header)
+        r = self.client.get(f"/api/v1/questions/?test={self.test.id}")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+
+# ---------------------------------------------------------------------------
+# K) Org-shared OmrSheets
+# ---------------------------------------------------------------------------
+
+class OrgSharedOmrSheetsTests(_OrgApiBase):
+    """
+    A creates org-owned test + sheets. B (same org) can list sheets.
+    C (other org) sees none. Solo scope is isolated.
+    """
+
+    def setUp(self):
+        super().setUp()
+        _, self.test, self.questions = _make_org_test_fixture(self.org, self.a, self.b)
+        _, students = _make_org_roster(self.org, self.a, n_students=2)
+        self.sheet1 = _make_org_omr_sheet(self.test, students[0], seed=10)
+        self.sheet2 = _make_org_omr_sheet(self.test, students[1], seed=11)
+
+    def test_org_member_b_sees_sheets(self):
+        """B (member) lists sheets of org1-owned test under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/omr/sheets/?test={self.test.id}",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        ids = {item["id"] for item in r.data["results"]}
+        self.assertIn(self.sheet1.id, ids)
+        self.assertIn(self.sheet2.id, ids)
+
+    def test_cross_org_sees_no_sheets(self):
+        """C (org2) sees no sheets when querying org1's test with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/omr/sheets/?test={self.test.id}",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+    def test_solo_user_does_not_see_org_sheets(self):
+        """A in solo mode sees no sheets from org-owned tests."""
+        r = self.client.get(f"/api/v1/omr/sheets/?test={self.test.id}")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+
+# ---------------------------------------------------------------------------
+# L) Org-shared StudentResults
+# ---------------------------------------------------------------------------
+
+class OrgSharedStudentResultsTests(_OrgApiBase):
+    """
+    A creates org-owned test + results. B (same org) can list results.
+    C (other org) sees none. Solo scope is isolated.
+    """
+
+    def setUp(self):
+        super().setUp()
+        _, self.test, self.questions = _make_org_test_fixture(self.org, self.a, self.b)
+        _, students = _make_org_roster(self.org, self.a, n_students=2)
+        self.sheet1 = _make_org_omr_sheet(self.test, students[0], seed=20)
+        self.sheet2 = _make_org_omr_sheet(self.test, students[1], seed=21)
+        self.result1 = _make_org_result(self.test, students[0], self.sheet1, score=3)
+        self.result2 = _make_org_result(self.test, students[1], self.sheet2, score=1)
+
+    def test_org_member_b_sees_results(self):
+        """B (member) lists results of org1-owned test under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/results/?test={self.test.id}",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        ids = {item["id"] for item in r.data["results"]}
+        self.assertIn(self.result1.id, ids)
+        self.assertIn(self.result2.id, ids)
+
+    def test_cross_org_sees_no_results(self):
+        """C (org2) sees no results for org1's test with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/results/?test={self.test.id}",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+    def test_solo_user_does_not_see_org_results(self):
+        """A in solo mode sees no results from org-owned tests."""
+        r = self.client.get(f"/api/v1/results/?test={self.test.id}")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+
+# ---------------------------------------------------------------------------
+# M) Org-shared ReviewItems
+# ---------------------------------------------------------------------------
+
+class OrgSharedReviewItemsTests(_OrgApiBase):
+    """
+    A creates org-owned test + a ReviewItem (flagged/low-confidence).
+    B (same org) can see it in the review queue.
+    C (other org) sees nothing.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from omr.models import ScanBatch, ScanJob
+        from results.models import ReviewItem
+
+        _, self.test, self.questions = _make_org_test_fixture(self.org, self.a, self.b)
+        _, students = _make_org_roster(self.org, self.a, n_students=1)
+        self.sheet = _make_org_omr_sheet(self.test, students[0], seed=30)
+        # Create a ReviewItem tied to the sheet
+        batch = ScanBatch.objects.create(
+            test=self.test,
+            created_by=self.a,
+            status=ScanBatch.STATUS_DONE,
+            total=1,
+            processed=1,
+        )
+        self.job = ScanJob.objects.create(batch=batch, omr_sheet=self.sheet, page_no=1)
+        self.review_item = ReviewItem.objects.create(
+            omr_sheet=self.sheet,
+            scan_job=self.job,
+            reason=ReviewItem.REASON_DOUBLE_MARK,
+        )
+
+    def test_org_member_b_sees_review_item(self):
+        """B (member of org1) can see org1's open review items."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/review/?test={self.test.id}",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        ids = {item["id"] for item in r.data["results"]}
+        self.assertIn(self.review_item.id, ids)
+
+    def test_cross_org_sees_no_review_items(self):
+        """C (org2) sees no review items for org1's test with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/review/?test={self.test.id}",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+    def test_solo_user_sees_no_org_review_items(self):
+        """A in solo mode sees no review items from org-owned tests."""
+        r = self.client.get(f"/api/v1/review/?test={self.test.id}")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+    def test_cross_org_resolve_review_item_404(self):
+        """C (org2) cannot resolve org1's review item — 404."""
+        self._login(self.c)
+        r = self.client.post(
+            f"/api/v1/review/{self.review_item.id}/resolve/",
+            {"marked_options": ["A"]},
+            format="json",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# N) Org-shared Analytics
+# ---------------------------------------------------------------------------
+
+class OrgSharedAnalyticsTests(_OrgApiBase):
+    """
+    A creates org-owned test + results. B (same org) can see analytics.
+    C (other org) gets 404. Solo scope is isolated (404).
+    """
+
+    def setUp(self):
+        super().setUp()
+        _, self.test, self.questions = _make_org_test_fixture(self.org, self.a, self.b)
+        _, students = _make_org_roster(self.org, self.a, n_students=2)
+        self.sheet1 = _make_org_omr_sheet(self.test, students[0], seed=40)
+        self.sheet2 = _make_org_omr_sheet(self.test, students[1], seed=41)
+        self.result1 = _make_org_result(self.test, students[0], self.sheet1, score=3)
+        self.result2 = _make_org_result(self.test, students[1], self.sheet2, score=1)
+        self.student1 = students[0]
+        self.student2 = students[1]
+
+    def test_org_member_b_can_get_test_analytics(self):
+        """B (member) can call the test analytics endpoint under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["n_students"], 2)
+
+    def test_org_member_b_can_get_student_detail_analytics(self):
+        """B can call the student-detail analytics endpoint under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/student/{self.student1.id}/",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("score", r.data)
+
+    def test_org_member_b_can_get_improvement_analytics(self):
+        """B can call the improvement analytics endpoint under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/improvement/",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("students", r.data)
+
+    def test_org_member_b_can_export_csv(self):
+        """B can download CSV export of org1-owned test under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/export/?output_format=csv",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("text/csv", r["Content-Type"])
+
+    def test_cross_org_analytics_returns_404(self):
+        """C (org2 admin) gets 404 on org1's test analytics with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_cross_org_student_detail_returns_404(self):
+        """C (org2) gets 404 on org1's student-detail analytics with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/student/{self.student1.id}/",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_cross_org_improvement_returns_404(self):
+        """C (org2) gets 404 on org1's improvement analytics with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/improvement/",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_cross_org_export_returns_404(self):
+        """C (org2) gets 404 on org1's export with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/analytics/test/{self.test.id}/export/?output_format=csv",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_solo_user_analytics_returns_404_for_org_test(self):
+        """A in solo mode cannot see analytics for an org-owned test (scope mismatch)."""
+        r = self.client.get(f"/api/v1/analytics/test/{self.test.id}/")
+        self.assertEqual(r.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# O) Generate endpoint honors org scope
+# ---------------------------------------------------------------------------
+
+class OrgGenerateTests(_OrgApiBase):
+    """
+    B (member of org1) can trigger generation of sheets for an org-owned test + roster.
+    C (org2) cannot generate for org1's resources.
+    """
+
+    def setUp(self):
+        super().setUp()
+        _, self.test, self.questions = _make_org_test_fixture(self.org, self.a, self.b)
+        self.roster, self.students = _make_org_roster(self.org, self.a, n_students=2)
+
+    def test_org_member_b_can_generate_sheets(self):
+        """B generates sheets for org1-owned test + roster under org1 header."""
+        self._login(self.b)
+        r = self.client.post(
+            "/api/v1/omr/generate/",
+            {"test": self.test.id, "roster": self.roster.id},
+            format="json",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["count"], 2)
+
+    def test_cross_org_cannot_generate_for_org1_test(self):
+        """C (org2) cannot generate sheets using org1's test with org2 header."""
+        self._login(self.c)
+        # C does not have a roster in org2 scope, but the test itself will fail first
+        r = self.client.post(
+            "/api/v1/omr/generate/",
+            {"test": self.test.id, "roster": self.roster.id},
+            format="json",
+            **self._org_header(self.org2),
+        )
+        # Should fail because test not in org2's scope
+        self.assertIn(r.status_code, (400, 403, 404))
+
+    def test_solo_cannot_generate_for_org_test(self):
+        """A in solo mode cannot generate sheets for an org-owned test (scope mismatch)."""
+        r = self.client.post(
+            "/api/v1/omr/generate/",
+            {"test": self.test.id, "roster": self.roster.id},
+            format="json",
+        )
+        self.assertIn(r.status_code, (400, 403))
