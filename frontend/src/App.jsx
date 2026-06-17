@@ -14,6 +14,7 @@ import ResetPassword from "@/routes/ResetPassword"
 import Profile from "@/routes/Profile"
 import Classes from "@/routes/Classes"
 import TestList from "@/routes/TestList"
+import TestWizard from "@/routes/TestWizard"
 
 function Nav() {
   const { user, logout } = useAuth()
@@ -108,6 +109,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <TestList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/classes/:classId/tests/new"
+          element={
+            <ProtectedRoute>
+              <TestWizard />
             </ProtectedRoute>
           }
         />
