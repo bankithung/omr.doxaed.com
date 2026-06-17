@@ -2,6 +2,99 @@ from django.conf import settings
 from django.db import models
 
 
+class ScanBatch(models.Model):
+    """
+    One upload batch — groups all ScanJobs created from a single upload call.
+    Child-scoped via test; queryset must be filtered through test__user=request.user.
+    """
+
+    STATUS_QUEUED = "queued"
+    STATUS_PROCESSING = "processing"
+    STATUS_DONE = "done"
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_DONE, "Done"),
+    ]
+
+    test = models.ForeignKey(
+        "assessments.Test",
+        on_delete=models.CASCADE,
+        related_name="scan_batches",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="scan_batches",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=STATUS_QUEUED,
+    )
+    total = models.IntegerField(default=0)
+    processed = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+
+    def __str__(self):
+        return f"ScanBatch test={self.test_id} status={self.status} {self.processed}/{self.total}"
+
+
+class ScanJob(models.Model):
+    """
+    One page (one image file) within a ScanBatch.
+    """
+
+    STATUS_QUEUED = "queued"
+    STATUS_DONE = "done"
+    STATUS_NEEDS_REVIEW = "needs_review"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_DONE, "Done"),
+        (STATUS_NEEDS_REVIEW, "Needs Review"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    batch = models.ForeignKey(
+        ScanBatch,
+        on_delete=models.CASCADE,
+        related_name="jobs",
+    )
+    omr_sheet = models.ForeignKey(
+        "omr.OmrSheet",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="scan_jobs",
+    )
+    page_no = models.IntegerField(default=1)
+    image_file = models.FileField(upload_to="scans/", null=True, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=STATUS_QUEUED,
+    )
+    confidence = models.FloatField(null=True, blank=True)
+    error_reason = models.TextField(blank=True, default="")
+    reads = models.JSONField(
+        default=dict,
+        help_text=(
+            "Stores this page's bubble reads: "
+            "{q_pos: {marked: [labels], flag: str|null}, roll: str, flags: [str]}"
+        ),
+    )
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"ScanJob batch={self.batch_id} page={self.page_no} status={self.status}"
+
+
 class GenerationEvent(models.Model):
     """
     One row per generation call — used to enforce the ≤5 generations/day free-tier gate.
@@ -36,9 +129,11 @@ class OmrSheet(models.Model):
 
     ASSEMBLY_PARTIAL = "partial"
     ASSEMBLY_READY = "ready"
+    ASSEMBLY_COMPLETE = "complete"
     ASSEMBLY_CHOICES = [
         (ASSEMBLY_PARTIAL, "Partial"),
         (ASSEMBLY_READY, "Ready"),
+        (ASSEMBLY_COMPLETE, "Complete"),
     ]
 
     # Parent scoping

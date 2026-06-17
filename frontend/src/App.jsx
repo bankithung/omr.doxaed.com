@@ -17,6 +17,9 @@ import TestList from "@/routes/TestList"
 import TestWizard from "@/routes/TestWizard"
 import Rosters from "@/routes/Rosters"
 import RosterDetail from "@/routes/RosterDetail"
+import Scan from "@/routes/Scan"
+import Results from "@/routes/Results"
+import ReviewQueue from "@/routes/ReviewQueue"
 
 function Nav() {
   const { user, logout } = useAuth()
@@ -140,6 +143,39 @@ export default function App() {
           element={
             <ProtectedRoute>
               <RosterDetail />
+            </ProtectedRoute>
+          }
+        />
+        {/* Scan routes */}
+        <Route
+          path="/scan"
+          element={
+            <ProtectedRoute>
+              <Scan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tests/:testId/scan"
+          element={
+            <ProtectedRoute>
+              <Scan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tests/:testId/results"
+          element={
+            <ProtectedRoute>
+              <Results />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tests/:testId/review"
+          element={
+            <ProtectedRoute>
+              <ReviewQueue />
             </ProtectedRoute>
           }
         />
