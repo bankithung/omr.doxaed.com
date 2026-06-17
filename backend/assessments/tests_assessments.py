@@ -116,3 +116,16 @@ class QuestionApiTests(ClassApiTests):
         self._auth(self.b)
         r = self.client.post("/api/v1/questions/", {"test": tid, "text": "x", "options": []}, format="json")
         self.assertIn(r.status_code, (400, 404))
+
+    def test_owner_can_retrieve_update_delete_own_question(self):
+        tid = self._make_test()
+        qid = self.client.post("/api/v1/questions/", {"test": tid, "text": "Q", "options": [{"label": "A", "text": "1"}]}, format="json").data["id"]
+        self.assertEqual(self.client.get(f"/api/v1/questions/{qid}/").status_code, 200)
+        self.assertEqual(self.client.patch(f"/api/v1/questions/{qid}/", {"text": "Q2", "options": [{"label": "A", "text": "1"}]}, format="json").status_code, 200)
+        self.assertEqual(self.client.delete(f"/api/v1/questions/{qid}/").status_code, 204)
+
+    def test_cross_tenant_question_detail_404(self):
+        tid = self._make_test()
+        qid = self.client.post("/api/v1/questions/", {"test": tid, "text": "Q", "options": []}, format="json").data["id"]
+        self._auth(self.b)
+        self.assertEqual(self.client.get(f"/api/v1/questions/{qid}/").status_code, 404)

@@ -1,8 +1,8 @@
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from common.permissions import IsInScope
 from common.viewsets import ScopedModelViewSet
 
 from .models import ClassGroup, MarkingScheme, Option, Question, Test
@@ -52,6 +52,7 @@ class TestViewSet(ScopedModelViewSet):
                 test=clone,
                 order_index=q.order_index,
                 text=q.text,
+                image=q.image,
                 topic=q.topic,
                 difficulty=q.difficulty,
             )
@@ -60,13 +61,14 @@ class TestViewSet(ScopedModelViewSet):
                     question=nq,
                     label=o.label,
                     text=o.text,
+                    image=o.image,
                     is_correct=o.is_correct,
                 )
-        return Response(self.get_serializer(clone).data, status=201)
+        return Response(self.get_serializer(clone).data, status=status.HTTP_201_CREATED)
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsInScope]
+    permission_classes = [IsAuthenticated]
     serializer_class = QuestionSerializer
 
     def get_queryset(self):
