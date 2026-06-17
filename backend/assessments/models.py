@@ -9,9 +9,8 @@ class ClassGroup(OwnerScopedModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
 
-    # No Meta here: Django inherits OwnerScopedModel.Meta (the scope CheckConstraint) and makes
-    # this model concrete (abstract reset to False). Constraint name resolves to
-    # assessments_classgroup_exactly_one_scope.
+    class Meta(OwnerScopedModel.Meta):
+        ordering = ["name", "id"]
 
     def __str__(self):
         return self.name
