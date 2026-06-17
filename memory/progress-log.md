@@ -25,3 +25,7 @@
 - 2026-06-17 — 🎉 MVP COMPLETE: Phase 5 (branch `phase-5`): analytics (test-level shuffle-correct,
   student topic accuracy, retest improvement) + CSV/Excel/PDF export + Recharts dashboards. Reviewed
   analytics-correct & scope-secure (zero issues). 308 tests green. Phases 1–5 all merged to `main`.
+- 2026-06-17 — Phase 6 complete (branch `phase-6`): organizations & roles — central `common/scope.py`
+  refactor (solo|org context via X-Organization-Id) routed through every tenant viewset; org creation,
+  invitations, member mgmt, roles, audit log. Reviewed TENANT-SECURE (no cross-org leak); fixed a
+  StudentViewSet org-scope gap + removed the ?org CSRF surface. 408 tests green.
