@@ -1,5 +1,14 @@
 # Current State
 
+- 2026-06-17: **Phase 7 (Subscription & billing) complete** (branch `phase-7` → merged to `main`).
+  `billing` app: Plan (Free/Team ₹500/Business ₹1000/Enterprise, seeded) + per-org Subscription;
+  `limits.py` resolves the org's plan and enforces SERVER-SIDE per-org gates (seat / generations-day
+  / students-per-gen / monthly-scan caps, reserve-before-work to close TOCTOU). Razorpay via
+  `billing/gateway.py` (create_subscription + HMAC-SHA256 **signature-verified webhook**, idempotent).
+  Free org = 1 seat (admin); adding staff / higher caps needs a paid sub. Reviewed BILLING-SECURE
+  after fixing a Critical seat-gate-on-accept bypass. **496 backend tests.** React billing UI (plan +
+  usage bars, tier cards, subscribe→Razorpay checkout). ⚠️ LIVE PAYMENTS need the user's Razorpay
+  keys (`RAZORPAY_KEY_ID/_KEY_SECRET/_WEBHOOK_SECRET` in `backend/.env`) + a payments security review.
 - 2026-06-17: **Phase 6 (Organizations & roles) complete** (branch `phase-6` → merged to `main`).
   Multi-tenancy: a request acts in SOLO scope by default or ORG scope via the `X-Organization-Id`
   header (active member only); `common/scope.py` (`scope_filter`/`scope_kwargs`/`get_active_org`)
@@ -40,9 +49,10 @@
 
 ## Deferred follow-ups (for Phase 6/8)
 - **Phase 6:** extend `IsInScope.has_object_permission` with the org-membership path + `super()`.
-- **Phase 7 (billing):** make the daily generation quota + scan caps PER-ORG (currently
-  `GenerationEvent` counts per-user, so org members get separate quotas) + meter scans per org per
-  period; gate org creation behind an active subscription.
+- **Phase 7 billing remaining (needs user / business):** add real Razorpay keys to go live + a
+  payments security review; decide scan metering granularity (currently per-upload-batch, spec implies
+  per-sheet); annual billing (2 months free) UI; proration/dunning/invoices. (Per-org quotas + the
+  org-creation→sub model are DONE; org creation is open with a free-plan 1-seat gate.)
 - **Phase 8 hardening:** Celery+Redis async scanning (dev is eager); FILL_HIGH/LOW + fiducial
   calibration vs real photos; cropped review-region images; register-email enumeration; verify-email
   throttle; account lockout (django-axes); frontend code-splitting (bundle ~918 kB).

@@ -29,3 +29,7 @@
   refactor (solo|org context via X-Organization-Id) routed through every tenant viewset; org creation,
   invitations, member mgmt, roles, audit log. Reviewed TENANT-SECURE (no cross-org leak); fixed a
   StudentViewSet org-scope gap + removed the ?org CSRF surface. 408 tests green.
+- 2026-06-17 — Phase 7 complete (branch `phase-7`): billing — Plan/Subscription, per-org plan-limit
+  gates (reserve-before-work), Razorpay gateway + signature-verified webhook, billing UI. Reviewed
+  BILLING-SECURE after fixing a Critical seat-gate-on-accept bypass + a TOCTOU race. 496 tests green.
+  Live payments pending the user's Razorpay keys.
