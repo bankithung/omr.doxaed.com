@@ -5,3 +5,7 @@
 - 2026-06-17 — Phase 0 complete: Django+DRF backend (9 apps, custom User, owner-scope
   foundation, JWT, /api/v1/health/) on local Postgres `omrflow`; React (Vite, JS) + Tailwind v4
   + full shadcn/ui library + /style-guide; CORS+JWT seam proven; CV libs import-verified; CI added.
+- 2026-06-17 — Extracted OMRFlow to its own standalone git repo (in place, fresh history).
+- 2026-06-17 — Phase 1 complete (branch `phase-1`): full email/password auth — register, verify,
+  login/logout (JWT blacklist), password reset (no enumeration), profile `me/`; React auth UI
+  (AuthProvider, ProtectedRoute, 6 shadcn screens). Opus security review passed; 26 tests green.

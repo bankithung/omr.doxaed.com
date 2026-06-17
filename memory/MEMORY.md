@@ -1,12 +1,14 @@
 # OMRFlow — Memory Index
 
-**Status:** Phase 0 (Foundations) — DONE (2026-06-17). Next: Phase 1 (Accounts).
+**Status:** Phase 1 (Accounts) — DONE (2026-06-17). Next: Phase 2 (Assessments core).
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
-**Repo:** Standalone git repo (own history; extracted from the workspace monorepo 2026-06-17). Code at repo root: `backend/`, `frontend/`.
+**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` branch holds Phases 0–1.
 
 ## Next steps
-- Execute Phase 0 plan: `docs/superpowers/plans/2026-06-17-omrflow-phase0-foundations.md`.
-- Then Phase 1 (Accounts) per `prompts/BUILD_ROADMAP.md`.
+- Phase 2 (Assessments core, solo scope) per `prompts/BUILD_ROADMAP.md` + `DATA_MODEL.md`:
+  ClassGroup → Test CRUD, Question/Option authoring, MarkingScheme, retest linkage; global
+  owner-scope isolation on every endpoint. Write the Phase 2 plan, then build phase-by-phase.
+- Done so far: Phase 0 (foundations) + Phase 1 (auth) — 26 backend tests green.
 
 ## Key facts
 - DB: `omrflow`, user `postgres`, password `postgress`, localhost:5432 (no Docker). PG18.
