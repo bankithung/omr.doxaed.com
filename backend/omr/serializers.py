@@ -1,9 +1,9 @@
 """
-omr.serializers — DRF serializers for OmrSheet and the generation request.
+omr.serializers — DRF serializers for OmrSheet, generation request, scan batch.
 """
 from rest_framework import serializers
 
-from .models import OmrSheet
+from .models import OmrSheet, ScanBatch
 
 
 class OmrSheetSerializer(serializers.ModelSerializer):
@@ -43,3 +43,12 @@ class GenerateSerializer(serializers.Serializer):
     roster = serializers.IntegerField()
     shuffle_questions = serializers.BooleanField(default=False)
     shuffle_options = serializers.BooleanField(default=False)
+
+
+class ScanBatchSerializer(serializers.ModelSerializer):
+    """Read serializer for ScanBatch progress."""
+
+    class Meta:
+        model = ScanBatch
+        fields = ("id", "status", "total", "processed", "created_at")
+        read_only_fields = fields

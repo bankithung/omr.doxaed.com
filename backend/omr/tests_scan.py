@@ -1736,3 +1736,384 @@ class EndToEndDoubleMarkTest(TestCase):
             ReviewItem.REASON_DOUBLE_MARK, reasons,
             f"Expected 'double_mark' ReviewItem, got {reasons}",
         )
+
+
+# ===========================================================================
+# Phase 4 Task 6 — Scan upload endpoint + batch progress + review queue tests
+# ===========================================================================
+
+class ScanUploadEndpointTest(TestCase):
+    """
+    POST /api/v1/omr/scan/ — upload a simulated scan image.
+    Expects 201 + batch created + StudentResult with full marks via results endpoint.
+    """
+
+    N_QUESTIONS = 10
+    SCALE = 2.0
+
+    def setUp(self):
+        self.user, self.test, _ = _build_test_with_questions(
+            self.N_QUESTIONS, n_options=4)
+        self.omr_sheet, self.sheet_meta, self.descriptor, self.student = \
+            _build_omr_sheet(self.test, self.user, self.N_QUESTIONS, 4, roll_digits=3)
+        self.client = None  # Use DRF APIClient
+
+    def _get_client(self):
+        from rest_framework.test import APIClient
+        client = APIClient()
+        # Obtain a JWT token for self.user
+        response = client.post("/api/v1/auth/token/", {
+            "email": self.user.email,
+            "password": "testpass",
+        }, format="json")
+        token = response.data["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        return client
+
+    def _make_scan_image_bytes(self, marked, roll="001"):
+        from omr.simulate import simulate_scan
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=marked, roll=roll,
+            page=0, scale=self.SCALE,
+        )
+        import cv2
+        ok, buf = cv2.imencode(".png", img)
+        self.assertTrue(ok)
+        return buf.tobytes()
+
+    def test_scan_upload_returns_201(self):
+        """POST /api/v1/omr/scan/ with a simulated image returns 201."""
+        from omr.scan.pipeline import simulate_correct_marks
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        client = self._get_client()
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+        img_bytes = self._make_scan_image_bytes(correct_marks)
+
+        uploaded = SimpleUploadedFile("scan.png", img_bytes, content_type="image/png")
+        response = client.post(
+            "/api/v1/omr/scan/",
+            {"test": self.test.id, "files": uploaded},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201,
+                         f"Expected 201, got {response.status_code}: {response.data}")
+        self.assertIn("batch_id", response.data)
+        self.assertEqual(response.data["total"], 1)
+        self.assertEqual(response.data["processed"], 1)
+
+    def test_scan_upload_creates_student_result_with_full_marks(self):
+        """
+        After uploading a perfect-score scan, GET /results/?test= returns
+        a StudentResult with score == max_score.
+        """
+        from omr.scan.pipeline import simulate_correct_marks
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from results.models import StudentResult
+
+        client = self._get_client()
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+        img_bytes = self._make_scan_image_bytes(correct_marks)
+
+        uploaded = SimpleUploadedFile("scan.png", img_bytes, content_type="image/png")
+        response = client.post(
+            "/api/v1/omr/scan/",
+            {"test": self.test.id, "files": uploaded},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201)
+
+        # Check StudentResult exists with full marks
+        sr = StudentResult.objects.filter(omr_sheet=self.omr_sheet).first()
+        self.assertIsNotNone(sr, "StudentResult should exist after upload")
+        self.assertEqual(sr.score, sr.max_score,
+                         f"Expected score == max_score, got score={sr.score}, max={sr.max_score}")
+
+    def test_scan_upload_results_via_api(self):
+        """GET /results/?test= returns the StudentResult after upload."""
+        from omr.scan.pipeline import simulate_correct_marks
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        client = self._get_client()
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+        img_bytes = self._make_scan_image_bytes(correct_marks)
+
+        uploaded = SimpleUploadedFile("scan.png", img_bytes, content_type="image/png")
+        client.post(
+            "/api/v1/omr/scan/",
+            {"test": self.test.id, "files": uploaded},
+            format="multipart",
+        )
+
+        results_resp = client.get(f"/api/v1/results/?test={self.test.id}")
+        self.assertEqual(results_resp.status_code, 200)
+        # Paginated: response.data has keys count/next/previous/results
+        results = results_resp.data.get("results", results_resp.data)
+        if isinstance(results_resp.data, dict) and "results" in results_resp.data:
+            results = results_resp.data["results"]
+        # Should have at least one result
+        self.assertGreater(len(results), 0, "Expected at least one StudentResult")
+        first = results[0]
+        self.assertIn("score", first)
+        self.assertIn("responses", first)
+
+    def test_scan_upload_wrong_test_returns_400(self):
+        """POST /api/v1/omr/scan/ with a test belonging to another user returns 400."""
+        from django.contrib.auth import get_user_model
+        from assessments.models import ClassGroup, Test
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        User = get_user_model()
+        other_user = User.objects.create_user(
+            email="other_scan@test.com", password="testpass"
+        )
+        cg = ClassGroup.objects.create(user=other_user, created_by=other_user, name="OtherCG")
+        other_test = Test.objects.create(
+            user=other_user, class_group=cg, created_by=other_user, title="OtherTest"
+        )
+
+        client = self._get_client()
+        img_bytes = self._make_scan_image_bytes({})
+        uploaded = SimpleUploadedFile("scan.png", img_bytes, content_type="image/png")
+
+        response = client.post(
+            "/api/v1/omr/scan/",
+            {"test": other_test.id, "files": uploaded},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 400,
+                         f"Expected 400 for cross-tenant test, got {response.status_code}")
+
+    def test_scan_batch_progress_endpoint(self):
+        """GET /api/v1/omr/scan-batches/<id>/ returns {status, total, processed}."""
+        from omr.scan.pipeline import simulate_correct_marks
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        client = self._get_client()
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+        img_bytes = self._make_scan_image_bytes(correct_marks)
+
+        uploaded = SimpleUploadedFile("scan.png", img_bytes, content_type="image/png")
+        upload_resp = client.post(
+            "/api/v1/omr/scan/",
+            {"test": self.test.id, "files": uploaded},
+            format="multipart",
+        )
+        self.assertEqual(upload_resp.status_code, 201)
+        batch_id = upload_resp.data["batch_id"]
+
+        progress_resp = client.get(f"/api/v1/omr/scan-batches/{batch_id}/")
+        self.assertEqual(progress_resp.status_code, 200)
+        data = progress_resp.data
+        self.assertIn("status", data)
+        self.assertIn("total", data)
+        self.assertIn("processed", data)
+        self.assertEqual(data["total"], 1)
+        self.assertEqual(data["processed"], 1)
+        self.assertEqual(data["status"], "done")
+
+    def test_scan_batch_cross_tenant_returns_404(self):
+        """GET /api/v1/omr/scan-batches/<id>/ from another user returns 404."""
+        from django.contrib.auth import get_user_model
+        from assessments.models import ClassGroup, Test
+        from omr.models import ScanBatch
+        from rest_framework.test import APIClient
+
+        User = get_user_model()
+        other_user = User.objects.create_user(
+            email="other_batch@test.com", password="testpass"
+        )
+        cg = ClassGroup.objects.create(user=other_user, created_by=other_user, name="OtherCG2")
+        other_test = Test.objects.create(
+            user=other_user, class_group=cg, created_by=other_user, title="OtherTest2"
+        )
+        # Create a batch belonging to other_user
+        other_batch = ScanBatch.objects.create(
+            test=other_test,
+            created_by=other_user,
+            status=ScanBatch.STATUS_DONE,
+            total=0,
+            processed=0,
+        )
+
+        client = self._get_client()
+        response = client.get(f"/api/v1/omr/scan-batches/{other_batch.id}/")
+        self.assertEqual(response.status_code, 404,
+                         f"Expected 404 for cross-tenant batch, got {response.status_code}")
+
+
+class ReviewQueueEndpointTest(TestCase):
+    """
+    GET /api/v1/review/?test= → open ReviewItems with double_mark reason.
+    POST /api/v1/review/<id>/resolve/ → resolves + recomputes result.
+    """
+
+    N_QUESTIONS = 10
+    SCALE = 2.0
+
+    def setUp(self):
+        self.user, self.test, _ = _build_test_with_questions(
+            self.N_QUESTIONS, n_options=4)
+        self.omr_sheet, self.sheet_meta, self.descriptor, self.student = \
+            _build_omr_sheet(self.test, self.user, self.N_QUESTIONS, 4, roll_digits=3)
+
+    def _get_client(self):
+        from rest_framework.test import APIClient
+        client = APIClient()
+        response = client.post("/api/v1/auth/token/", {
+            "email": self.user.email,
+            "password": "testpass",
+        }, format="json")
+        token = response.data["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        return client
+
+    def _upload_double_mark_scan(self, client):
+        from omr.scan.pipeline import simulate_correct_marks
+        from omr.simulate import simulate_scan
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+        # Double-mark q_pos=0
+        dm_marks = dict(correct_marks)
+        dm_marks[0] = ["A", "B"]
+
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=dm_marks, roll="005",
+            page=0, scale=self.SCALE,
+        )
+        ok, buf = cv2.imencode(".png", img)
+        self.assertTrue(ok)
+        img_bytes = buf.tobytes()
+
+        uploaded = SimpleUploadedFile("dm_scan.png", img_bytes, content_type="image/png")
+        return client.post(
+            "/api/v1/omr/scan/",
+            {"test": self.test.id, "files": uploaded},
+            format="multipart",
+        )
+
+    def test_review_queue_lists_double_mark_item(self):
+        """GET /review/?test= lists a double_mark ReviewItem after scanning."""
+        from results.models import ReviewItem
+
+        client = self._get_client()
+        upload_resp = self._upload_double_mark_scan(client)
+        self.assertEqual(upload_resp.status_code, 201,
+                         f"Upload failed: {upload_resp.data}")
+
+        review_resp = client.get(f"/api/v1/review/?test={self.test.id}")
+        self.assertEqual(review_resp.status_code, 200)
+        # Handle paginated response
+        if isinstance(review_resp.data, dict) and "results" in review_resp.data:
+            items = review_resp.data["results"]
+        else:
+            items = review_resp.data
+        self.assertGreater(len(items), 0, "Expected at least one review item")
+        reasons = [item["reason"] for item in items]
+        self.assertIn("double_mark", reasons, f"Expected double_mark, got {reasons}")
+
+    def test_resolve_review_item_recomputes_result(self):
+        """
+        POST /review/<id>/resolve/ with correct single mark →
+        recomputes StudentResult + resolves ReviewItem.
+        """
+        from results.models import ReviewItem, StudentResult
+
+        client = self._get_client()
+        upload_resp = self._upload_double_mark_scan(client)
+        self.assertEqual(upload_resp.status_code, 201,
+                         f"Upload failed: {upload_resp.data}")
+
+        # Get the review items (pipeline may create 2: one per scan_job, one in _maybe_grade)
+        review_resp = client.get(f"/api/v1/review/?test={self.test.id}")
+        # Handle paginated response
+        if isinstance(review_resp.data, dict) and "results" in review_resp.data:
+            items = review_resp.data["results"]
+        else:
+            items = review_resp.data
+        self.assertGreater(len(items), 0)
+
+        # Resolve all open review items
+        resolved_ids = []
+        for item in items:
+            review_id = item["id"]
+            resolve_resp = client.post(
+                f"/api/v1/review/{review_id}/resolve/",
+                {"marked_options": ["A"]},
+                format="json",
+            )
+            self.assertIn(resolve_resp.status_code, [200, 201],
+                          f"Resolve failed for {review_id}: {resolve_resp.data}")
+            resolved_ids.append(review_id)
+
+        # All resolved ReviewItems should now be resolved=True
+        for review_id in resolved_ids:
+            ri = ReviewItem.objects.get(pk=review_id)
+            self.assertTrue(ri.resolved, f"ReviewItem {review_id} should be resolved=True")
+            self.assertEqual(ri.resolved_by, self.user)
+
+        # StudentResult should exist (score should have been recomputed)
+        sr = StudentResult.objects.filter(omr_sheet=self.omr_sheet).first()
+        self.assertIsNotNone(sr)
+
+        # After resolving all, no open review items should remain for this sheet
+        open_items = ReviewItem.objects.filter(
+            omr_sheet=self.omr_sheet, resolved=False
+        ).count()
+        self.assertEqual(open_items, 0, f"Expected 0 open items, got {open_items}")
+
+    def test_review_scope_cross_tenant_returns_empty(self):
+        """
+        GET /review/?test= for a different user's test returns empty list
+        (not an error — just filtered out).
+        """
+        from django.contrib.auth import get_user_model
+        from assessments.models import ClassGroup, Test
+        from rest_framework.test import APIClient
+
+        User = get_user_model()
+        other_user = User.objects.create_user(
+            email="other_review@test.com", password="testpass"
+        )
+        cg = ClassGroup.objects.create(user=other_user, created_by=other_user, name="OtherCG3")
+        other_test = Test.objects.create(
+            user=other_user, class_group=cg, created_by=other_user, title="OtherTest3"
+        )
+
+        client = self._get_client()
+        # Query for the other user's test — should return nothing (scope filtering)
+        review_resp = client.get(f"/api/v1/review/?test={other_test.id}")
+        self.assertEqual(review_resp.status_code, 200)
+        # Handle paginated response
+        if isinstance(review_resp.data, dict) and "results" in review_resp.data:
+            count = review_resp.data["count"]
+        else:
+            count = len(review_resp.data)
+        self.assertEqual(count, 0, "Should not see another user's review items")
+
+    def test_results_scope_cross_tenant_returns_empty(self):
+        """GET /results/?test= for another user's test returns empty list."""
+        from django.contrib.auth import get_user_model
+        from assessments.models import ClassGroup, Test
+
+        User = get_user_model()
+        other_user = User.objects.create_user(
+            email="other_results@test.com", password="testpass"
+        )
+        cg = ClassGroup.objects.create(user=other_user, created_by=other_user, name="OtherCG4")
+        other_test = Test.objects.create(
+            user=other_user, class_group=cg, created_by=other_user, title="OtherTest4"
+        )
+
+        client = self._get_client()
+        results_resp = client.get(f"/api/v1/results/?test={other_test.id}")
+        self.assertEqual(results_resp.status_code, 200)
+        # Handle paginated response
+        if isinstance(results_resp.data, dict) and "results" in results_resp.data:
+            count = results_resp.data["count"]
+        else:
+            count = len(results_resp.data)
+        self.assertEqual(count, 0, "Should not see another user's results")
