@@ -610,3 +610,403 @@ class AnalyticsEndpointTest(TestCase):
         response = self.client.get(self._url())
         data = response.json()
         self.assertLessEqual(len(data["toppers"]), 5)
+
+
+# ===========================================================================
+# Task 2 — student_detail() service tests
+# ===========================================================================
+
+class StudentDetailServiceTest(TestCase):
+    """Tests for analytics.services.student_detail(student_result)."""
+
+    def setUp(self):
+        self.user = _make_user("detail@test.com")
+        self.test = _make_test(self.user)
+        # Three questions: q0 topic=TopicA, q1 topic=TopicA, q2 topic=TopicB
+        self.q0 = Question.objects.create(
+            test=self.test, order_index=0, text="Q0", topic="TopicA"
+        )
+        self.q1 = Question.objects.create(
+            test=self.test, order_index=1, text="Q1", topic="TopicA"
+        )
+        self.q2 = Question.objects.create(
+            test=self.test, order_index=2, text="Q2", topic="TopicB"
+        )
+        for q in [self.q0, self.q1, self.q2]:
+            for label in ["A", "B", "C", "D"]:
+                Option.objects.create(question=q, label=label, text=label, is_correct=(label == "A"))
+
+    def _build_result(self, score=2, max_score=3):
+        """
+        Student gets q0 correct (A), q1 wrong (B), q2 blank ([]).
+        score=2 because: +1 correct, no negative marking.
+        Actually for test: q0 correct, q1 wrong, q2 blank → score depends on scheme.
+        We set score/correct/wrong/blank directly.
+        """
+        student = _make_student(self.user, "D001", "Detail Student")
+        sheet = _make_omr_sheet(self.test, [self.q0, self.q1, self.q2], seed=700)
+        sheet.student = student
+        sheet.save()
+        result = _make_result(
+            self.test, student, sheet,
+            score=score, max_score=max_score,
+            correct=1, wrong=1, blank=1,
+        )
+        # q0: correct
+        _make_qr(result, self.q0, 0, ["A"], is_correct=True, flagged=False)
+        # q1: wrong
+        _make_qr(result, self.q1, 1, ["B"], is_correct=False, flagged=True)
+        # q2: blank
+        _make_qr(result, self.q2, 2, [], is_correct=False, flagged=False)
+        return student, sheet, result
+
+    def test_basic_fields(self):
+        from analytics.services import student_detail
+        _, _, result = self._build_result(score=1, max_score=3)
+        detail = student_detail(result)
+        self.assertAlmostEqual(detail["score"], 1.0, places=4)
+        self.assertAlmostEqual(detail["max_score"], 3.0, places=4)
+        self.assertAlmostEqual(detail["pct"], 1.0 / 3.0 * 100.0, places=2)
+        self.assertEqual(detail["correct"], 1)
+        self.assertEqual(detail["wrong"], 1)
+        self.assertEqual(detail["blank"], 1)
+
+    def test_pct_guard_zero_max_score(self):
+        from analytics.services import student_detail
+        student = _make_student(self.user, "D002", "Zero Max")
+        sheet = _make_omr_sheet(self.test, [self.q0, self.q1, self.q2], seed=701)
+        sheet.student = student
+        sheet.save()
+        result = _make_result(self.test, student, sheet, score=0, max_score=0)
+        detail = student_detail(result)
+        self.assertEqual(detail["pct"], 0.0)
+
+    def test_per_question_count_and_fields(self):
+        from analytics.services import student_detail
+        _, _, result = self._build_result(score=1, max_score=3)
+        detail = student_detail(result)
+        pq = detail["per_question"]
+        self.assertEqual(len(pq), 3)
+        # All required keys
+        for entry in pq:
+            self.assertIn("order_index", entry)
+            self.assertIn("text", entry)
+            self.assertIn("is_correct", entry)
+            self.assertIn("flagged", entry)
+            self.assertIn("marked_options", entry)
+
+    def test_per_question_ordered_by_order_index(self):
+        from analytics.services import student_detail
+        _, _, result = self._build_result(score=1, max_score=3)
+        detail = student_detail(result)
+        indices = [e["order_index"] for e in detail["per_question"]]
+        self.assertEqual(indices, sorted(indices))
+
+    def test_per_question_correct_and_wrong(self):
+        from analytics.services import student_detail
+        _, _, result = self._build_result(score=1, max_score=3)
+        detail = student_detail(result)
+        pq = detail["per_question"]
+        # q0 correct, q1 wrong/flagged, q2 blank
+        q0_entry = next(e for e in pq if e["order_index"] == 0)
+        q1_entry = next(e for e in pq if e["order_index"] == 1)
+        q2_entry = next(e for e in pq if e["order_index"] == 2)
+        self.assertTrue(q0_entry["is_correct"])
+        self.assertFalse(q1_entry["is_correct"])
+        self.assertTrue(q1_entry["flagged"])
+        self.assertEqual(q0_entry["marked_options"], ["A"])
+        self.assertEqual(q1_entry["marked_options"], ["B"])
+        self.assertEqual(q2_entry["marked_options"], [])
+
+    def test_topic_accuracy_two_topics(self):
+        """
+        TopicA has q0 (correct) + q1 (wrong) → 1/2 = 0.5
+        TopicB has q2 (blank, not correct) → 0/1 = 0.0
+        """
+        from analytics.services import student_detail
+        _, _, result = self._build_result(score=1, max_score=3)
+        detail = student_detail(result)
+        ta = detail["topic_accuracy"]
+        self.assertIn("TopicA", ta)
+        self.assertIn("TopicB", ta)
+        self.assertAlmostEqual(ta["TopicA"]["accuracy"], 0.5, places=4)
+        self.assertAlmostEqual(ta["TopicB"]["accuracy"], 0.0, places=4)
+        self.assertEqual(ta["TopicA"]["correct"], 1)
+        self.assertEqual(ta["TopicA"]["total"], 2)
+        self.assertEqual(ta["TopicB"]["correct"], 0)
+        self.assertEqual(ta["TopicB"]["total"], 1)
+
+    def test_topic_accuracy_untagged_bucket(self):
+        """Questions with blank topic fall into 'Untagged'."""
+        from analytics.services import student_detail
+        # Create a question with no topic
+        q_notag = Question.objects.create(
+            test=self.test, order_index=3, text="NoTag", topic=""
+        )
+        Option.objects.create(question=q_notag, label="A", text="A", is_correct=True)
+
+        student = _make_student(self.user, "D003", "Untagged Student")
+        sheet = _make_omr_sheet(self.test, [self.q0, self.q1, self.q2, q_notag], seed=702)
+        sheet.student = student
+        sheet.save()
+        result = _make_result(self.test, student, sheet, score=1, max_score=4, correct=1, wrong=0, blank=3)
+        _make_qr(result, self.q0, 0, ["A"], is_correct=True)
+        _make_qr(result, self.q1, 1, [], is_correct=False)
+        _make_qr(result, self.q2, 2, [], is_correct=False)
+        _make_qr(result, q_notag, 3, ["A"], is_correct=True)
+
+        detail = student_detail(result)
+        ta = detail["topic_accuracy"]
+        self.assertIn("Untagged", ta, f"Expected 'Untagged' key, got: {list(ta.keys())}")
+        self.assertAlmostEqual(ta["Untagged"]["accuracy"], 1.0, places=4)
+
+
+# ===========================================================================
+# Task 2 — improvement() service tests
+# ===========================================================================
+
+class ImprovementServiceTest(TestCase):
+    """Tests for analytics.services.improvement(test)."""
+
+    def setUp(self):
+        self.user = _make_user("improve@test.com")
+        # test1 is the original; test2 is a retest (parent=test1, attempt_number=2)
+        cg = ClassGroup.objects.create(user=self.user, created_by=self.user, name="CG-Improve")
+        self.test1 = Test.objects.create(
+            user=self.user, created_by=self.user, class_group=cg,
+            title="Improve Test", subject="Sci",
+            attempt_number=1,
+        )
+        MarkingScheme.objects.create(test=self.test1, marks_per_correct=1)
+        self.test2 = Test.objects.create(
+            user=self.user, created_by=self.user, class_group=cg,
+            title="Improve Retest", subject="Sci",
+            parent_test=self.test1, attempt_number=2,
+        )
+        MarkingScheme.objects.create(test=self.test2, marks_per_correct=1)
+        # One question per test (just needed for sheets)
+        self.q1 = Question.objects.create(test=self.test1, order_index=0, text="Q1", topic="T")
+        Option.objects.create(question=self.q1, label="A", text="A", is_correct=True)
+        self.q2 = Question.objects.create(test=self.test2, order_index=0, text="Q2", topic="T")
+        Option.objects.create(question=self.q2, label="A", text="A", is_correct=True)
+
+    def _make_attempt_result(self, test, question, student, score, max_score=3, seed=1):
+        sheet = _make_omr_sheet(test, [question], seed=seed)
+        sheet.student = student
+        sheet.save()
+        result = _make_result(test, student, sheet, score=score, max_score=max_score)
+        return result
+
+    def test_chain_ordered_by_attempt_number(self):
+        """improvement() returns attempts ordered by attempt_number."""
+        from analytics.services import improvement
+        student = _make_student(self.user, "I001", "Imp Student")
+        self._make_attempt_result(self.test1, self.q1, student, score=1, max_score=3, seed=800)
+        self._make_attempt_result(self.test2, self.q2, student, score=2, max_score=3, seed=801)
+
+        result = improvement(self.test2)  # call with the retest
+        students_data = result["students"]
+        self.assertIn("I001", students_data)
+        attempts = students_data["I001"]
+        attempt_nums = [a["attempt_number"] for a in attempts]
+        self.assertEqual(attempt_nums, sorted(attempt_nums))
+
+    def test_delta_vs_prev_positive_for_improvement(self):
+        """
+        Student goes from 1/3 (33.3%) to 2/3 (66.7%).
+        delta_vs_prev for attempt 2 should be positive (~33.3%).
+        """
+        from analytics.services import improvement
+        student = _make_student(self.user, "I002", "Delta Student")
+        self._make_attempt_result(self.test1, self.q1, student, score=1, max_score=3, seed=810)
+        self._make_attempt_result(self.test2, self.q2, student, score=2, max_score=3, seed=811)
+
+        result = improvement(self.test2)
+        attempts = result["students"]["I002"]
+        # attempt 1: no previous → delta should be None
+        # attempt 2: delta = 66.7% - 33.3% = 33.3% (positive)
+        a1 = next(a for a in attempts if a["attempt_number"] == 1)
+        a2 = next(a for a in attempts if a["attempt_number"] == 2)
+        self.assertIsNone(a1["delta_vs_prev"])
+        self.assertGreater(a2["delta_vs_prev"], 0)
+        self.assertAlmostEqual(a2["delta_vs_prev"], 100.0 / 3.0, places=1)
+
+    def test_class_average_per_attempt(self):
+        """
+        Two students:
+          test1: student A=1/3, student B=3/3 → avg=2/3=66.7%
+          test2: student A=2/3, student B=3/3 → avg=5/6=83.3%
+        """
+        from analytics.services import improvement
+        sA = _make_student(self.user, "CA1", "Avg A")
+        sB = _make_student(self.user, "CA2", "Avg B")
+        self._make_attempt_result(self.test1, self.q1, sA, score=1, max_score=3, seed=820)
+        self._make_attempt_result(self.test1, self.q1, sB, score=3, max_score=3, seed=821)
+        self._make_attempt_result(self.test2, self.q2, sA, score=2, max_score=3, seed=822)
+        self._make_attempt_result(self.test2, self.q2, sB, score=3, max_score=3, seed=823)
+
+        result = improvement(self.test2)
+        class_avg = result["class_average"]
+        # class_average keyed by attempt_number
+        self.assertIn(1, class_avg)
+        self.assertIn(2, class_avg)
+        self.assertAlmostEqual(class_avg[1], (1.0 / 3.0 + 1.0) / 2.0 * 100.0, places=1)
+        self.assertAlmostEqual(class_avg[2], (2.0 / 3.0 + 1.0) / 2.0 * 100.0, places=1)
+
+    def test_missing_attempt_handled_gracefully(self):
+        """
+        Student B only appears in test2, not test1.
+        Their attempt list should still just have attempt 2 with delta=None.
+        """
+        from analytics.services import improvement
+        sA = _make_student(self.user, "MH1", "Only Attempt 1")
+        sB = _make_student(self.user, "MH2", "Only Attempt 2")
+        self._make_attempt_result(self.test1, self.q1, sA, score=1, max_score=3, seed=830)
+        self._make_attempt_result(self.test2, self.q2, sB, score=2, max_score=3, seed=831)
+
+        result = improvement(self.test2)
+        self.assertIn("MH1", result["students"])
+        self.assertIn("MH2", result["students"])
+        # sA: attempt 1 only
+        sA_attempts = result["students"]["MH1"]
+        self.assertEqual(len(sA_attempts), 1)
+        self.assertEqual(sA_attempts[0]["attempt_number"], 1)
+        self.assertIsNone(sA_attempts[0]["delta_vs_prev"])
+        # sB: attempt 2 only
+        sB_attempts = result["students"]["MH2"]
+        self.assertEqual(len(sB_attempts), 1)
+        self.assertEqual(sB_attempts[0]["attempt_number"], 2)
+        self.assertIsNone(sB_attempts[0]["delta_vs_prev"])
+
+    def test_improvement_called_from_root(self):
+        """Calling improvement() on the ROOT test should also work correctly."""
+        from analytics.services import improvement
+        student = _make_student(self.user, "R001", "Root Call")
+        self._make_attempt_result(self.test1, self.q1, student, score=1, max_score=3, seed=840)
+        self._make_attempt_result(self.test2, self.q2, student, score=3, max_score=3, seed=841)
+
+        result = improvement(self.test1)  # called on root
+        self.assertIn("R001", result["students"])
+        attempts = result["students"]["R001"]
+        self.assertEqual(len(attempts), 2)
+
+    def test_trend_key_present(self):
+        """improvement() result must include a 'trend' key."""
+        from analytics.services import improvement
+        result = improvement(self.test1)
+        self.assertIn("trend", result)
+
+    def test_result_shape(self):
+        """Top-level keys: students, class_average, trend, chain."""
+        from analytics.services import improvement
+        result = improvement(self.test1)
+        for key in ("students", "class_average", "trend", "chain"):
+            self.assertIn(key, result, f"Missing top-level key: {key!r}")
+
+
+# ===========================================================================
+# Task 2 — API endpoint tests
+# ===========================================================================
+
+class StudentDetailEndpointTest(TestCase):
+    """GET /api/v1/analytics/test/{test_id}/student/{student_id}/ tests."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = _make_user("ep_detail@test.com")
+        self.test = _make_test(self.user)
+        self.questions = _make_questions(self.test, n=3)
+        self.student = _make_student(self.user, "EP001", "Endpoint Student")
+        sheet = _make_omr_sheet(self.test, self.questions, seed=900)
+        sheet.student = self.student
+        sheet.save()
+        self.result = _make_result(
+            self.test, self.student, sheet, score=2, max_score=3,
+            correct=2, wrong=1, blank=0,
+        )
+        for q_idx, q in enumerate(self.questions):
+            is_correct = q_idx < 2
+            _make_qr(self.result, q, q_idx, ["A"] if is_correct else ["B"], is_correct)
+
+    def _url(self, test_id=None, student_id=None):
+        test_id = test_id or self.test.id
+        student_id = student_id or self.student.id
+        return f"/api/v1/analytics/test/{test_id}/student/{student_id}/"
+
+    def test_unauthenticated_401(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_owner_200(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_response_shape(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url())
+        data = response.json()
+        for key in ("score", "max_score", "pct", "correct", "wrong", "blank",
+                    "per_question", "topic_accuracy"):
+            self.assertIn(key, data, f"Missing key: {key!r}")
+
+    def test_cross_tenant_test_404(self):
+        other_user = _make_user("other_ep@test.com")
+        other_test = _make_test(other_user)
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(test_id=other_test.id, student_id=self.student.id))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_student_not_in_test_404(self):
+        """StudentResult for (test, student) must exist, otherwise 404."""
+        other_student = _make_student(self.user, "EP999", "Ghost")
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(student_id=other_student.id))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class ImprovementEndpointTest(TestCase):
+    """GET /api/v1/analytics/test/{test_id}/improvement/ tests."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = _make_user("ep_improve@test.com")
+        cg = ClassGroup.objects.create(user=self.user, created_by=self.user, name="CG-EP-Imp")
+        self.test1 = Test.objects.create(
+            user=self.user, created_by=self.user, class_group=cg,
+            title="EP Improve Test", subject="Sci", attempt_number=1,
+        )
+        MarkingScheme.objects.create(test=self.test1, marks_per_correct=1)
+        self.test2 = Test.objects.create(
+            user=self.user, created_by=self.user, class_group=cg,
+            title="EP Improve Retest", subject="Sci",
+            parent_test=self.test1, attempt_number=2,
+        )
+        MarkingScheme.objects.create(test=self.test2, marks_per_correct=1)
+
+    def _url(self, test_id=None):
+        test_id = test_id or self.test1.id
+        return f"/api/v1/analytics/test/{test_id}/improvement/"
+
+    def test_unauthenticated_401(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_owner_200(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_response_shape(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url())
+        data = response.json()
+        for key in ("students", "class_average", "trend", "chain"):
+            self.assertIn(key, data, f"Missing key: {key!r}")
+
+    def test_cross_tenant_test_404(self):
+        other_user = _make_user("other_ep_imp@test.com")
+        other_test = _make_test(other_user)
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(other_test.id))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

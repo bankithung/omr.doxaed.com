@@ -306,3 +306,242 @@ def _test_block(test) -> dict:
         "subject": getattr(test, "subject", ""),
         "attempt_number": test.attempt_number,
     }
+
+
+# ---------------------------------------------------------------------------
+# student_detail
+# ---------------------------------------------------------------------------
+
+def student_detail(student_result) -> dict:
+    """
+    Build the per-student analytics detail dict for a single StudentResult.
+
+    Parameters
+    ----------
+    student_result : results.StudentResult
+
+    Returns
+    -------
+    dict with keys:
+        score, max_score, pct, correct, wrong, blank,
+        per_question, topic_accuracy
+    """
+    score = float(student_result.score)
+    max_score = float(student_result.max_score)
+    pct = _score_pct(score, max_score)
+
+    # Fetch all responses ordered by q_pos
+    responses = list(
+        student_result.responses
+        .select_related("question")
+        .order_by("q_pos", "id")
+    )
+
+    # Build per_question list
+    per_question = []
+    for resp in responses:
+        q = resp.question
+        if q is not None:
+            order_index = q.order_index
+            text = q.text
+        else:
+            # Fallback: use q_pos as order_index, empty text
+            order_index = resp.q_pos
+            text = ""
+        per_question.append({
+            "order_index": order_index,
+            "text": text,
+            "is_correct": resp.is_correct,
+            "flagged": resp.flagged,
+            "marked_options": list(resp.marked_options),
+        })
+
+    # Sort by order_index for stable output
+    per_question.sort(key=lambda e: e["order_index"])
+
+    # Build topic_accuracy: group by question.topic
+    topic_stats: dict[str, dict] = {}  # topic → {correct: int, total: int}
+    for resp in responses:
+        q = resp.question
+        if q is not None:
+            topic = q.topic if q.topic else "Untagged"
+        else:
+            topic = "Untagged"
+        if topic not in topic_stats:
+            topic_stats[topic] = {"correct": 0, "total": 0}
+        topic_stats[topic]["total"] += 1
+        if resp.is_correct:
+            topic_stats[topic]["correct"] += 1
+
+    topic_accuracy = {
+        topic: {
+            "correct": stat["correct"],
+            "total": stat["total"],
+            "accuracy": stat["correct"] / stat["total"] if stat["total"] else 0.0,
+        }
+        for topic, stat in topic_stats.items()
+    }
+
+    return {
+        "score": score,
+        "max_score": max_score,
+        "pct": pct,
+        "correct": student_result.correct_count,
+        "wrong": student_result.wrong_count,
+        "blank": student_result.blank_count,
+        "per_question": per_question,
+        "topic_accuracy": topic_accuracy,
+    }
+
+
+# ---------------------------------------------------------------------------
+# improvement (retest chain)
+# ---------------------------------------------------------------------------
+
+def _walk_to_root(test):
+    """Walk parent_test links to the root test. Return the root."""
+    visited = set()
+    current = test
+    while current.parent_test_id is not None:
+        if current.id in visited:
+            # Cycle guard
+            break
+        visited.add(current.id)
+        current = current.parent_test
+    return current
+
+
+def _collect_chain(root):
+    """
+    Collect the full retest chain starting from root, ordered by attempt_number.
+
+    Strategy: BFS/DFS following `retests` reverse relation.
+    `Test.retests` is the related_name for `parent_test`.
+    """
+    chain = []
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        chain.append(node)
+        # Expand children (retests)
+        children = list(node.retests.all())
+        stack.extend(children)
+
+    chain.sort(key=lambda t: t.attempt_number)
+    return chain
+
+
+def improvement(test) -> dict:
+    """
+    Build the retest-chain improvement dict.
+
+    Resolves the full chain (root + all retests), then for each student
+    (matched by `student.roll_number`) builds their attempt history with
+    delta_vs_prev.
+
+    Parameters
+    ----------
+    test : assessments.Test
+
+    Returns
+    -------
+    dict with keys:
+        chain      : [{test_id, attempt_number, title}]
+        students   : {roll_number: [{attempt_number, test_id, score, max_score, pct, delta_vs_prev}]}
+        class_average : {attempt_number: avg_pct}
+        trend      : "improving" | "declining" | "stable" | "insufficient_data"
+    """
+    from results.models import StudentResult
+
+    root = _walk_to_root(test)
+    chain = _collect_chain(root)
+
+    chain_info = [
+        {"test_id": t.id, "attempt_number": t.attempt_number, "title": t.title}
+        for t in chain
+    ]
+
+    # Gather StudentResults for all tests in chain
+    test_ids = [t.id for t in chain]
+    results = list(
+        StudentResult.objects
+        .filter(test_id__in=test_ids)
+        .select_related("student", "test")
+    )
+
+    # Build attempt_number map: test_id → attempt_number
+    attempt_num_by_test = {t.id: t.attempt_number for t in chain}
+
+    # Group by (roll_number, attempt_number) — one result per student per attempt
+    # Key: roll_number (or str(student_id) if no roll)
+    from collections import defaultdict
+    by_roll: dict[str, dict[int, dict]] = defaultdict(dict)
+
+    for res in results:
+        if res.student and res.student.roll_number:
+            roll = res.student.roll_number
+        elif res.student_id:
+            roll = f"student_{res.student_id}"
+        else:
+            roll = f"result_{res.id}"
+
+        attempt_num = attempt_num_by_test.get(res.test_id)
+        if attempt_num is None:
+            continue
+
+        pct = _score_pct(res.score, res.max_score)
+        by_roll[roll][attempt_num] = {
+            "attempt_number": attempt_num,
+            "test_id": res.test_id,
+            "score": float(res.score),
+            "max_score": float(res.max_score),
+            "pct": pct,
+        }
+
+    # Build ordered attempt lists with delta_vs_prev
+    all_attempt_numbers = sorted({t.attempt_number for t in chain})
+    students_out: dict[str, list] = {}
+    for roll, attempts_by_num in by_roll.items():
+        ordered = []
+        prev_pct = None
+        for attempt_num in all_attempt_numbers:
+            if attempt_num not in attempts_by_num:
+                continue  # student absent in this attempt — skip gracefully
+            entry = dict(attempts_by_num[attempt_num])
+            if prev_pct is None:
+                entry["delta_vs_prev"] = None
+            else:
+                entry["delta_vs_prev"] = entry["pct"] - prev_pct
+            prev_pct = entry["pct"]
+            ordered.append(entry)
+        students_out[roll] = ordered
+
+    # Class average per attempt_number
+    class_average: dict[int, float] = {}
+    for attempt_num in all_attempt_numbers:
+        pcts = []
+        for attempts_by_num in by_roll.values():
+            if attempt_num in attempts_by_num:
+                pcts.append(attempts_by_num[attempt_num]["pct"])
+        if pcts:
+            class_average[attempt_num] = sum(pcts) / len(pcts)
+
+    # Trend: compare first and last class averages that have data
+    avgs_ordered = [class_average[n] for n in all_attempt_numbers if n in class_average]
+    if len(avgs_ordered) < 2:
+        trend = "insufficient_data"
+    else:
+        delta = avgs_ordered[-1] - avgs_ordered[0]
+        if delta > 1.0:
+            trend = "improving"
+        elif delta < -1.0:
+            trend = "declining"
+        else:
+            trend = "stable"
+
+    return {
+        "chain": chain_info,
+        "students": students_out,
+        "class_average": class_average,
+        "trend": trend,
+    }
