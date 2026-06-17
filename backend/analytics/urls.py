@@ -18,4 +18,9 @@ urlpatterns = [
         views.improvement_view,
         name="analytics-improvement",
     ),
+    path(
+        "analytics/test/<int:test_id>/export/",
+        views.export_view,
+        name="analytics-export",
+    ),
 ]

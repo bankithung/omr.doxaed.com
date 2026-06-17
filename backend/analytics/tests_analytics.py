@@ -1010,3 +1010,261 @@ class ImprovementEndpointTest(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(self._url(other_test.id))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+# ===========================================================================
+# Task 3 — Export endpoint tests (CSV / Excel / PDF)
+# ===========================================================================
+
+class ExportEndpointTest(TestCase):
+    """
+    Tests for GET /api/v1/analytics/test/{test_id}/export/?format=csv|xlsx|pdf
+
+    Covers:
+    - Each format returns 200, non-empty body, correct Content-Type,
+      Content-Disposition with "attachment".
+    - CSV body contains a header row and one row per student (roll number
+      appears in the body).
+    - Unknown format → 400.
+    - Cross-tenant request → 404.
+    - Unauthenticated → 401.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = _make_user("export@test.com")
+        self.test = _make_test(self.user)
+        self.questions = _make_questions(self.test, n=3)
+
+        # Two students with known roll numbers
+        self.student_a = _make_student(self.user, "EXP001", "Alice Export")
+        self.student_b = _make_student(self.user, "EXP002", "Bob Export")
+
+        sheet_a = _make_omr_sheet(self.test, self.questions, seed=1001)
+        sheet_a.student = self.student_a
+        sheet_a.save()
+        self.result_a = _make_result(
+            self.test, self.student_a, sheet_a,
+            score=3, max_score=3, correct=3, wrong=0, blank=0,
+        )
+        for q_idx, q in enumerate(self.questions):
+            _make_qr(self.result_a, q, q_idx, ["A"], is_correct=True)
+
+        sheet_b = _make_omr_sheet(self.test, self.questions, seed=1002)
+        sheet_b.student = self.student_b
+        sheet_b.save()
+        self.result_b = _make_result(
+            self.test, self.student_b, sheet_b,
+            score=1, max_score=3, correct=1, wrong=2, blank=0,
+        )
+        for q_idx, q in enumerate(self.questions):
+            is_correct = q_idx == 0
+            _make_qr(self.result_b, q, q_idx, ["A"] if is_correct else ["B"], is_correct)
+
+    def _url(self, test_id=None, fmt="csv"):
+        test_id = test_id or self.test.id
+        return f"/api/v1/analytics/test/{test_id}/export/?output_format={fmt}"
+
+    # ------------------------------------------------------------------ auth
+
+    def test_unauthenticated_returns_401(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # ------------------------------------------------------------------ cross-tenant
+
+    def test_cross_tenant_returns_404(self):
+        other_user = _make_user("export_other@test.com")
+        other_test = _make_test(other_user)
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(test_id=other_test.id))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # ------------------------------------------------------------------ unknown format
+
+    def test_unknown_format_returns_400(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="docx"))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_unknown_format_error_message(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="xml"))
+        data = response.json()
+        self.assertIn("detail", data)
+
+    # ------------------------------------------------------------------ default (no ?format=)
+
+    def test_default_format_is_csv(self):
+        """Omitting ?format= should default to CSV."""
+        self.client.force_authenticate(user=self.user)
+        url = f"/api/v1/analytics/test/{self.test.id}/export/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("text/csv", response["Content-Type"])
+
+    # ------------------------------------------------------------------ CSV
+
+    def test_csv_returns_200(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="csv"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_csv_content_type(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="csv"))
+        self.assertIn("text/csv", response["Content-Type"])
+
+    def test_csv_content_disposition_attachment(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="csv"))
+        cd = response.get("Content-Disposition", "")
+        self.assertIn("attachment", cd)
+        self.assertIn(".csv", cd)
+
+    def test_csv_non_empty_body(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="csv"))
+        self.assertGreater(len(response.content), 0)
+
+    def test_csv_has_header_row(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="csv"))
+        text = response.content.decode("utf-8")
+        first_line = text.splitlines()[0]
+        self.assertIn("roll_number", first_line)
+        self.assertIn("score", first_line)
+
+    def test_csv_has_one_row_per_student(self):
+        """CSV should have 1 header row + 2 data rows (one per StudentResult)."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="csv"))
+        text = response.content.decode("utf-8")
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        # 1 header + 2 students
+        self.assertEqual(len(lines), 3)
+
+    def test_csv_contains_roll_numbers(self):
+        """Roll numbers of both students must appear in the CSV body."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="csv"))
+        text = response.content.decode("utf-8")
+        self.assertIn("EXP001", text)
+        self.assertIn("EXP002", text)
+
+    # ------------------------------------------------------------------ XLSX
+
+    def test_xlsx_returns_200(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="xlsx"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_xlsx_content_type(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="xlsx"))
+        self.assertIn(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            response["Content-Type"],
+        )
+
+    def test_xlsx_content_disposition_attachment(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="xlsx"))
+        cd = response.get("Content-Disposition", "")
+        self.assertIn("attachment", cd)
+        self.assertIn(".xlsx", cd)
+
+    def test_xlsx_non_empty_body(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="xlsx"))
+        self.assertGreater(len(response.content), 0)
+
+    def test_xlsx_is_valid_workbook(self):
+        """The response body must be a parseable openpyxl workbook."""
+        import io as _io
+        from openpyxl import load_workbook
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="xlsx"))
+        wb = load_workbook(filename=_io.BytesIO(response.content))
+        self.assertIn("Results", wb.sheetnames)
+        self.assertIn("Summary", wb.sheetnames)
+
+    def test_xlsx_results_sheet_has_data_rows(self):
+        """Results sheet must have 1 header + 2 data rows."""
+        import io as _io
+        from openpyxl import load_workbook
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="xlsx"))
+        wb = load_workbook(filename=_io.BytesIO(response.content))
+        ws = wb["Results"]
+        # max_row includes header
+        self.assertEqual(ws.max_row, 3)
+
+    # ------------------------------------------------------------------ PDF
+
+    def test_pdf_returns_200(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="pdf"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_pdf_content_type(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="pdf"))
+        self.assertIn("application/pdf", response["Content-Type"])
+
+    def test_pdf_content_disposition_attachment(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="pdf"))
+        cd = response.get("Content-Disposition", "")
+        self.assertIn("attachment", cd)
+        self.assertIn(".pdf", cd)
+
+    def test_pdf_non_empty_body(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="pdf"))
+        self.assertGreater(len(response.content), 0)
+
+    def test_pdf_magic_bytes(self):
+        """A valid PDF starts with the %PDF magic bytes."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self._url(fmt="pdf"))
+        self.assertTrue(
+            response.content[:4] == b"%PDF",
+            "PDF response does not start with %PDF magic bytes",
+        )
+
+    # ------------------------------------------------------------------ pure-function tests
+
+    def test_results_csv_pure(self):
+        """analytics.export.results_csv() returns correct UTF-8 CSV bytes."""
+        from analytics.export import results_csv
+        data = results_csv(self.test)
+        self.assertIsInstance(data, bytes)
+        text = data.decode("utf-8")
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        # header + 2 students
+        self.assertEqual(len(lines), 3)
+        self.assertIn("EXP001", text)
+        self.assertIn("EXP002", text)
+
+    def test_results_xlsx_pure(self):
+        """analytics.export.results_xlsx() returns a parseable workbook."""
+        import io as _io
+        from openpyxl import load_workbook
+        from analytics.export import results_xlsx
+
+        data = results_xlsx(self.test)
+        self.assertIsInstance(data, bytes)
+        wb = load_workbook(filename=_io.BytesIO(data))
+        self.assertIn("Results", wb.sheetnames)
+        self.assertIn("Summary", wb.sheetnames)
+
+    def test_report_pdf_pure(self):
+        """analytics.export.report_pdf() returns PDF bytes."""
+        from analytics.export import report_pdf
+
+        data = report_pdf(self.test)
+        self.assertIsInstance(data, bytes)
+        self.assertTrue(data[:4] == b"%PDF")
