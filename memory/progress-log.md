@@ -14,3 +14,7 @@
   owner-scope CheckConstraint validated on real tables. React: classes/test-list + 3-step test
   wizard. Scope/IDOR audit caught + fixed a Critical child-scope-permission bug (Question detail
   403). 45 tests green.
+- 2026-06-17 — Phase 3 complete (branch `phase-3`): roster (encrypted PII) + the OMR engine
+  (geometry descriptor, deterministic shuffle/answer_key, ReportLab generator, gated generation
+  endpoint + batch PDF). QR round-trip test passes; rendered sheet visually validated (clean
+  fiducials/grids after a header-layout fix). 126 tests green.

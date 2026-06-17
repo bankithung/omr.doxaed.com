@@ -1,15 +1,15 @@
 # OMRFlow — Memory Index
 
-**Status:** Phase 2 (Assessments) — DONE (2026-06-17). Next: Phase 3 (Roster & OMR generation).
+**Status:** Phase 3 (OMR generation) — DONE (2026-06-17). Next: Phase 4 (Scanning & grading).
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
-**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–2.
+**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–3.
 
 ## Next steps
-- Phase 3 (Roster & OMR generation) per `prompts/BUILD_ROADMAP.md` + `OMR_ENGINE_SPEC.md`: Roster +
-  Student models, ReportLab OMR PDF generation (QR/fiducials/roll-grid/answer-grid), per-student
-  shuffle + answer_key + template_descriptor, multi-page + page_map, batch PDF, free-tier gates.
-  Write the Phase 3 plan, then build. See `current-state.md` for the child-scope permission pattern.
-- Done: Phase 0 (foundations) · Phase 1 (auth, 26 tests) · Phase 2 (assessments, 45 tests).
+- Phase 4 (Scanning & grading — HARDEST) per `prompts/OMR_ENGINE_SPEC.md` + `BUILD_ROADMAP.md`:
+  ScanBatch/ScanJob, async OpenCV pipeline (QR→fiducials→warp→roll dots→answer fill-ratio→stitch→
+  grade vs the per-sheet `answer_key`)→StudentResult/QuestionResponse, manual review queue, progress.
+  See `current-state.md` → "generator↔scanner contract" (the descriptor) and build a fixture set early.
+- Done: Phase 0 · Phase 1 (auth, 26 tests) · Phase 2 (assessments, 45 tests) · Phase 3 (OMR gen, 126 tests).
 
 ## Key facts
 - DB: `omrflow`, user `postgres`, password `postgress`, localhost:5432 (no Docker). PG18.

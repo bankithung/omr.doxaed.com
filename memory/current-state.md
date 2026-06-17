@@ -1,42 +1,47 @@
 # Current State
 
-- 2026-06-17: **Phase 2 (Assessments core) complete** (branch `phase-2` → merged to `main`).
-  ClassGroup → Test CRUD, Question/Option authoring, MarkingScheme, retest deep-copy — all
-  solo-scope isolated. **45 backend tests green** (incl. a sonnet scope/IDOR audit with a live
-  cross-tenant probe). React: Classes list, per-class Test list (+ retest), and a 3-step
-  test-creation Wizard (details+marking → adaptive single/multiple-correct question authoring →
-  review/finish). The Phase-0 owner-scope DB `CheckConstraint` is now validated on real tables.
-- **Next:** Phase 3 (Roster & OMR generation) per `prompts/BUILD_ROADMAP.md` + `OMR_ENGINE_SPEC.md`
-  + `DATA_MODEL.md`: Roster + Student (named+roll OR count-only), OMR PDF generation via ReportLab
-  (header, per-page QR `sheet_code`+page, fiducials, roll-number dot grid, answer grid), per-student
-  shuffle (`question_order`/`answer_key`), `template_descriptor` JSON, multi-page + `page_map`,
-  batch PDF, free-tier gates (10 students/gen, 5 gens/day). Generation must be deterministic.
-- Done: Phase 0 (foundations) · Phase 1 (auth) · Phase 2 (assessments). Repo: standalone git repo,
-  `main` holds Phases 0–2.
+- 2026-06-17: **Phase 3 (Roster & OMR generation) complete** (branch `phase-3` → merged to `main`).
+  Roster + Student (Fernet-encrypted `full_name`, named+roll OR count-only). The OMR engine:
+  `geometry` (canonical-pixel template descriptor), `shuffle` (deterministic per-sheet
+  question/option order + answer_key), `codes` (sheet_code), `generator` (ReportLab → multi-page
+  PDF with QR/fiducials/roll-grid/answer-grid). Generation endpoint `POST /api/v1/omr/generate/`
+  (one OmrSheet/student, batch PDF via PyMuPDF, free-tier gates ≤10 students/gen & ≤5 gens/day).
+  **126 backend tests green.** QR round-trip test passes (rendered sheet's QR decodes back).
+  **Visually validated** — a rendered sheet looks clean (fiducial quiet zones, readable grids).
+  React: roster mgmt + generate-sheets flow (download batch PDF). The Phase-0 owner-scope DB
+  constraint validated on real tables (Phase 2).
+- **Next:** Phase 4 (Scanning & grading — the hardest phase) per `prompts/OMR_ENGINE_SPEC.md` +
+  `BUILD_ROADMAP.md`: ScanBatch/ScanJob models, async (Celery — or eager-in-dev) OpenCV pipeline
+  (QR decode → fiducial detect → perspective warp → roll-dot read → answer-bubble fill-ratio with
+  hysteresis → multi-page stitch → grade against the per-sheet answer_key → StudentResult/
+  QuestionResponse), a manual review queue for low-confidence reads, progress endpoint. Build a
+  labeled fixture set EARLY (the generator can produce + simulate filled sheets for tests).
+- Done: Phase 0 (foundations) · Phase 1 (auth) · Phase 2 (assessments) · Phase 3 (OMR generation).
 
-## Architecture patterns (FOLLOW in later phases)
-- **Owner-scope (direct):** models inheriting `OwnerScopedModel` (user XOR org) use
-  `common.viewsets.ScopedModelViewSet` (permission `IsInScope`; `get_queryset` filters
-  `user=request.user`; `perform_create` stamps `user` + `owner_extra_fields`). The inherited
-  `CheckConstraint` lands automatically; if you add a child `Meta` (e.g. ordering), run
-  `makemigrations` to capture the `AlterModelOptions`.
-- **Child-scope (CRITICAL):** resources that are NOT `OwnerScopedModel` but belong to a scoped
-  parent (e.g. `Question`→Test; in Phase 3+: `Student`→Roster, OMR sheets→Test, results, scan jobs)
-  MUST use `permission_classes=[IsAuthenticated]` + a `get_queryset` filtered through the parent's
-  scope (e.g. `test__user=request.user`). Do NOT use `IsInScope` on them — it checks `obj.user_id`
-  which child models lack, causing 403 on every detail op. (This was a Critical bug in Phase 2.)
-- **Cross-scope attach:** serializers validate FK parents belong to `request.user`
-  (`validate_<fk>` → 400). Owner fields (`user`/`organization`) are never writable serializer fields.
+## The generator↔scanner contract (CRITICAL for Phase 4)
+Each `OmrSheet` stores `template_descriptor` (canonical 100-DPI, top-left-origin PIXEL coords:
+fiducials, roll_grid origin/pitch/radius, qr region, answer_bubbles list of {q_pos, page,
+options:[{label,cx,cy,r}]}, page_map) PLUS `question_order`/`option_order`/`answer_key`. The Phase-4
+scanner MUST: decode the QR (`{sheet_code}|{page}|{total}`) → load the OmrSheet → detect the 4
+fiducials → warp the scan to the canonical px space → read bubbles at the descriptor's exact cx/cy/r
+→ grade detected printed-labels through `answer_key` + the test's MarkingScheme. The generator draws
+at these exact descriptor coords (verified by the QR round-trip + visual check), so the scanner must
+read at the same coords. NEVER grade against the test default order — always the sheet's answer_key.
+
+## Architecture patterns (recap; FOLLOW)
+- Direct `OwnerScopedModel` → `ScopedModelViewSet` (IsInScope). Child-scoped (Student→Roster,
+  OmrSheet/ScanJob→Test) → `IsAuthenticated` + queryset filtered through the parent's scope.
+- PII: `common.encryption.EncryptedTextField` (Fernet, key `FIELD_ENCRYPTION_KEY` from env).
+- Free-tier gates enforced server-side; over cap → 403 with an upgrade message.
 
 ## Deferred follow-ups
-- **Phase 3+:** Question/Option `image` upload API absent (models have ImageField; serializers omit
-  it — text-only MVP). `?class_group` filter on /tests/ doesn't 400 on a foreign id (safe: returns
-  empty). `OwnerScopedModel.clean()` not auto-called by save() — rely on the DB constraint or call
-  `full_clean()`.
-- **Phase 6:** `IsInScope.has_object_permission` → add org-membership path + `super().has_permission()`.
-- **Phase 8 (hardening):** register duplicate-email enumeration; `verify-email/` unthrottled; full
-  account lockout (django-axes); frontend bundle code-splitting (recharts).
-- **Phase 1 leftover:** unused `first_name`/`last_name` on User; hand-authored `form.jsx` still unused.
+- **Phase 4:** scanning uses Celery+Redis per spec; for local no-Docker dev, run Celery eager
+  (`task_always_eager`) or install Memurai/Redis — defer the broker, process synchronously in dev.
+  Build a fixture set (clean/faint/double/skewed). Print at known DPI; fiducial detection robustness
+  tuned against fixtures.
+- **Phase 6:** `IsInScope` org-membership path. **Phase 8:** register enumeration, verify-email
+  throttle, account lockout, code-splitting. **Phase 3 leftover:** question/option image upload API
+  (models have ImageField; serializers omit — text-only MVP).
 
 ## Resolved
-- Phase-1 AllowAny applied on all public auth views. Phase-2 child-scope 403 bug fixed (Question).
+- Phase-1 AllowAny applied. Phase-2 child-scope 403 bug fixed. Phase-3 sheet header/fiducial overlaps fixed.
