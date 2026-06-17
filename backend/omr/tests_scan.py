@@ -1737,6 +1737,48 @@ class EndToEndDoubleMarkTest(TestCase):
             f"Expected 'double_mark' ReviewItem, got {reasons}",
         )
 
+    def test_single_double_mark_yields_exactly_one_review_item(self):
+        """
+        A single double-marked scan must create EXACTLY ONE open double_mark
+        ReviewItem (no duplicate from _maybe_grade).
+        """
+        import cv2
+        from django.core.files.base import ContentFile
+        from omr.scan.pipeline import simulate_correct_marks, process_scan_job
+        from omr.models import ScanBatch, ScanJob
+        from omr.simulate import simulate_scan
+        from results.models import ReviewItem
+
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+        dm_marks = dict(correct_marks)
+        dm_marks[0] = ["A", "B"]  # double-mark a single question
+
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=dm_marks, roll="006",
+            page=0, scale=self.SCALE,
+        )
+        ok, buf = cv2.imencode(".png", img)
+        img_bytes = buf.tobytes()
+
+        batch = ScanBatch.objects.create(
+            test=self.test, created_by=self.user, total=1
+        )
+        job = ScanJob(batch=batch, page_no=1)
+        job.image_file.save("dm_single.png", ContentFile(img_bytes), save=True)
+
+        process_scan_job(job)
+
+        dm_items = ReviewItem.objects.filter(
+            omr_sheet=self.omr_sheet,
+            reason=ReviewItem.REASON_DOUBLE_MARK,
+            resolved=False,
+        )
+        self.assertEqual(
+            dm_items.count(), 1,
+            f"Expected exactly 1 double_mark ReviewItem, got {dm_items.count()}",
+        )
+
 
 # ===========================================================================
 # Phase 4 Task 6 — Scan upload endpoint + batch progress + review queue tests
@@ -2065,6 +2107,70 @@ class ReviewQueueEndpointTest(TestCase):
         ).count()
         self.assertEqual(open_items, 0, f"Expected 0 open items, got {open_items}")
 
+        # needs_review must be cleared once all reviews are resolved
+        sr.refresh_from_db()
+        self.assertFalse(
+            sr.needs_review,
+            "StudentResult.needs_review should be False after resolving all reviews",
+        )
+
+    def test_needs_review_cleared_after_resolving_multiple_items(self):
+        """
+        Fix #1 regression: with 2+ open ReviewItems for one result, resolving
+        ALL of them must clear needs_review (the fallback branch must recompute).
+        """
+        from results.models import ReviewItem, StudentResult
+
+        client = self._get_client()
+        upload_resp = self._upload_double_mark_scan(client)
+        self.assertEqual(upload_resp.status_code, 201,
+                         f"Upload failed: {upload_resp.data}")
+
+        sr = StudentResult.objects.get(omr_sheet=self.omr_sheet)
+        self.assertTrue(sr.needs_review,
+                        "Result should start with needs_review=True")
+
+        # Inject a SECOND open double_mark ReviewItem so we exercise the
+        # multi-item resolve path (the second resolve hits the fallback branch,
+        # since the only flagged response is cleared by the first resolve).
+        ReviewItem.objects.create(
+            omr_sheet=self.omr_sheet,
+            reason=ReviewItem.REASON_DOUBLE_MARK,
+        )
+
+        open_ids = list(
+            ReviewItem.objects.filter(
+                omr_sheet=self.omr_sheet, resolved=False
+            ).values_list("id", flat=True)
+        )
+        self.assertGreaterEqual(len(open_ids), 2,
+                                "Expected at least 2 open ReviewItems")
+
+        for review_id in open_ids:
+            resolve_resp = client.post(
+                f"/api/v1/review/{review_id}/resolve/",
+                {"marked_options": ["A"]},
+                format="json",
+            )
+            self.assertIn(resolve_resp.status_code, [200, 201],
+                          f"Resolve failed for {review_id}: {resolve_resp.data}")
+
+        # No open items remain
+        self.assertEqual(
+            ReviewItem.objects.filter(
+                omr_sheet=self.omr_sheet, resolved=False
+            ).count(),
+            0,
+        )
+
+        # needs_review must now be False
+        sr.refresh_from_db()
+        self.assertFalse(
+            sr.needs_review,
+            "needs_review must be cleared after resolving ALL ReviewItems "
+            "(fallback branch must recompute)",
+        )
+
     def test_review_scope_cross_tenant_returns_empty(self):
         """
         GET /review/?test= for a different user's test returns empty list
@@ -2117,3 +2223,66 @@ class ReviewQueueEndpointTest(TestCase):
         else:
             count = len(results_resp.data)
         self.assertEqual(count, 0, "Should not see another user's results")
+
+    def test_no_qr_review_item_visible_and_resolvable(self):
+        """
+        Fix #3: a no_qr scan (blank image, no decodable QR) creates a
+        ReviewItem with omr_sheet=None + scan_job set. It must:
+          - appear in GET /review/?test= (via the scan_job__batch path), and
+          - be resolvable by its owner via POST /review/<id>/resolve/.
+        """
+        import numpy as np
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from results.models import ReviewItem
+
+        client = self._get_client()
+
+        # A pure-white image has no QR → the pipeline flags 'no_qr'.
+        blank = np.full((1169 * 2, 827 * 2), 255, dtype=np.uint8)
+        ok, buf = cv2.imencode(".png", blank)
+        self.assertTrue(ok)
+        blank_bytes = buf.tobytes()
+
+        uploaded = SimpleUploadedFile("blank.png", blank_bytes, content_type="image/png")
+        upload_resp = client.post(
+            "/api/v1/omr/scan/",
+            {"test": self.test.id, "files": uploaded},
+            format="multipart",
+        )
+        self.assertEqual(upload_resp.status_code, 201,
+                         f"Upload failed: {upload_resp.data}")
+
+        # A no_qr ReviewItem with omr_sheet=None + scan_job set must exist.
+        no_qr_items = ReviewItem.objects.filter(
+            reason=ReviewItem.REASON_NO_QR,
+            omr_sheet__isnull=True,
+            scan_job__isnull=False,
+            resolved=False,
+        )
+        self.assertEqual(no_qr_items.count(), 1,
+                         "Expected exactly one orphaned no_qr ReviewItem")
+
+        # It must surface in GET /review/?test= (via the scan_job path).
+        review_resp = client.get(f"/api/v1/review/?test={self.test.id}")
+        self.assertEqual(review_resp.status_code, 200)
+        if isinstance(review_resp.data, dict) and "results" in review_resp.data:
+            items = review_resp.data["results"]
+        else:
+            items = review_resp.data
+        reasons = [item["reason"] for item in items]
+        self.assertIn("no_qr", reasons,
+                      f"no_qr item should be visible in review API, got {reasons}")
+
+        # It must be resolvable by its owner.
+        no_qr_id = no_qr_items.first().id
+        resolve_resp = client.post(
+            f"/api/v1/review/{no_qr_id}/resolve/",
+            {"marked_options": []},
+            format="json",
+        )
+        self.assertIn(resolve_resp.status_code, [200, 201],
+                      f"Resolve of no_qr item failed: {resolve_resp.data}")
+
+        ri = ReviewItem.objects.get(pk=no_qr_id)
+        self.assertTrue(ri.resolved, "no_qr ReviewItem should be resolved")
+        self.assertEqual(ri.resolved_by, self.user)

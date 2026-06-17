@@ -312,13 +312,11 @@ def _maybe_grade(omr_sheet) -> None:
             flagged=flagged,
         )
 
-    # Create ReviewItems for double marks
+    # Set needs_review when a double-mark was detected. The ReviewItem itself is
+    # already created per-flag in process_scan_job, so we do NOT create another
+    # here (avoids duplicate double_mark ReviewItems).
     if has_double_mark:
         needs_review = True
-        ReviewItem.objects.create(
-            omr_sheet=omr_sheet,
-            reason=ReviewItem.REASON_DOUBLE_MARK,
-        )
 
     # Update needs_review
     result.needs_review = needs_review

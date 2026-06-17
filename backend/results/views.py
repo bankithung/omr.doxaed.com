@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -60,13 +61,17 @@ class ReviewItemListView(generics.ListAPIView):
         user = self.request.user
         test_id = self.request.query_params.get("test")
 
-        # Filter open items scoped to this user via omr_sheet's test
+        # Filter open items scoped to this user. Include both:
+        #   - items tied to an OmrSheet (most flags), via omr_sheet__test__user
+        #   - orphaned items with no OmrSheet (e.g. no_qr), via scan_job__batch__test__user
         qs = ReviewItem.objects.filter(
+            Q(omr_sheet__test__user=user) | Q(scan_job__batch__test__user=user),
             resolved=False,
-            omr_sheet__test__user=user,
-        )
+        ).distinct()
         if test_id:
-            qs = qs.filter(omr_sheet__test_id=test_id)
+            qs = qs.filter(
+                Q(omr_sheet__test_id=test_id) | Q(scan_job__batch__test_id=test_id)
+            )
         return qs
 
 
@@ -84,11 +89,14 @@ class ResolveReviewItemView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        # Scope check: must belong to request.user via omr_sheet__test__user
+        # Scope check: must belong to request.user via either the omr_sheet's
+        # test OR (for orphaned items like no_qr) the scan_job's batch's test.
         review_item = get_object_or_404(
-            ReviewItem,
+            ReviewItem.objects.filter(
+                Q(omr_sheet__test__user=request.user)
+                | Q(scan_job__batch__test__user=request.user),
+            ),
             pk=pk,
-            omr_sheet__test__user=request.user,
             resolved=False,
         )
 
@@ -99,57 +107,53 @@ class ResolveReviewItemView(APIView):
         marked_options = serializer.validated_data["marked_options"]
 
         omr_sheet = review_item.omr_sheet
-        if omr_sheet is None:
-            return Response(
-                {"detail": "ReviewItem has no associated OmrSheet."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
-        # Find the StudentResult for this sheet
-        try:
-            student_result = StudentResult.objects.get(omr_sheet=omr_sheet)
-        except StudentResult.DoesNotExist:
-            return Response(
-                {"detail": "No StudentResult found for this sheet."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # Find the StudentResult for this sheet (may not exist for no_qr items).
+        student_result = None
+        if omr_sheet is not None:
+            student_result = StudentResult.objects.filter(omr_sheet=omr_sheet).first()
 
-        # Find the first flagged QuestionResponse for this result
-        flagged_response = QuestionResponse.objects.filter(
-            student_result=student_result,
-            flagged=True,
-        ).first()
+        # If we have a StudentResult, update the first flagged response (if any).
+        if student_result is not None:
+            flagged_response = QuestionResponse.objects.filter(
+                student_result=student_result,
+                flagged=True,
+            ).first()
 
-        if flagged_response is None:
-            # Fall back: just mark the review item resolved with no response change
-            review_item.resolved = True
-            review_item.resolved_by = request.user
-            review_item.resolution = {"marked_options": marked_options, "note": "no_flagged_response"}
-            review_item.save(update_fields=["resolved", "resolved_by", "resolution"])
-            return Response({"detail": "Resolved (no flagged response found)."})
+            if flagged_response is not None:
+                # Update the marked_options on the flagged response.
+                flagged_response.marked_options = marked_options
+                # Recompute is_correct by comparing to the answer key.
+                answer_key = omr_sheet.answer_key  # {str(q_pos): [correct_labels]}
+                correct_labels = set(answer_key.get(str(flagged_response.q_pos), []))
+                marked_set = set(marked_options)
+                flagged_response.is_correct = (
+                    marked_set == correct_labels and bool(correct_labels)
+                )
+                flagged_response.flagged = False  # clear flag after resolution
+                flagged_response.save(
+                    update_fields=["marked_options", "is_correct", "flagged"]
+                )
 
-        # Update the marked_options on the flagged response
-        flagged_response.marked_options = marked_options
-
-        # Recompute is_correct by comparing to the answer key
-        answer_key = omr_sheet.answer_key  # {str(q_pos): [correct_labels]}
-        correct_labels = set(answer_key.get(str(flagged_response.q_pos), []))
-        marked_set = set(marked_options)
-        flagged_response.is_correct = (marked_set == correct_labels and bool(correct_labels))
-        flagged_response.flagged = False  # clear flag after resolution
-        flagged_response.save(update_fields=["marked_options", "is_correct", "flagged"])
-
-        # Recompute the StudentResult totals from all responses
-        _recompute_student_result(student_result, omr_sheet)
-
-        # Mark ReviewItem resolved
+        # Mark the ReviewItem resolved FIRST and SAVE it, so the recompute below
+        # sees the up-to-date open-item state.
         review_item.resolved = True
         review_item.resolved_by = request.user
         review_item.resolution = {"marked_options": marked_options}
         review_item.save(update_fields=["resolved", "resolved_by", "resolution"])
 
+        # ALWAYS recompute the StudentResult (clears needs_review when nothing is
+        # still open/flagged) — in both the flagged-response and fallback paths.
+        if student_result is not None:
+            _recompute_student_result(student_result, omr_sheet)
+            return Response(
+                StudentResultSerializer(student_result).data,
+                status=status.HTTP_200_OK,
+            )
+
+        # No StudentResult (e.g. an orphaned no_qr item) — just acknowledge.
         return Response(
-            StudentResultSerializer(student_result).data,
+            {"detail": "Resolved.", "id": review_item.id},
             status=status.HTTP_200_OK,
         )
 
@@ -174,16 +178,15 @@ def _recompute_student_result(student_result, omr_sheet) -> None:
     student_result.wrong_count = grading["wrong_count"]
     student_result.blank_count = grading["blank_count"]
 
-    # Check if any responses are still flagged
-    still_flagged = student_result.responses.filter(flagged=True).exists()
-    # Check if any unresolved review items remain for this sheet
-    open_reviews = ReviewItem.objects.filter(
+    # needs_review reflects what is ACTUALLY still open/flagged. The ReviewItem
+    # being resolved is already saved as resolved=True before this runs, so it
+    # is correctly excluded from the still_open check.
+    still_open = ReviewItem.objects.filter(
         omr_sheet=omr_sheet,
         resolved=False,
-    ).count()
-    # Exclude the current one being resolved (it hasn't been saved yet at this point)
-    # We will set needs_review based on still-flagged responses or remaining open review items
-    student_result.needs_review = still_flagged or (open_reviews > 1)
+    ).exists()
+    still_flagged = student_result.responses.filter(flagged=True).exists()
+    student_result.needs_review = still_open or still_flagged
 
     student_result.save(update_fields=[
         "score", "max_score", "correct_count", "wrong_count",
