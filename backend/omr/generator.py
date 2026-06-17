@@ -95,21 +95,29 @@ def _draw_qr(c: Canvas, qr_desc: dict, sheet_code: str, page: int, total: int,
 
 
 def _draw_header(c: Canvas, sheet: dict, page_h_px: float) -> None:
-    """Draw institution/test/subject/student header text on page 1."""
-    # Header area: top of page down to ~HEADER_H px
-    from omr.geometry import MARGIN, HEADER_H
+    """Draw institution/test/subject/student header text on page 1.
 
-    margin_pt = px_len_to_pt(MARGIN)
-    header_h_pt = px_len_to_pt(HEADER_H)
+    Text is indented to clear the TL fiducial quiet zone:
+      - x starts at MARGIN + FID + 12 px  (~76 px from left edge)
+      - first line's y starts below the fiducial bottom edge (MARGIN + FID + 12 px
+        from top, i.e. ~76 px down), so the whole block is to the right of and
+        below the TL fiducial square.
+    """
+    from omr.geometry import MARGIN, FID
 
-    # Column layout: left block (institution+test+subject+student)
-    # right area is taken by QR — leave it
-    qr_left_pt = px_len_to_pt(sheet.get("_qr_x", 660))  # reserve ~right 20% for QR
+    # Horizontal indent: clear the TL fiducial (spans x 40..64) + 12 px quiet zone
+    text_left_px = MARGIN + FID + 12   # = 76 px
+    text_left_pt = px_len_to_pt(text_left_px)
 
     c.setFillColorRGB(0, 0, 0)
 
-    # Institution name (largest text)
-    y_top = px_len_to_pt(page_h_px) - margin_pt - 6  # near top
+    # Vertical start: first line baseline sits just below the fiducial bottom edge
+    # fiducial bottom = MARGIN + FID = 64 px from top
+    # add 12 px quiet zone → 76 px from top
+    # convert to ReportLab y (bottom-left origin):
+    fid_clear_px = MARGIN + FID + 12   # = 76 px from top
+    y_top = px_to_pt(0, fid_clear_px, page_h_px)[1]   # take the y component only
+
     institution = sheet.get("institution", "")
     test_title = sheet.get("test_title", "")
     subject = sheet.get("subject", "")
@@ -118,27 +126,27 @@ def _draw_header(c: Canvas, sheet: dict, page_h_px: float) -> None:
 
     if institution:
         c.setFont("Helvetica-Bold", 11)
-        c.drawString(margin_pt, y_top, institution[:60])
+        c.drawString(text_left_pt, y_top, institution[:60])
         y_top -= 13
 
     if test_title:
         c.setFont("Helvetica-Bold", 10)
-        c.drawString(margin_pt, y_top, test_title[:60])
+        c.drawString(text_left_pt, y_top, test_title[:60])
         y_top -= 13
 
     if subject:
         c.setFont("Helvetica", 9)
-        c.drawString(margin_pt, y_top, f"Subject: {subject[:50]}")
+        c.drawString(text_left_pt, y_top, f"Subject: {subject[:50]}")
         y_top -= 12
 
     if student_name:
         c.setFont("Helvetica", 9)
-        c.drawString(margin_pt, y_top, f"Name: {student_name[:50]}")
+        c.drawString(text_left_pt, y_top, f"Name: {student_name[:50]}")
         y_top -= 12
 
-    # Human-readable code (printed below the QR label area)
+    # Human-readable code
     c.setFont("Helvetica", 8)
-    c.drawString(margin_pt, y_top, f"Sheet ID: {human_code}")
+    c.drawString(text_left_pt, y_top, f"Sheet ID: {human_code}")
 
 
 def _draw_roll_grid(c: Canvas, roll_grid: dict, sheet: dict, page_h_px: float) -> None:

@@ -20,8 +20,11 @@ MARGIN = 40    # minimum safe margin from edge (px)
 FID = 24       # fiducial square side length (px)
 FID_R = FID // 2   # half-side; centre offset from edge
 
-# Header band (page 1) — space reserved at the very top for QR + title
-HEADER_H = 110  # px
+# Header band (page 1) — space reserved at the very top for QR + title.
+# Increased to 148 px so that the roll grid (origin_y = HEADER_H + 20 = 168 px)
+# starts well below the header text block, which itself begins at
+# y ≈ MARGIN + FID + 12 = 76 px and spans ~5 lines × 13 px ≈ 65 px → ends ~141 px.
+HEADER_H = 148  # px
 
 # Bubble radius for answer grid
 R = 9          # px
