@@ -9,3 +9,8 @@
 - 2026-06-17 — Phase 1 complete (branch `phase-1`): full email/password auth — register, verify,
   login/logout (JWT blacklist), password reset (no enumeration), profile `me/`; React auth UI
   (AuthProvider, ProtectedRoute, 6 shadcn screens). Opus security review passed; 26 tests green.
+- 2026-06-17 — Phase 2 complete (branch `phase-2`): assessments — ScopedModelViewSet + ClassGroup/
+  Test/Question/Option/MarkingScheme CRUD, retest deep-copy, all scope-isolated; first concrete
+  owner-scope CheckConstraint validated on real tables. React: classes/test-list + 3-step test
+  wizard. Scope/IDOR audit caught + fixed a Critical child-scope-permission bug (Question detail
+  403). 45 tests green.
