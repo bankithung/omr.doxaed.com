@@ -12,6 +12,9 @@ import VerifyEmail from "@/routes/VerifyEmail"
 import ForgotPassword from "@/routes/ForgotPassword"
 import ResetPassword from "@/routes/ResetPassword"
 import Profile from "@/routes/Profile"
+import Classes from "@/routes/Classes"
+import TestList from "@/routes/TestList"
+import TestWizard from "@/routes/TestWizard"
 
 function Nav() {
   const { user, logout } = useAuth()
@@ -30,6 +33,11 @@ function Nav() {
       <Link to="/style-guide" className="text-muted-foreground hover:text-foreground">
         Style Guide
       </Link>
+      {user && (
+        <Link to="/classes" className="text-muted-foreground hover:text-foreground">
+          Classes
+        </Link>
+      )}
 
       <div className="ml-auto flex items-center gap-3">
         {user ? (
@@ -85,6 +93,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/classes"
+          element={
+            <ProtectedRoute>
+              <Classes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/classes/:id"
+          element={
+            <ProtectedRoute>
+              <TestList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/classes/:classId/tests/new"
+          element={
+            <ProtectedRoute>
+              <TestWizard />
             </ProtectedRoute>
           }
         />
