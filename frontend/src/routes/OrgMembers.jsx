@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
 import { getMembers, invite, setMemberRole, removeMember } from "@/api/orgs"
@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ChevronDownIcon, UserPlusIcon } from "lucide-react"
+import { ChevronDownIcon, UserPlusIcon, CreditCardIcon } from "lucide-react"
 
 const ROLES = ["admin", "member", "viewer"]
 const ROLE_LABELS = { admin: "Admin", member: "Member", viewer: "Viewer" }
@@ -136,18 +136,26 @@ export default function OrgMembers() {
             {members.length} member{members.length !== 1 ? "s" : ""}
           </p>
         </div>
-        {isAdmin && (
-          <Button
-            onClick={() => {
-              setInviteEmail("")
-              setInviteRole("member")
-              setInviteOpen(true)
-            }}
-          >
-            <UserPlusIcon className="mr-1.5" />
-            Invite member
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to={`/organizations/${orgId}/billing`}>
+              <CreditCardIcon className="mr-1.5" />
+              Billing
+            </Link>
           </Button>
-        )}
+          {isAdmin && (
+            <Button
+              onClick={() => {
+                setInviteEmail("")
+                setInviteRole("member")
+                setInviteOpen(true)
+              }}
+            >
+              <UserPlusIcon className="mr-1.5" />
+              Invite member
+            </Button>
+          )}
+        </div>
       </div>
 
       {loading ? (
