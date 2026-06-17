@@ -68,18 +68,23 @@ class TestSerializer(serializers.ModelSerializer):
 
 
 class OptionSerializer(serializers.ModelSerializer):
+    # image is optional; allow_null=True so clients can clear it via JSON null
+    image = serializers.ImageField(required=False, allow_null=True)
+
     class Meta:
         model = Option
-        fields = ("id", "label", "text", "is_correct")
+        fields = ("id", "label", "text", "image", "is_correct")
         read_only_fields = ("id",)
 
 
 class QuestionSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True)
+    # image is optional; allow_null=True so clients can clear it via JSON null
+    image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Question
-        fields = ("id", "test", "order_index", "text", "topic", "difficulty", "options")
+        fields = ("id", "test", "order_index", "text", "image", "topic", "difficulty", "options")
         read_only_fields = ("id",)
 
     def validate_test(self, value):

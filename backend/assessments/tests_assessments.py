@@ -1,6 +1,8 @@
+import io
 from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework.test import APITestCase
@@ -8,6 +10,19 @@ from rest_framework.test import APITestCase
 from assessments.models import ClassGroup, Test, MarkingScheme, Question, Option
 
 User = get_user_model()
+
+
+def _tiny_png() -> bytes:
+    """Return a minimal valid 1×1 red PNG (67 bytes)."""
+    import struct, zlib
+    def chunk(tag, data):
+        crc = zlib.crc32(tag + data) & 0xFFFFFFFF
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", crc)
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    idat = chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00"))  # filter=0, R=255,G=0,B=0
+    iend = chunk(b"IEND", b"")
+    return sig + ihdr + idat + iend
 
 
 class ModelTests(TestCase):
@@ -129,3 +144,79 @@ class QuestionApiTests(ClassApiTests):
         qid = self.client.post("/api/v1/questions/", {"test": tid, "text": "Q", "options": []}, format="json").data["id"]
         self._auth(self.b)
         self.assertEqual(self.client.get(f"/api/v1/questions/{qid}/").status_code, 404)
+
+
+class QuestionImageUploadTests(ClassApiTests):
+    """TDD: question-level image upload via multipart PATCH."""
+
+    def _make_test(self):
+        cid = self.client.post("/api/v1/classes/", {"name": "C"}, format="json").data["id"]
+        return self.client.post("/api/v1/tests/", {"class_group": cid, "title": "T"}, format="json").data["id"]
+
+    def _make_question(self, tid):
+        r = self.client.post(
+            "/api/v1/questions/",
+            {
+                "test": tid,
+                "order_index": 0,
+                "text": "What is 2+2?",
+                "options": [{"label": "A", "text": "3"}, {"label": "B", "text": "4", "is_correct": True}],
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        return r.data["id"]
+
+    def test_patch_question_with_image_saves_and_returns_url(self):
+        """PATCH /api/v1/questions/{id}/ with multipart image → 200, image saved, GET returns URL."""
+        tid = self._make_test()
+        qid = self._make_question(tid)
+
+        # Build multipart form data — only supply the image field (no options required for PATCH)
+        png_bytes = _tiny_png()
+        upload = SimpleUploadedFile("test_q.png", png_bytes, content_type="image/png")
+
+        # PATCH with multipart; omit 'options' to avoid nested-options multipart complexity
+        r = self.client.patch(
+            f"/api/v1/questions/{qid}/",
+            {"image": upload},
+            format="multipart",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertIn("image", r.data)
+        # The image field in the response must be a non-empty URL
+        self.assertTrue(r.data["image"], "Expected a non-empty image URL in the response")
+        self.assertIn("/media/", r.data["image"])
+
+        # GET the question and verify image URL is present
+        r_get = self.client.get(f"/api/v1/questions/{qid}/")
+        self.assertEqual(r_get.status_code, 200)
+        self.assertTrue(r_get.data["image"], "GET should return the image URL")
+        self.assertIn("/media/", r_get.data["image"])
+
+    def test_question_image_field_absent_by_default(self):
+        """Creating a question without an image should return image=null or absent."""
+        tid = self._make_test()
+        qid = self._make_question(tid)
+        r = self.client.get(f"/api/v1/questions/{qid}/")
+        self.assertEqual(r.status_code, 200)
+        # image field should be present in response (null if no image)
+        self.assertIn("image", r.data)
+        self.assertIsNone(r.data["image"])
+
+    def test_patch_question_image_clears_with_null(self):
+        """PATCH with image='' or JSON null clears the image."""
+        tid = self._make_test()
+        qid = self._make_question(tid)
+
+        # First, upload an image
+        png_bytes = _tiny_png()
+        upload = SimpleUploadedFile("test_q2.png", png_bytes, content_type="image/png")
+        r = self.client.patch(f"/api/v1/questions/{qid}/", {"image": upload}, format="multipart")
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.data["image"])
+
+        # Now clear via JSON PATCH with null
+        r2 = self.client.patch(f"/api/v1/questions/{qid}/", {"image": None}, format="json")
+        self.assertEqual(r2.status_code, 200)
+        self.assertIsNone(r2.data["image"])
