@@ -1,10 +1,12 @@
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from common.permissions import IsInScope
 from common.viewsets import ScopedModelViewSet
 
 from .models import ClassGroup, MarkingScheme, Option, Question, Test
-from .serializers import ClassGroupSerializer, TestSerializer
+from .serializers import ClassGroupSerializer, QuestionSerializer, TestSerializer
 
 
 class ClassGroupViewSet(ScopedModelViewSet):
@@ -61,3 +63,13 @@ class TestViewSet(ScopedModelViewSet):
                     is_correct=o.is_correct,
                 )
         return Response(self.get_serializer(clone).data, status=201)
+
+
+class QuestionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsInScope]
+    serializer_class = QuestionSerializer
+
+    def get_queryset(self):
+        qs = Question.objects.filter(test__user=self.request.user)
+        test_id = self.request.query_params.get("test")
+        return qs.filter(test_id=test_id) if test_id else qs

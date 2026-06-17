@@ -95,3 +95,24 @@ class TestApiTests(ClassApiTests):  # reuse _auth/setUp (cache.clear included)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["parent_test"], tid)
         self.assertEqual(r.data["attempt_number"], 2)
+
+
+class QuestionApiTests(ClassApiTests):
+    def _make_test(self):
+        cid = self.client.post("/api/v1/classes/", {"name": "C"}, format="json").data["id"]
+        return self.client.post("/api/v1/tests/", {"class_group": cid, "title": "T"}, format="json").data["id"]
+
+    def test_create_question_with_options(self):
+        tid = self._make_test()
+        r = self.client.post("/api/v1/questions/", {
+            "test": tid, "order_index": 0, "text": "2+2?",
+            "options": [{"label": "A", "text": "3"}, {"label": "B", "text": "4", "is_correct": True}],
+        }, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(len(r.data["options"]), 2)
+
+    def test_cannot_add_to_others_test(self):
+        tid = self._make_test()
+        self._auth(self.b)
+        r = self.client.post("/api/v1/questions/", {"test": tid, "text": "x", "options": []}, format="json")
+        self.assertIn(r.status_code, (400, 404))

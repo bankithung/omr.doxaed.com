@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import ClassGroup, MarkingScheme, Test
+from .models import ClassGroup, MarkingScheme, Option, Question, Test
 
 
 class ClassGroupSerializer(serializers.ModelSerializer):
@@ -62,4 +62,44 @@ class TestSerializer(serializers.ModelSerializer):
             for k, v in marking.items():
                 setattr(ms, k, v)
             ms.save()
+        return instance
+
+
+class OptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Option
+        fields = ("id", "label", "text", "is_correct")
+        read_only_fields = ("id",)
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    options = OptionSerializer(many=True)
+
+    class Meta:
+        model = Question
+        fields = ("id", "test", "order_index", "text", "topic", "difficulty", "options")
+        read_only_fields = ("id",)
+
+    def validate_test(self, value):
+        user = self.context["request"].user
+        if value.user_id != user.id:
+            raise serializers.ValidationError("Test not found in your account.")
+        return value
+
+    def create(self, validated_data):
+        options = validated_data.pop("options", [])
+        q = Question.objects.create(**validated_data)
+        for o in options:
+            Option.objects.create(question=q, **o)
+        return q
+
+    def update(self, instance, validated_data):
+        options = validated_data.pop("options", None)
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        if options is not None:
+            instance.options.all().delete()
+            for o in options:
+                Option.objects.create(question=instance, **o)
         return instance
