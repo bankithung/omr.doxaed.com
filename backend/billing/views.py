@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from organizations.models import Organization, OrganizationMembership
 from organizations.views import require_membership
 
-from . import gateway
+from . import gateway, limits as billing_limits
 from .models import Plan, Subscription
 
 logger = logging.getLogger(__name__)
@@ -180,3 +180,66 @@ class WebhookView(APIView):
 
         # Unknown events are acknowledged but ignored (idempotent).
         return Response({"detail": "ok"}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Plan / usage endpoint
+# ---------------------------------------------------------------------------
+
+
+class OrgPlanView(APIView):
+    """
+    GET /api/v1/billing/organizations/{id}/plan/
+
+    Returns the org's current plan (code, name, limits), the subscription
+    status, current_period_end, and live usage counters:
+        - seats (active member count)
+        - generations_today
+        - scans_this_month
+
+    Access: any active member of the org.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, org_id):
+        # Verify the user is an active member (raises 403/404 as appropriate).
+        membership = require_membership(request, org_id)
+        org = membership.organization
+
+        plan = billing_limits.org_plan(org)
+
+        # Subscription metadata (may not exist)
+        sub_status = None
+        current_period_end = None
+        try:
+            sub = org.subscription
+            sub_status = sub.status
+            current_period_end = sub.current_period_end
+        except Subscription.DoesNotExist:
+            pass
+
+        return Response(
+            {
+                "plan": {
+                    "code": plan.code,
+                    "name": plan.name,
+                    "price_inr": str(plan.price_inr),
+                },
+                "limits": {
+                    "seat_limit": plan.seat_limit,
+                    "students_per_generation_limit": plan.students_per_generation_limit,
+                    "generations_per_day_limit": plan.generations_per_day_limit,
+                    "monthly_scan_limit": plan.monthly_scan_limit,
+                },
+                "status": sub_status,
+                "current_period_end": (
+                    current_period_end.isoformat() if current_period_end else None
+                ),
+                "usage": {
+                    "seats": billing_limits.seat_count(org),
+                    "generations_today": billing_limits.generations_today(org),
+                    "scans_this_month": billing_limits.scans_this_month(org),
+                },
+            }
+        )

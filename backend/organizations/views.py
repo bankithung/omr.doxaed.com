@@ -7,6 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+import billing.limits as billing_limits
+
 from .emails import send_invitation_email
 from .models import AuditLog, Invitation, Organization, OrganizationMembership
 from .serializers import (
@@ -125,6 +127,18 @@ class InviteView(APIView):
     def post(self, request, org_id):
         membership = require_membership(request, org_id, role=OrganizationMembership.ADMIN)
         org = membership.organization
+
+        # ---- seat gate -------------------------------------------------------
+        if not billing_limits.can_add_seat(org):
+            return Response(
+                {
+                    "detail": (
+                        "Seat limit reached for your plan. "
+                        "Upgrade to add more staff."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         serializer = InviteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

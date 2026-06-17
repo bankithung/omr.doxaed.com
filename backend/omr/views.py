@@ -30,17 +30,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+import billing.limits as billing_limits
 from assessments.models import Test
-from common.scope import parent_in_scope, scope_filter
+from common.scope import get_active_org, parent_in_scope, scope_filter
 from omr.codes import make_sheet_code
 from omr.geometry import build_template
 from omr.generator import render_sheet_pdf
-from omr.models import GenerationEvent, OmrSheet, ScanBatch, ScanJob
+from omr.models import GenerationEvent, OmrSheet, ScanBatch, ScanEvent, ScanJob
 from omr.serializers import GenerateSerializer, OmrSheetSerializer, ScanBatchSerializer
 from omr.shuffle import build_sheet_plan
 from rosters.models import Roster
 
-# Free-tier limits
+# Free-tier limits (solo/per-user fallback)
 MAX_STUDENTS = 10
 MAX_DAILY_GENERATIONS = 5
 
@@ -102,33 +103,65 @@ class GenerateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ---- free-tier gates ---------------------------------------------
+        # ---- generation gates (org-aware) --------------------------------
         students = list(roster.students.order_by("roll_number", "id"))
-        if len(students) > MAX_STUDENTS:
-            return Response(
-                {
-                    "detail": (
-                        f"Free tier allows up to {MAX_STUDENTS} students per generation. "
-                        "Upgrade your plan to generate larger batches."
-                    )
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        org = get_active_org(request)
 
-        today = timezone.now().date()
-        daily_count = GenerationEvent.objects.filter(
-            user=request.user, created_at__date=today
-        ).count()
-        if daily_count >= MAX_DAILY_GENERATIONS:
-            return Response(
-                {
-                    "detail": (
-                        f"Free tier allows up to {MAX_DAILY_GENERATIONS} generations per day. "
-                        "Upgrade your plan for unlimited daily generations."
+        if org is not None:
+            # Org scope: use billing.limits for per-org quota enforcement
+            if not billing_limits.can_generate(org, len(students)):
+                plan = billing_limits.org_plan(org)
+                # Distinguish student cap vs daily cap for a useful error message
+                if (
+                    plan.students_per_generation_limit is not None
+                    and len(students) > plan.students_per_generation_limit
+                ):
+                    return Response(
+                        {
+                            "detail": (
+                                f"Your plan allows up to "
+                                f"{plan.students_per_generation_limit} students per generation. "
+                                "Upgrade your plan to generate larger batches."
+                            )
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
                     )
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+                return Response(
+                    {
+                        "detail": (
+                            "Daily generation limit reached for your organisation's plan. "
+                            "Upgrade your plan for more daily generations."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            # Solo scope: original per-user free-tier checks
+            if len(students) > MAX_STUDENTS:
+                return Response(
+                    {
+                        "detail": (
+                            f"Free tier allows up to {MAX_STUDENTS} students per generation. "
+                            "Upgrade your plan to generate larger batches."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            today = timezone.now().date()
+            daily_count = GenerationEvent.objects.filter(
+                user=request.user, created_at__date=today
+            ).count()
+            if daily_count >= MAX_DAILY_GENERATIONS:
+                return Response(
+                    {
+                        "detail": (
+                            f"Free tier allows up to {MAX_DAILY_GENERATIONS} generations per day. "
+                            "Upgrade your plan for unlimited daily generations."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         # ---- build descriptor (same layout for all students of this test) -
         questions_qs = test.questions.prefetch_related("options").order_by("order_index", "id")
@@ -244,8 +277,8 @@ class GenerateView(APIView):
             f"/media/{batch_path.replace(chr(92), '/')}"
         )
 
-        # ---- record GenerationEvent -------------------------------------
-        GenerationEvent.objects.create(user=request.user, test=test)
+        # ---- record GenerationEvent (org=None for solo) -----------------
+        GenerationEvent.objects.create(user=request.user, test=test, organization=org)
 
         # ---- response ---------------------------------------------------
         sheet_data = OmrSheetSerializer(
@@ -344,6 +377,22 @@ class ScanUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ---- scan gate (org-aware) ----------------------------------------
+        scan_org = get_active_org(request)
+        if scan_org is not None:
+            if not billing_limits.can_scan(scan_org):
+                plan = billing_limits.org_plan(scan_org)
+                return Response(
+                    {
+                        "detail": (
+                            f"Monthly scan limit reached for your organisation's plan "
+                            f"({plan.monthly_scan_limit} scans/month). "
+                            "Upgrade to scan more sheets."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         uploaded_files = request.FILES.getlist("files")
         if not uploaded_files:
             return Response(
@@ -420,6 +469,18 @@ class ScanUploadView(APIView):
 
         batch.status = ScanBatch.STATUS_DONE
         batch.save(update_fields=["status"])
+
+        # ---- record ScanEvent per batch (one event = one upload batch) ----
+        # Granularity: per-batch (not per-page).  A batch may contain multiple
+        # pages from one upload; recording one ScanEvent per upload call keeps
+        # the counter proportional to "scan jobs submitted" rather than
+        # "individual sheets processed", which is simpler to reason about and
+        # avoids inflating the count for multi-page PDFs.
+        ScanEvent.objects.create(
+            user=request.user,
+            test=test,
+            organization=scan_org,  # None for solo
+        )
 
         return Response(
             {"batch_id": batch.id, "total": total, "processed": processed},
