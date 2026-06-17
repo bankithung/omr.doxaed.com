@@ -12,6 +12,15 @@ Key coordinate fact:
     So the rendered canonical image and the descriptor share the SAME
     top-left px coordinate system — you can draw filled discs at descriptor
     (cx, cy) directly to "fill" a bubble.
+
+Scale parameter:
+    Both render_canonical_image and simulate_scan accept a ``scale`` keyword
+    (default 1.0). When scale > 1 the PDF is rendered at ``scale * 100`` DPI,
+    producing a larger "scan" image of size
+    (round(W*scale), round(H*scale)).  All fill coordinates (bubble cx/cy/r,
+    roll-grid positions) and the optional perspective ``transform`` are scaled
+    accordingly.  Use scale=2.0 in tests to get a 1654×2338 image where the
+    QR code decodes reliably with pyzbar.
 """
 
 import io
@@ -27,15 +36,24 @@ from omr.generator import render_sheet_pdf
 # Public API
 # ---------------------------------------------------------------------------
 
-def render_canonical_image(descriptor: dict, sheet_meta: dict, page: int = 0) -> np.ndarray:
+def render_canonical_image(
+    descriptor: dict,
+    sheet_meta: dict,
+    page: int = 0,
+    scale: float = 1.0,
+) -> np.ndarray:
     """
-    Render one page of an OMR sheet to a uint8 grayscale ndarray at canonical
-    pixel size (page_px[0] × page_px[1], top-left origin, white background).
+    Render one page of an OMR sheet to a uint8 grayscale ndarray.
+
+    When scale=1.0 (default) the output is exactly (H, W) = page_px[1] ×
+    page_px[0] pixels.  When scale != 1.0 the output is
+    (round(H*scale), round(W*scale)) pixels — a higher (or lower) resolution
+    rendering of the same page.
 
     Rendering strategy:
         We compute a fitz.Matrix from the page rect so that the output is
-        exactly (W, H) pixels without a separate cv2.resize call. This
-        preserves QR-code resolution enough for pyzbar to decode.
+        exactly the desired pixel size without a separate cv2.resize call.
+        This preserves QR-code resolution enough for pyzbar to decode.
 
     Parameters
     ----------
@@ -46,21 +64,24 @@ def render_canonical_image(descriptor: dict, sheet_meta: dict, page: int = 0) ->
         test_title, subject, student_name, roll_label, roll_digits.
     page : int
         0-based page index to render (default 0).
+    scale : float
+        Rendering scale factor (default 1.0).  scale=2.0 → 1654×2338 px.
 
     Returns
     -------
-    np.ndarray  uint8 grayscale (H, W), white background, black ink.
+    np.ndarray  uint8 grayscale (H_scaled, W_scaled), white background, black ink.
     """
     pdf_bytes = render_sheet_pdf(sheet_meta, descriptor)
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
     W, H = descriptor["page_px"]
+    W_out = round(W * scale)
+    H_out = round(H * scale)
     fitz_page = doc[page]
 
-    # Compute exact scale factors so the pixmap is exactly W×H pixels.
-    # Using fitz.Matrix rather than dpi= avoids rounding to (W, H±1).
-    scale_x = W / fitz_page.rect.width
-    scale_y = H / fitz_page.rect.height
+    # Compute exact scale factors so the pixmap is exactly W_out×H_out pixels.
+    scale_x = W_out / fitz_page.rect.width
+    scale_y = H_out / fitz_page.rect.height
     mat = fitz.Matrix(scale_x, scale_y)
 
     pix = fitz_page.get_pixmap(matrix=mat)
@@ -72,8 +93,8 @@ def render_canonical_image(descriptor: dict, sheet_meta: dict, page: int = 0) ->
     img = np.array(img_pil, dtype=np.uint8)
 
     # Safety resize if fitz still returns a different shape (edge case)
-    if img.shape != (H, W):
-        img = cv2.resize(img, (W, H), interpolation=cv2.INTER_AREA)
+    if img.shape != (H_out, W_out):
+        img = cv2.resize(img, (W_out, H_out), interpolation=cv2.INTER_AREA)
 
     return img
 
@@ -85,6 +106,7 @@ def simulate_scan(
     roll: str,
     page: int = 0,
     transform: np.ndarray | None = None,
+    scale: float = 1.0,
 ) -> np.ndarray:
     """
     Produce a synthetic scanned image of an OMR sheet with chosen bubbles
@@ -110,26 +132,40 @@ def simulate_scan(
     transform : np.ndarray | None
         Optional 3×3 homography ndarray. When provided, the image is warped
         via cv2.warpPerspective so that the CV pipeline must un-warp it.
+        The transform is expected to operate in the *scaled* pixel space
+        (i.e. built with W_scaled, H_scaled).
         Use perspective_transform() to build a mild corner-jitter homography.
+    scale : float
+        Rendering scale factor (default 1.0).  All fill coordinates are
+        multiplied by ``scale`` before drawing so they land at the correct
+        positions in the scaled image.  The returned image has size
+        (round(H*scale), round(W*scale)).
 
     Returns
     -------
-    np.ndarray  uint8 grayscale (H, W).
+    np.ndarray  uint8 grayscale (H_scaled, W_scaled).
     """
-    img = render_canonical_image(descriptor, sheet_meta, page)
-    W, H = descriptor["page_px"]
+    img = render_canonical_image(descriptor, sheet_meta, page, scale=scale)
+    W_canon, H_canon = descriptor["page_px"]
+    W_out = round(W_canon * scale)
+    H_out = round(H_canon * scale)
 
     # ------------------------------------------------------------------
     # Fill answer bubbles
     # ------------------------------------------------------------------
     # Build a lookup: q_pos → {label → (cx, cy, r)} for bubbles on this page
+    # All coordinates are scaled from canonical descriptor space.
     bubble_lookup: dict[int, dict[str, tuple[int, int, int]]] = {}
     for entry in descriptor["answer_bubbles"]:
         if entry["page"] != page:
             continue
         q_pos = entry["q_pos"]
         bubble_lookup[q_pos] = {
-            opt["label"]: (int(opt["cx"]), int(opt["cy"]), int(opt["r"]))
+            opt["label"]: (
+                round(opt["cx"] * scale),
+                round(opt["cy"] * scale),
+                round(opt["r"] * scale),
+            )
             for opt in entry["options"]
         }
 
@@ -149,10 +185,11 @@ def simulate_scan(
     # ------------------------------------------------------------------
     if page == 0 and roll:
         rg = descriptor["roll_grid"]
-        ox, oy = int(rg["origin"][0]), int(rg["origin"][1])
-        col_pitch = int(rg["col_pitch"])
-        row_pitch = int(rg["row_pitch"])
-        radius = int(rg["radius"])
+        ox = round(rg["origin"][0] * scale)
+        oy = round(rg["origin"][1] * scale)
+        col_pitch = round(rg["col_pitch"] * scale)
+        row_pitch = round(rg["row_pitch"] * scale)
+        radius = round(rg["radius"] * scale)
         fill_r = max(1, int(radius * 0.7))
 
         for col_idx, digit_char in enumerate(roll):
@@ -169,7 +206,7 @@ def simulate_scan(
     # Optional perspective warp
     # ------------------------------------------------------------------
     if transform is not None:
-        img = cv2.warpPerspective(img, transform, (W, H), borderValue=255)
+        img = cv2.warpPerspective(img, transform, (W_out, H_out), borderValue=255)
 
     return img
 
