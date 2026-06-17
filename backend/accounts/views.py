@@ -56,6 +56,8 @@ class LoginView(TokenObtainPairView):
 
 
 class LogoutView(APIView):
+    """Blacklist the provided refresh token, invalidating the session."""
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
