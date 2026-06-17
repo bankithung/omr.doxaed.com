@@ -80,6 +80,13 @@ class ScanJob(models.Model):
     )
     confidence = models.FloatField(null=True, blank=True)
     error_reason = models.TextField(blank=True, default="")
+    reads = models.JSONField(
+        default=dict,
+        help_text=(
+            "Stores this page's bubble reads: "
+            "{q_pos: {marked: [labels], flag: str|null}, roll: str, flags: [str]}"
+        ),
+    )
 
     class Meta:
         ordering = ["id"]
@@ -122,9 +129,11 @@ class OmrSheet(models.Model):
 
     ASSEMBLY_PARTIAL = "partial"
     ASSEMBLY_READY = "ready"
+    ASSEMBLY_COMPLETE = "complete"
     ASSEMBLY_CHOICES = [
         (ASSEMBLY_PARTIAL, "Partial"),
         (ASSEMBLY_READY, "Ready"),
+        (ASSEMBLY_COMPLETE, "Complete"),
     ]
 
     # Parent scoping

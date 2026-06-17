@@ -1118,3 +1118,621 @@ class DoubleMark_BlankTests(TestCase):
         for q_pos in page_qs:
             self.assertIn(q_pos, answers,
                           f"q_pos={q_pos} missing from read_answers result")
+
+
+# ===========================================================================
+# Phase 4 Task 5 — grade.py unit tests
+# ===========================================================================
+
+class GradeSheetUnitTests(TestCase):
+    """
+    Unit tests for omr.scan.grade.grade_sheet.
+    Uses a minimal mock OmrSheet-like object to avoid DB overhead.
+    """
+
+    class _MockMarkingScheme:
+        def __init__(self, marks_per_correct=1, negative=0, partial=False, multi=False):
+            self.marks_per_correct = marks_per_correct
+            self.negative_marks_per_wrong = negative
+            self.partial_marking = partial
+            self.multiple_correct_allowed = multi
+
+    class _MockTest:
+        def __init__(self, ms):
+            self.marking_scheme = ms
+
+    class _MockSheet:
+        def __init__(self, answer_key, ms):
+            self.answer_key = answer_key
+            self.test = GradeSheetUnitTests._MockTest(ms)
+
+    def _sheet(self, answer_key, marks=1, negative=0, partial=False, multi=False):
+        ms = self._MockMarkingScheme(marks, negative, partial, multi)
+        return self._MockSheet(answer_key, ms)
+
+    def test_all_correct(self):
+        """All correct → score == max_score, correct_count == n."""
+        from omr.scan.grade import grade_sheet
+        answer_key = {"0": ["A"], "1": ["B"], "2": ["C"]}
+        sheet = self._sheet(answer_key, marks=1)
+        reads = {0: ["A"], 1: ["B"], 2: ["C"]}
+        result = grade_sheet(sheet, reads)
+        from decimal import Decimal
+        self.assertEqual(result["score"], Decimal("3"))
+        self.assertEqual(result["max_score"], Decimal("3"))
+        self.assertEqual(result["correct_count"], 3)
+        self.assertEqual(result["wrong_count"], 0)
+        self.assertEqual(result["blank_count"], 0)
+
+    def test_all_blank(self):
+        """All blank → score == 0, blank_count == n."""
+        from omr.scan.grade import grade_sheet
+        answer_key = {"0": ["A"], "1": ["B"]}
+        sheet = self._sheet(answer_key, marks=1)
+        reads = {}
+        result = grade_sheet(sheet, reads)
+        from decimal import Decimal
+        self.assertEqual(result["score"], Decimal("0"))
+        self.assertEqual(result["blank_count"], 2)
+        self.assertEqual(result["correct_count"], 0)
+        self.assertEqual(result["wrong_count"], 0)
+
+    def test_wrong_answer_with_negative_marks(self):
+        """Wrong answer deducts negative_marks; score floored at 0."""
+        from omr.scan.grade import grade_sheet
+        from decimal import Decimal
+        answer_key = {"0": ["A"], "1": ["B"]}
+        sheet = self._sheet(answer_key, marks=1, negative=1)
+        reads = {0: ["B"]}  # wrong on q0, blank on q1
+        result = grade_sheet(sheet, reads)
+        self.assertEqual(result["score"], Decimal("0"))  # 0 - 1 → floor at 0
+        self.assertEqual(result["wrong_count"], 1)
+        self.assertEqual(result["blank_count"], 1)
+
+    def test_score_floored_at_zero(self):
+        """Score is never negative even with heavy negative marks."""
+        from omr.scan.grade import grade_sheet
+        from decimal import Decimal
+        answer_key = {str(i): ["A"] for i in range(5)}
+        sheet = self._sheet(answer_key, marks=1, negative=2)
+        reads = {i: ["B"] for i in range(5)}  # all wrong
+        result = grade_sheet(sheet, reads)
+        self.assertEqual(result["score"], Decimal("0"))
+
+    def test_partial_marking(self):
+        """Partial marking gives proportional credit."""
+        from omr.scan.grade import grade_sheet
+        from decimal import Decimal
+        # 2 correct options for q0: A and B
+        answer_key = {"0": ["A", "B"]}
+        sheet = self._sheet(answer_key, marks=2, partial=True, multi=True)
+        reads = {0: ["A"]}  # only one of two correct marked
+        result = grade_sheet(sheet, reads)
+        # (1 - 0) / 2 * 2 = 1
+        self.assertEqual(result["score"], Decimal("1"))
+
+    def test_per_question_list(self):
+        """per_question has one entry per q_pos in answer_key."""
+        from omr.scan.grade import grade_sheet
+        answer_key = {"0": ["A"], "1": ["B"], "2": ["C"]}
+        sheet = self._sheet(answer_key)
+        result = grade_sheet(sheet, {0: ["A"], 1: ["D"], 2: []})
+        self.assertEqual(len(result["per_question"]), 3)
+        pos_set = {pq["q_pos"] for pq in result["per_question"]}
+        self.assertEqual(pos_set, {0, 1, 2})
+
+    def test_correct_entry_is_correct(self):
+        """per_question entry for a correct answer has is_correct=True."""
+        from omr.scan.grade import grade_sheet
+        answer_key = {"0": ["A"]}
+        sheet = self._sheet(answer_key)
+        result = grade_sheet(sheet, {0: ["A"]})
+        pq = result["per_question"][0]
+        self.assertTrue(pq["is_correct"])
+
+    def test_wrong_entry_is_not_correct(self):
+        """per_question entry for a wrong answer has is_correct=False."""
+        from omr.scan.grade import grade_sheet
+        answer_key = {"0": ["A"]}
+        sheet = self._sheet(answer_key)
+        result = grade_sheet(sheet, {0: ["B"]})
+        pq = result["per_question"][0]
+        self.assertFalse(pq["is_correct"])
+
+
+# ===========================================================================
+# Phase 4 Task 5 — process_image unit tests
+# ===========================================================================
+
+class ProcessImageTests(TestCase):
+    """
+    Unit tests for omr.scan.pipeline.process_image.
+    Uses simulate_scan to create test images.
+    """
+
+    SCALE = 2.0
+
+    def _descriptor_and_meta(self, num_questions=10, test_id=30, seed=7):
+        from omr.codes import make_sheet_code
+        from omr.geometry import build_template
+        descriptor = build_template(num_questions=num_questions, num_options=4, roll_digits=3)
+        sheet_code, human_code = make_sheet_code(test_id, seed)
+        sheet_meta = {
+            "sheet_code": sheet_code,
+            "human_readable_code": human_code,
+            "institution": "Pipeline School",
+            "test_title": "Pipeline Test",
+            "subject": "OMR",
+            "student_name": "Tester",
+            "roll_label": "Roll No.",
+            "roll_digits": descriptor["roll_grid"]["cols"],
+        }
+        return descriptor, sheet_meta, sheet_code
+
+    def test_process_image_returns_dict_keys(self):
+        """process_image returns dict with all required keys."""
+        from omr.scan.pipeline import process_image
+        from omr.simulate import simulate_scan
+
+        descriptor, sheet_meta, _ = self._descriptor_and_meta()
+        img = simulate_scan(descriptor, sheet_meta, marked={0: ["A"]},
+                            roll="042", scale=self.SCALE)
+        result = process_image(img, descriptor)
+        for key in ("sheet_code", "page", "total", "reads", "roll", "flags"):
+            self.assertIn(key, result, f"Key {key!r} missing from process_image result")
+
+    def test_process_image_no_qr_returns_flag(self):
+        """process_image on a blank image returns flag='no_qr'."""
+        from omr.scan.pipeline import process_image
+        from omr.geometry import build_template
+        descriptor = build_template(num_questions=5, num_options=4, roll_digits=3)
+        blank = np.full((1169 * 2, 827 * 2), 255, dtype=np.uint8)
+        result = process_image(blank, descriptor)
+        self.assertIn("no_qr", result["flags"])
+        self.assertIsNone(result["sheet_code"])
+
+    def test_process_image_clean_scan_has_no_flags(self):
+        """process_image on a clean scale=2 scan should have no flags."""
+        from omr.scan.pipeline import process_image
+        from omr.simulate import simulate_scan
+
+        descriptor, sheet_meta, _ = self._descriptor_and_meta(test_id=31, seed=8)
+        img = simulate_scan(descriptor, sheet_meta, marked={0: ["B"], 3: ["A"]},
+                            roll="123", scale=self.SCALE)
+        result = process_image(img, descriptor)
+        self.assertEqual(result["flags"], [],
+                         f"Expected no flags on clean scan, got {result['flags']}")
+
+    def test_process_image_reads_correct_answers(self):
+        """process_image reads back the same answers that were filled."""
+        from omr.scan.pipeline import process_image
+        from omr.simulate import simulate_scan
+
+        descriptor, sheet_meta, _ = self._descriptor_and_meta(test_id=32, seed=9)
+        marked = {0: ["A"], 1: ["C"], 4: ["B"]}
+        img = simulate_scan(descriptor, sheet_meta, marked=marked,
+                            roll="001", scale=self.SCALE)
+        result = process_image(img, descriptor)
+        reads = result["reads"]
+        for q_pos, labels in marked.items():
+            got = reads[q_pos]["marked"]
+            self.assertEqual(sorted(got), sorted(labels),
+                             f"q_pos={q_pos}: expected {labels}, got {got}")
+
+    def test_process_image_sheet_code_matches(self):
+        """process_image returns the correct sheet_code from the QR."""
+        from omr.scan.pipeline import process_image
+        from omr.simulate import simulate_scan
+
+        descriptor, sheet_meta, sheet_code = self._descriptor_and_meta(test_id=33, seed=11)
+        img = simulate_scan(descriptor, sheet_meta, marked={},
+                            roll="000", scale=self.SCALE)
+        result = process_image(img, descriptor)
+        self.assertEqual(result["sheet_code"], sheet_code)
+
+    def test_process_image_double_mark_flag(self):
+        """process_image on a double-marked question includes 'double_mark' flag."""
+        from omr.scan.pipeline import process_image
+        from omr.simulate import simulate_scan
+
+        descriptor, sheet_meta, _ = self._descriptor_and_meta(test_id=34, seed=13)
+        img = simulate_scan(descriptor, sheet_meta, marked={0: ["A", "B"]},
+                            roll="000", scale=self.SCALE)
+        result = process_image(img, descriptor)
+        self.assertIn("double_mark", result["flags"],
+                      f"Expected 'double_mark' in flags, got {result['flags']}")
+
+
+# ===========================================================================
+# Phase 4 Task 5 — END-TO-END ROUND-TRIP tests
+# ===========================================================================
+
+def _build_test_with_questions(n_questions=10, n_options=4):
+    """
+    Create a full Django model chain:
+    User → ClassGroup → Test → Questions (with options + one correct each)
+    + MarkingScheme.
+    Returns (user, test, questions, correct_labels_by_order_index)
+    where correct_labels_by_order_index[i] = original label that is correct
+    for the i-th question (0-indexed by order_index).
+    """
+    from django.contrib.auth import get_user_model
+    from assessments.models import ClassGroup, MarkingScheme, Option, Question, Test
+    User = get_user_model()
+
+    user = User.objects.create_user(
+        email=f"e2e_user_{n_questions}_{n_options}@test.com",
+        password="testpass",
+    )
+    cg = ClassGroup.objects.create(user=user, created_by=user, name="E2E Class")
+    test = Test.objects.create(
+        user=user, class_group=cg, created_by=user,
+        title="E2E Test", subject="Science",
+    )
+    MarkingScheme.objects.create(
+        test=test,
+        marks_per_correct=1,
+        negative_marks_per_wrong=0,
+    )
+
+    correct_labels = []
+    for i in range(n_questions):
+        q = Question.objects.create(test=test, order_index=i, text=f"Q{i}?")
+        for j in range(n_options):
+            label = chr(ord("A") + j)
+            is_correct = (j == 0)  # option A is always correct
+            Option.objects.create(question=q, label=label, text=label, is_correct=is_correct)
+        correct_labels.append("A")  # printed label "A" is always correct before shuffling
+
+    return user, test, correct_labels
+
+
+def _build_omr_sheet(test, user, n_questions=10, n_options=4, roll_digits=3):
+    """
+    Build and save an OmrSheet from the test's questions + shuffle plan.
+    Returns (omr_sheet, sheet_meta, descriptor).
+    """
+    from assessments.models import Question
+    from omr.codes import make_sheet_code
+    from omr.geometry import build_template
+    from omr.models import OmrSheet
+    from omr.shuffle import build_sheet_plan
+    from rosters.models import Roster, Student
+
+    # Create a student
+    roster = Roster.objects.create(user=user, created_by=user, name="E2E Roster")
+    student = Student.objects.create(roster=roster, roll_number="001")
+
+    # Build questions payload for shuffle
+    questions_data = []
+    for q in Question.objects.filter(test=test).order_by("order_index"):
+        opts = [{"label": o.label, "is_correct": o.is_correct}
+                for o in q.options.all()]
+        questions_data.append({"id": q.id, "options": opts})
+
+    seed = 12345
+    plan = build_sheet_plan(questions_data, seed=seed,
+                            shuffle_questions=False, shuffle_options=False)
+
+    descriptor = build_template(
+        num_questions=n_questions,
+        num_options=n_options,
+        roll_digits=roll_digits,
+    )
+
+    sheet_code, human_code = make_sheet_code(test.id, seed)
+    omr_sheet = OmrSheet.objects.create(
+        test=test,
+        student=student,
+        sheet_code=sheet_code,
+        human_readable_code=human_code,
+        shuffle_version=seed,
+        question_order=plan["question_order"],
+        option_order=plan["option_order"],
+        answer_key=plan["answer_key"],
+        template_descriptor=descriptor,
+        page_count=descriptor["page_count"],
+        page_map=descriptor["page_map"],
+    )
+
+    sheet_meta = {
+        "sheet_code": sheet_code,
+        "human_readable_code": human_code,
+        "institution": "E2E School",
+        "test_title": "E2E Test",
+        "subject": "Science",
+        "student_name": "Test Student",
+        "roll_label": "Roll No.",
+        "roll_digits": roll_digits,
+    }
+    return omr_sheet, sheet_meta, descriptor, student
+
+
+class EndToEndPerfectScoreTest(TestCase):
+    """
+    End-to-end: generate → fill correct answers → scan → pipeline → perfect score.
+
+    simulate_scan fills omr_sheet.answer_key (the correct printed labels)
+    → process_image + grade_sheet → StudentResult.score == max_score,
+    all QuestionResponse.is_correct, no ReviewItems, needs_review=False.
+    """
+
+    N_QUESTIONS = 10
+    SCALE = 2.0
+
+    def setUp(self):
+        self.user, self.test, _ = _build_test_with_questions(
+            self.N_QUESTIONS, n_options=4)
+        self.omr_sheet, self.sheet_meta, self.descriptor, self.student = \
+            _build_omr_sheet(self.test, self.user, self.N_QUESTIONS, 4, roll_digits=3)
+
+    def test_perfect_score_end_to_end(self):
+        """
+        Fill correct answers → run pipeline → StudentResult.score == max_score,
+        all QuestionResponse.is_correct True, no ReviewItems, needs_review False.
+        """
+        from omr.scan.pipeline import process_image, simulate_correct_marks, _maybe_grade
+        from omr.models import ScanBatch, ScanJob
+        from omr.simulate import simulate_scan
+        from results.models import StudentResult, QuestionResponse, ReviewItem
+
+        # Build correct marks from the answer key
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+
+        # Simulate the scan image (correct answers filled, scale=2 for reliable QR)
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=correct_marks, roll="001",
+            page=0, scale=self.SCALE,
+        )
+
+        # Run process_image
+        result = process_image(img, self.descriptor)
+        self.assertEqual(result["flags"], [],
+                         f"Expected no flags on perfect scan, got {result['flags']}")
+        self.assertEqual(result["sheet_code"], self.omr_sheet.sheet_code)
+
+        # Aggregate reads (single page)
+        aggregated = {q_pos: entry["marked"]
+                      for q_pos, entry in result["reads"].items()}
+
+        # Run grading
+        from omr.scan.grade import grade_sheet
+        grading = grade_sheet(self.omr_sheet, aggregated)
+
+        self.assertEqual(
+            grading["score"], grading["max_score"],
+            f"Perfect score expected: {grading['max_score']}, got {grading['score']}"
+        )
+        self.assertEqual(grading["correct_count"], self.N_QUESTIONS)
+        self.assertEqual(grading["wrong_count"], 0)
+        self.assertEqual(grading["blank_count"], 0)
+        for pq in grading["per_question"]:
+            self.assertTrue(pq["is_correct"],
+                            f"q_pos={pq['q_pos']} should be correct")
+
+    def test_perfect_score_via_full_pipeline(self):
+        """
+        Full pipeline: simulate_scan → ScanJob → process_scan_job (via _maybe_grade)
+        → StudentResult.score == max_score, all responses correct, no review items.
+        """
+        import io
+        import tempfile
+        import cv2
+        import numpy as np
+        from omr.scan.pipeline import simulate_correct_marks, _maybe_grade
+        from omr.models import ScanBatch, ScanJob
+        from omr.simulate import simulate_scan
+        from results.models import StudentResult, QuestionResponse, ReviewItem
+        from django.core.files.base import ContentFile
+
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=correct_marks, roll="001",
+            page=0, scale=self.SCALE,
+        )
+
+        # Encode image to PNG bytes
+        ok, buf = cv2.imencode(".png", img)
+        self.assertTrue(ok)
+        img_bytes = buf.tobytes()
+
+        # Create ScanBatch + ScanJob
+        batch = ScanBatch.objects.create(
+            test=self.test, created_by=self.user, total=1
+        )
+        job = ScanJob(batch=batch, page_no=1)
+        job.image_file.save("test_scan.png", ContentFile(img_bytes), save=True)
+
+        # Run process_scan_job
+        from omr.scan.pipeline import process_scan_job
+        process_scan_job(job)
+
+        # Refresh
+        job.refresh_from_db()
+        self.assertEqual(job.status, ScanJob.STATUS_DONE,
+                         f"Job status should be 'done', got {job.status!r} "
+                         f"(error: {job.error_reason})")
+
+        # Check StudentResult
+        sr = StudentResult.objects.get(omr_sheet=self.omr_sheet)
+        from decimal import Decimal
+        self.assertEqual(
+            sr.score, Decimal(str(self.N_QUESTIONS)),
+            f"Expected score={self.N_QUESTIONS}, got {sr.score}"
+        )
+        self.assertEqual(sr.max_score, Decimal(str(self.N_QUESTIONS)))
+        self.assertFalse(sr.needs_review,
+                         f"needs_review should be False for a perfect clean scan")
+
+        # All responses correct
+        responses = QuestionResponse.objects.filter(student_result=sr)
+        self.assertEqual(responses.count(), self.N_QUESTIONS)
+        for resp in responses:
+            self.assertTrue(resp.is_correct,
+                            f"q_pos={resp.q_pos} should be correct, got is_correct=False")
+
+        # No ReviewItems
+        review_items = ReviewItem.objects.filter(omr_sheet=self.omr_sheet)
+        self.assertEqual(review_items.count(), 0,
+                         f"Expected no review items, got {list(review_items.values('reason'))}")
+
+
+class EndToEndSomeWrongTest(TestCase):
+    """
+    End-to-end: fill some correct + some wrong → score reflects marking scheme.
+    """
+
+    N_QUESTIONS = 10
+    SCALE = 2.0
+
+    def setUp(self):
+        self.user, self.test, _ = _build_test_with_questions(self.N_QUESTIONS, n_options=4)
+        self.omr_sheet, self.sheet_meta, self.descriptor, self.student = \
+            _build_omr_sheet(self.test, self.user, self.N_QUESTIONS, 4, roll_digits=3)
+
+    def test_some_wrong_score(self):
+        """
+        Flip 3 answers to wrong → score = N_QUESTIONS - 3 (no negative marks).
+        """
+        from omr.scan.pipeline import simulate_correct_marks
+        from omr.scan.grade import grade_sheet
+        from omr.simulate import simulate_scan
+        from omr.scan.pipeline import process_image
+        from decimal import Decimal
+
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+
+        # Flip 3 answers: change the marked label from correct to wrong
+        wrong_marks = dict(correct_marks)
+        n_wrong = 3
+        for q_pos in list(correct_marks.keys())[:n_wrong]:
+            correct = correct_marks[q_pos]
+            # Pick a wrong label (B if correct is A, else A)
+            wrong_label = "B" if correct != ["B"] else "C"
+            wrong_marks[q_pos] = [wrong_label]
+
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=wrong_marks, roll="002",
+            page=0, scale=self.SCALE,
+        )
+
+        result = process_image(img, self.descriptor)
+        aggregated = {q_pos: entry["marked"]
+                      for q_pos, entry in result["reads"].items()}
+
+        grading = grade_sheet(self.omr_sheet, aggregated)
+
+        expected_score = Decimal(self.N_QUESTIONS - n_wrong)
+        self.assertEqual(
+            grading["score"], expected_score,
+            f"Expected score={expected_score}, got {grading['score']}"
+        )
+        self.assertEqual(grading["wrong_count"], n_wrong)
+        self.assertEqual(grading["correct_count"], self.N_QUESTIONS - n_wrong)
+
+    def test_some_blank_score(self):
+        """
+        Only answer half the questions (others blank) → score = half.
+        """
+        from omr.scan.pipeline import simulate_correct_marks
+        from omr.scan.grade import grade_sheet
+        from omr.simulate import simulate_scan
+        from omr.scan.pipeline import process_image
+        from decimal import Decimal
+
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+
+        # Only answer first half
+        half = self.N_QUESTIONS // 2
+        partial_marks = {k: v for k, v in correct_marks.items() if k < half}
+
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=partial_marks, roll="003",
+            page=0, scale=self.SCALE,
+        )
+
+        result = process_image(img, self.descriptor)
+        aggregated = {q_pos: entry["marked"]
+                      for q_pos, entry in result["reads"].items()}
+
+        grading = grade_sheet(self.omr_sheet, aggregated)
+
+        expected_score = Decimal(half)
+        self.assertEqual(grading["score"], expected_score,
+                         f"Expected score={expected_score}, got {grading['score']}")
+        self.assertEqual(grading["correct_count"], half)
+        self.assertEqual(grading["blank_count"], self.N_QUESTIONS - half)
+
+
+class EndToEndDoubleMarkTest(TestCase):
+    """
+    End-to-end: double-mark a question → ReviewItem(double_mark) + needs_review=True.
+    """
+
+    N_QUESTIONS = 10
+    SCALE = 2.0
+
+    def setUp(self):
+        self.user, self.test, _ = _build_test_with_questions(self.N_QUESTIONS, n_options=4)
+        self.omr_sheet, self.sheet_meta, self.descriptor, self.student = \
+            _build_omr_sheet(self.test, self.user, self.N_QUESTIONS, 4, roll_digits=3)
+
+    def test_double_mark_triggers_review(self):
+        """
+        Double-mark q_pos=0 (A+B) → ReviewItem with reason='double_mark'
+        + StudentResult.needs_review=True.
+        """
+        import cv2
+        from django.core.files.base import ContentFile
+        from omr.scan.pipeline import simulate_correct_marks, process_scan_job
+        from omr.models import ScanBatch, ScanJob
+        from omr.simulate import simulate_scan
+        from results.models import StudentResult, ReviewItem
+
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+
+        # Double-mark q_pos=0
+        dm_marks = dict(correct_marks)
+        dm_marks[0] = ["A", "B"]  # two options marked
+
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=dm_marks, roll="004",
+            page=0, scale=self.SCALE,
+        )
+
+        ok, buf = cv2.imencode(".png", img)
+        img_bytes = buf.tobytes()
+
+        batch = ScanBatch.objects.create(
+            test=self.test, created_by=self.user, total=1
+        )
+        job = ScanJob(batch=batch, page_no=1)
+        job.image_file.save("dm_scan.png", ContentFile(img_bytes), save=True)
+
+        process_scan_job(job)
+        job.refresh_from_db()
+
+        # Job should be needs_review because of double_mark
+        self.assertEqual(
+            job.status, ScanJob.STATUS_NEEDS_REVIEW,
+            f"Job should be 'needs_review' due to double_mark, got {job.status!r}",
+        )
+
+        # StudentResult should exist with needs_review=True
+        sr = StudentResult.objects.get(omr_sheet=self.omr_sheet)
+        self.assertTrue(sr.needs_review,
+                        "StudentResult.needs_review should be True for double_mark")
+
+        # ReviewItem with reason=double_mark must exist
+        review_items = ReviewItem.objects.filter(omr_sheet=self.omr_sheet)
+        reasons = [ri.reason for ri in review_items]
+        self.assertIn(
+            ReviewItem.REASON_DOUBLE_MARK, reasons,
+            f"Expected 'double_mark' ReviewItem, got {reasons}",
+        )
