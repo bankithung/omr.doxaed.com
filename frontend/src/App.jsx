@@ -1,5 +1,5 @@
+import { lazy, Suspense } from "react"
 import { Link, Route, Routes, useNavigate } from "react-router-dom"
-import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import { useAuth } from "@/auth/AuthContext"
 import { useOrg } from "@/org/OrgContext"
@@ -14,27 +14,27 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronDownIcon, BuildingIcon } from "lucide-react"
 
-import Health from "@/routes/Health"
-import StyleGuide from "@/routes/StyleGuide"
-import Login from "@/routes/Login"
-import Register from "@/routes/Register"
-import VerifyEmail from "@/routes/VerifyEmail"
-import ForgotPassword from "@/routes/ForgotPassword"
-import ResetPassword from "@/routes/ResetPassword"
-import Profile from "@/routes/Profile"
-import Classes from "@/routes/Classes"
-import TestList from "@/routes/TestList"
-import TestWizard from "@/routes/TestWizard"
-import Rosters from "@/routes/Rosters"
-import RosterDetail from "@/routes/RosterDetail"
-import Scan from "@/routes/Scan"
-import Results from "@/routes/Results"
-import ReviewQueue from "@/routes/ReviewQueue"
-import Analytics from "@/routes/Analytics"
-import Organizations from "@/routes/Organizations"
-import OrgMembers from "@/routes/OrgMembers"
-import AcceptInvite from "@/routes/AcceptInvite"
-import Billing from "@/routes/Billing"
+const Health = lazy(() => import("@/routes/Health"))
+const StyleGuide = lazy(() => import("@/routes/StyleGuide"))
+const Login = lazy(() => import("@/routes/Login"))
+const Register = lazy(() => import("@/routes/Register"))
+const VerifyEmail = lazy(() => import("@/routes/VerifyEmail"))
+const ForgotPassword = lazy(() => import("@/routes/ForgotPassword"))
+const ResetPassword = lazy(() => import("@/routes/ResetPassword"))
+const Profile = lazy(() => import("@/routes/Profile"))
+const Classes = lazy(() => import("@/routes/Classes"))
+const TestList = lazy(() => import("@/routes/TestList"))
+const TestWizard = lazy(() => import("@/routes/TestWizard"))
+const Rosters = lazy(() => import("@/routes/Rosters"))
+const RosterDetail = lazy(() => import("@/routes/RosterDetail"))
+const Scan = lazy(() => import("@/routes/Scan"))
+const Results = lazy(() => import("@/routes/Results"))
+const ReviewQueue = lazy(() => import("@/routes/ReviewQueue"))
+const Analytics = lazy(() => import("@/routes/Analytics"))
+const Organizations = lazy(() => import("@/routes/Organizations"))
+const OrgMembers = lazy(() => import("@/routes/OrgMembers"))
+const AcceptInvite = lazy(() => import("@/routes/AcceptInvite"))
+const Billing = lazy(() => import("@/routes/Billing"))
 
 function OrgSwitcher() {
   const { orgs, activeOrg, setActiveOrg } = useOrg()
@@ -146,142 +146,152 @@ function Nav() {
 export default function App() {
   return (
     <div className="min-h-screen">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-background focus:px-4 focus:py-2 focus:text-foreground focus:shadow"
+      >
+        Skip to main content
+      </a>
       <Toaster />
       <Nav />
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Health />} />
-        <Route path="/health" element={<Health />} />
-        <Route path="/style-guide" element={<StyleGuide />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      <main id="main">
+        <Suspense fallback={<div className="p-8 text-muted-foreground">Loading…</div>}>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Health />} />
+            <Route path="/health" element={<Health />} />
+            <Route path="/style-guide" element={<StyleGuide />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Protected routes */}
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/classes"
-          element={
-            <ProtectedRoute>
-              <Classes />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/classes/:id"
-          element={
-            <ProtectedRoute>
-              <TestList />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/classes/:classId/tests/new"
-          element={
-            <ProtectedRoute>
-              <TestWizard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/rosters"
-          element={
-            <ProtectedRoute>
-              <Rosters />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/rosters/:id"
-          element={
-            <ProtectedRoute>
-              <RosterDetail />
-            </ProtectedRoute>
-          }
-        />
-        {/* Scan routes */}
-        <Route
-          path="/scan"
-          element={
-            <ProtectedRoute>
-              <Scan />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tests/:testId/scan"
-          element={
-            <ProtectedRoute>
-              <Scan />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tests/:testId/results"
-          element={
-            <ProtectedRoute>
-              <Results />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tests/:testId/review"
-          element={
-            <ProtectedRoute>
-              <ReviewQueue />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tests/:testId/analytics"
-          element={
-            <ProtectedRoute>
-              <Analytics />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/organizations"
-          element={
-            <ProtectedRoute>
-              <Organizations />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/organizations/:id/members"
-          element={
-            <ProtectedRoute>
-              <OrgMembers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/accept-invite"
-          element={
-            <ProtectedRoute>
-              <AcceptInvite />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/organizations/:id/billing"
-          element={
-            <ProtectedRoute>
-              <Billing />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+            {/* Protected routes */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/classes"
+              element={
+                <ProtectedRoute>
+                  <Classes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/classes/:id"
+              element={
+                <ProtectedRoute>
+                  <TestList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/classes/:classId/tests/new"
+              element={
+                <ProtectedRoute>
+                  <TestWizard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/rosters"
+              element={
+                <ProtectedRoute>
+                  <Rosters />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/rosters/:id"
+              element={
+                <ProtectedRoute>
+                  <RosterDetail />
+                </ProtectedRoute>
+              }
+            />
+            {/* Scan routes */}
+            <Route
+              path="/scan"
+              element={
+                <ProtectedRoute>
+                  <Scan />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tests/:testId/scan"
+              element={
+                <ProtectedRoute>
+                  <Scan />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tests/:testId/results"
+              element={
+                <ProtectedRoute>
+                  <Results />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tests/:testId/review"
+              element={
+                <ProtectedRoute>
+                  <ReviewQueue />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tests/:testId/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organizations"
+              element={
+                <ProtectedRoute>
+                  <Organizations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organizations/:id/members"
+              element={
+                <ProtectedRoute>
+                  <OrgMembers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accept-invite"
+              element={
+                <ProtectedRoute>
+                  <AcceptInvite />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organizations/:id/billing"
+              element={
+                <ProtectedRoute>
+                  <Billing />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </Suspense>
+      </main>
     </div>
   )
 }
