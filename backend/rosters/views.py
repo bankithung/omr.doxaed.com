@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from common.scope import scope_filter
 from common.viewsets import ScopedModelViewSet
 
 from .models import Roster, Student
@@ -34,13 +35,13 @@ class RosterViewSet(ScopedModelViewSet):
 
 
 class StudentViewSet(viewsets.ModelViewSet):
-    """Child-scoped: filtered through roster__user; no IsInScope needed."""
+    """Child-scoped: filtered through the roster's owner (user or org)."""
 
     permission_classes = [IsAuthenticated]
     serializer_class = StudentSerializer
 
     def get_queryset(self):
-        qs = Student.objects.filter(roster__user=self.request.user)
+        qs = Student.objects.filter(scope_filter(self.request, "roster__"))
         roster_id = self.request.query_params.get("roster")
         if roster_id:
             qs = qs.filter(roster_id=roster_id)

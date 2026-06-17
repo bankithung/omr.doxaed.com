@@ -2,7 +2,17 @@ import { Link, Route, Routes, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import { useAuth } from "@/auth/AuthContext"
+import { useOrg } from "@/org/OrgContext"
 import ProtectedRoute from "@/auth/ProtectedRoute"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
+import { ChevronDownIcon, BuildingIcon } from "lucide-react"
 
 import Health from "@/routes/Health"
 import StyleGuide from "@/routes/StyleGuide"
@@ -21,6 +31,52 @@ import Scan from "@/routes/Scan"
 import Results from "@/routes/Results"
 import ReviewQueue from "@/routes/ReviewQueue"
 import Analytics from "@/routes/Analytics"
+import Organizations from "@/routes/Organizations"
+import OrgMembers from "@/routes/OrgMembers"
+import AcceptInvite from "@/routes/AcceptInvite"
+
+function OrgSwitcher() {
+  const { orgs, activeOrg, setActiveOrg } = useOrg()
+  const label = activeOrg ? activeOrg.name : "Personal"
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-sm font-medium hover:bg-muted transition-colors">
+        <BuildingIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="max-w-[120px] truncate">{label}</span>
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuLabel>Context</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            setActiveOrg(null)
+            window.location.reload()
+          }}
+          data-active={!activeOrg ? "" : undefined}
+          className="data-[active]:font-semibold"
+        >
+          Personal
+        </DropdownMenuItem>
+        {orgs.length > 0 && <DropdownMenuSeparator />}
+        {orgs.map((org) => (
+          <DropdownMenuItem
+            key={org.id}
+            onSelect={() => {
+              setActiveOrg(org.id)
+              window.location.reload()
+            }}
+            data-active={activeOrg?.id === org.id ? "" : undefined}
+            className="data-[active]:font-semibold"
+          >
+            {org.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 function Nav() {
   const { user, logout } = useAuth()
@@ -47,12 +103,16 @@ function Nav() {
           <Link to="/rosters" className="text-muted-foreground hover:text-foreground">
             Rosters
           </Link>
+          <Link to="/organizations" className="text-muted-foreground hover:text-foreground">
+            Organizations
+          </Link>
         </>
       )}
 
       <div className="ml-auto flex items-center gap-3">
         {user ? (
           <>
+            <OrgSwitcher />
             <span className="hidden text-muted-foreground sm:inline">{user.email}</span>
             <Link to="/profile" className="hover:text-primary">
               Profile
@@ -185,6 +245,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Analytics />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizations"
+          element={
+            <ProtectedRoute>
+              <Organizations />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizations/:id/members"
+          element={
+            <ProtectedRoute>
+              <OrgMembers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accept-invite"
+          element={
+            <ProtectedRoute>
+              <AcceptInvite />
             </ProtectedRoute>
           }
         />

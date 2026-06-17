@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from common.scope import scope_filter, scope_kwargs
 from common.viewsets import ScopedModelViewSet
 
 from .models import ClassGroup, MarkingScheme, Option, Question, Test
@@ -29,7 +30,7 @@ class TestViewSet(ScopedModelViewSet):
     def retest(self, request, pk=None):
         original = self.get_object()
         clone = Test.objects.create(
-            user=request.user,
+            **scope_kwargs(request),
             created_by=request.user,
             class_group=original.class_group,
             title=original.title,
@@ -72,6 +73,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
 
     def get_queryset(self):
-        qs = Question.objects.filter(test__user=self.request.user)
+        qs = Question.objects.filter(scope_filter(self.request, "test__"))
         test_id = self.request.query_params.get("test")
         return qs.filter(test_id=test_id) if test_id else qs

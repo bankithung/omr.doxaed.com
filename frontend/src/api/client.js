@@ -7,6 +7,8 @@ export const api = axios.create({ baseURL })
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access")
   if (token) config.headers.Authorization = `Bearer ${token}`
+  const org = localStorage.getItem("activeOrg")
+  if (org) config.headers["X-Organization-Id"] = org
   return config
 })
 

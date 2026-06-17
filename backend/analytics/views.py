@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from assessments.models import Test
+from common.scope import scope_filter
 from results.models import StudentResult
 from analytics.services import improvement, student_detail, test_summary
 
@@ -20,9 +21,9 @@ def test_analytics(request, test_id: int):
     GET /api/v1/analytics/test/{test_id}/
 
     Return the test-level analytics summary.
-    Scoped: the test must belong to request.user (404 otherwise).
+    Scoped: the test must belong to the current scope (solo or org) — 404 otherwise.
     """
-    test = get_object_or_404(Test, id=test_id, user=request.user)
+    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
     summary = test_summary(test)
     return Response(summary)
 
@@ -34,10 +35,10 @@ def student_detail_view(request, test_id: int, student_id: int):
     GET /api/v1/analytics/test/{test_id}/student/{student_id}/
 
     Return per-student analytics detail (score, per_question, topic_accuracy).
-    Scoped: the test must belong to request.user, and a StudentResult for
+    Scoped: the test must belong to the current scope (solo or org), and a StudentResult for
     (test, student) must exist — 404 otherwise.
     """
-    test = get_object_or_404(Test, id=test_id, user=request.user)
+    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
     result = get_object_or_404(StudentResult, test=test, student_id=student_id)
     return Response(student_detail(result))
 
@@ -49,9 +50,9 @@ def improvement_view(request, test_id: int):
     GET /api/v1/analytics/test/{test_id}/improvement/
 
     Return retest-chain improvement analytics.
-    Scoped: the test must belong to request.user (404 otherwise).
+    Scoped: the test must belong to the current scope (solo or org) — 404 otherwise.
     """
-    test = get_object_or_404(Test, id=test_id, user=request.user)
+    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
     return Response(improvement(test))
 
 
@@ -62,7 +63,7 @@ def export_view(request, test_id: int):
     GET /api/v1/analytics/test/{test_id}/export/?output_format=csv|xlsx|pdf
 
     Return the test results as a downloadable file.
-    Scoped: the test must belong to request.user (404 otherwise).
+    Scoped: the test must belong to the current scope (solo or org) — 404 otherwise.
     Unknown format → 400.
 
     Note: the query parameter is named ``output_format`` (not ``format``) to
@@ -78,7 +79,7 @@ def export_view(request, test_id: int):
     """
     from analytics.export import results_csv, results_xlsx, report_pdf
 
-    test = get_object_or_404(Test, id=test_id, user=request.user)
+    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
 
     fmt = request.query_params.get("output_format", "csv").lower()
 

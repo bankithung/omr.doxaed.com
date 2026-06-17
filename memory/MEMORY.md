@@ -1,8 +1,8 @@
 # OMRFlow — Memory Index
 
-**Status:** 🎉 MVP COMPLETE (Phases 1–5) — DONE (2026-06-17). Next: Phase 6 (Organizations & roles).
+**Status:** Phase 6 (Organizations) DONE (2026-06-17). MVP (1–5) + orgs done. Next: Phase 7 (Billing — needs Razorpay keys).
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
-**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–5.
+**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–6.
 
 ## Next steps
 - The full MVP loop works: create test → generate OMR sheets → scan & auto-grade → analytics/export → retest.
