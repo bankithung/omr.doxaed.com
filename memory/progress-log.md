@@ -22,3 +22,6 @@
   grade/stitch) + synthetic simulator enabling a full generate→fill→scan→grade round-trip
   (perfect-score test). Scan upload (eager) + review queue endpoints + React UI. Reviewed
   grading-sound & scope-secure; 3 review-queue bugs fixed. 233 tests green.
+- 2026-06-17 — 🎉 MVP COMPLETE: Phase 5 (branch `phase-5`): analytics (test-level shuffle-correct,
+  student topic accuracy, retest improvement) + CSV/Excel/PDF export + Recharts dashboards. Reviewed
+  analytics-correct & scope-secure (zero issues). 308 tests green. Phases 1–5 all merged to `main`.

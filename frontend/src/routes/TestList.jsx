@@ -309,6 +309,9 @@ export default function TestList() {
                       <Button asChild variant="outline" size="sm">
                         <Link to={`/tests/${test.id}/review`}>Review</Link>
                       </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/tests/${test.id}/analytics`}>Analytics</Link>
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

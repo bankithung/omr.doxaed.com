@@ -20,6 +20,7 @@ import RosterDetail from "@/routes/RosterDetail"
 import Scan from "@/routes/Scan"
 import Results from "@/routes/Results"
 import ReviewQueue from "@/routes/ReviewQueue"
+import Analytics from "@/routes/Analytics"
 
 function Nav() {
   const { user, logout } = useAuth()
@@ -176,6 +177,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ReviewQueue />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tests/:testId/analytics"
+          element={
+            <ProtectedRoute>
+              <Analytics />
             </ProtectedRoute>
           }
         />

@@ -1,14 +1,15 @@
 # OMRFlow — Memory Index
 
-**Status:** Phase 4 (Scanning & grading) — DONE (2026-06-17). Next: Phase 5 (Analytics & export — finishes MVP).
+**Status:** 🎉 MVP COMPLETE (Phases 1–5) — DONE (2026-06-17). Next: Phase 6 (Organizations & roles).
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
-**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–4.
+**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–5.
 
 ## Next steps
-- Phase 5 (Analytics & export — COMPLETES THE MVP = Phases 1–5) per `prompts/PRD.md` (E7):
-  test-level/student-level/improvement analytics, CSV/Excel + PDF report, Recharts dashboards.
-  Aggregation endpoints (scoped). See `current-state.md` for the result data model + patterns.
-- Done: Phase 0 · 1 (auth) · 2 (assessments) · 3 (OMR gen) · 4 (scan/grade). 233 backend tests.
+- The full MVP loop works: create test → generate OMR sheets → scan & auto-grade → analytics/export → retest.
+- Post-MVP per `prompts/BUILD_ROADMAP.md`: Phase 6 (Organizations & roles), 7 (Razorpay billing),
+  8 (hardening — Celery/Redis async, OWASP, calibration, code-splitting), 9 (mobile app).
+  See `current-state.md` for the architecture patterns + deferred follow-ups.
+- Done: P0 · P1 (auth) · P2 (assessments) · P3 (OMR gen) · P4 (scan/grade) · P5 (analytics). 308 tests.
 
 ## Key facts
 - DB: `omrflow`, user `postgres`, password `postgress`, localhost:5432 (no Docker). PG18.

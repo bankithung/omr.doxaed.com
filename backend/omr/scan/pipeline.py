@@ -304,8 +304,15 @@ def _maybe_grade(omr_sheet) -> None:
                 flagged = True
                 has_double_mark = True
 
+        # Resolve the underlying Question FK from the sheet's question_order.
+        # question_order[q_pos] is the Question id in the original (underlying) order.
+        underlying_question_id = None
+        if omr_sheet.question_order and q_pos < len(omr_sheet.question_order):
+            underlying_question_id = omr_sheet.question_order[q_pos]
+
         QuestionResponse.objects.create(
             student_result=result,
+            question_id=underlying_question_id,
             q_pos=q_pos,
             marked_options=marked,
             is_correct=is_correct,

@@ -1,3 +1,109 @@
-from django.shortcuts import render
+"""
+analytics.views — read-only analytics endpoints, scoped by test__user.
+"""
 
-# Create your views here.
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from assessments.models import Test
+from results.models import StudentResult
+from analytics.services import improvement, student_detail, test_summary
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def test_analytics(request, test_id: int):
+    """
+    GET /api/v1/analytics/test/{test_id}/
+
+    Return the test-level analytics summary.
+    Scoped: the test must belong to request.user (404 otherwise).
+    """
+    test = get_object_or_404(Test, id=test_id, user=request.user)
+    summary = test_summary(test)
+    return Response(summary)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def student_detail_view(request, test_id: int, student_id: int):
+    """
+    GET /api/v1/analytics/test/{test_id}/student/{student_id}/
+
+    Return per-student analytics detail (score, per_question, topic_accuracy).
+    Scoped: the test must belong to request.user, and a StudentResult for
+    (test, student) must exist — 404 otherwise.
+    """
+    test = get_object_or_404(Test, id=test_id, user=request.user)
+    result = get_object_or_404(StudentResult, test=test, student_id=student_id)
+    return Response(student_detail(result))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def improvement_view(request, test_id: int):
+    """
+    GET /api/v1/analytics/test/{test_id}/improvement/
+
+    Return retest-chain improvement analytics.
+    Scoped: the test must belong to request.user (404 otherwise).
+    """
+    test = get_object_or_404(Test, id=test_id, user=request.user)
+    return Response(improvement(test))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def export_view(request, test_id: int):
+    """
+    GET /api/v1/analytics/test/{test_id}/export/?output_format=csv|xlsx|pdf
+
+    Return the test results as a downloadable file.
+    Scoped: the test must belong to request.user (404 otherwise).
+    Unknown format → 400.
+
+    Note: the query parameter is named ``output_format`` (not ``format``) to
+    avoid conflicting with DRF's built-in ``?format=`` content-negotiation
+    parameter, which would intercept ``?format=csv`` and return 404/406
+    before the view body runs.
+
+    Supported formats
+    -----------------
+    csv  → text/csv
+    xlsx → application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    pdf  → application/pdf
+    """
+    from analytics.export import results_csv, results_xlsx, report_pdf
+
+    test = get_object_or_404(Test, id=test_id, user=request.user)
+
+    fmt = request.query_params.get("output_format", "csv").lower()
+
+    safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in test.title)
+
+    if fmt == "csv":
+        data = results_csv(test)
+        content_type = "text/csv"
+        filename = f"results_{safe_title}.csv"
+    elif fmt == "xlsx":
+        data = results_xlsx(test)
+        content_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        filename = f"results_{safe_title}.xlsx"
+    elif fmt == "pdf":
+        data = report_pdf(test)
+        content_type = "application/pdf"
+        filename = f"report_{safe_title}.pdf"
+    else:
+        return Response(
+            {"detail": f"Unknown format {fmt!r}. Use csv, xlsx, or pdf."},
+            status=400,
+        )
+
+    response = HttpResponse(data, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

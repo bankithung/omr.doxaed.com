@@ -1,42 +1,43 @@
 # Current State
 
-- 2026-06-17: **Phase 4 (Scanning & grading) complete** (branch `phase-4` → merged to `main`).
-  The full OMR engine round-trips: **generate → fill → scan → grade**. OpenCV pipeline
-  (`omr/scan/`): `align` (QR decode → fiducial detect → perspective warp to canonical),
-  `read` (roll + answer bubbles via fill-ratio + hysteresis), `grade` (per-sheet answer_key +
-  MarkingScheme), `pipeline` (orchestrate, multi-page stitch, review flags, StudentResult/
-  QuestionResponse/ReviewItem). A **synthetic simulator** (`omr/simulate.py`) fills generated
-  sheets at descriptor coords → enables a full automated round-trip (perfect-score test passes).
-  Endpoints: `POST /omr/scan/` (eager/sync processing in dev), batch progress, results, review
-  queue + resolve. **233 backend tests green**; reviewed GRADING-SOUND & SCOPE-SECURE (live
-  cross-tenant probe). React: scan upload+progress, results table+drilldown, review queue.
-- **Next:** Phase 5 (Analytics & export — COMPLETES THE MVP) per `prompts/PRD.md` (E7) +
-  `BUILD_ROADMAP.md`: test-level analytics (score distribution, average/median, toppers,
-  hardest/most-missed questions, per-option choice distribution), student-level (accuracy by
-  topic), improvement view across a test→retest series (deltas/trends), CSV/Excel export +
-  printable PDF report, charts via Recharts. Aggregation endpoints (scoped) + React dashboards.
-- Done: Phase 0 · 1 (auth, 26) · 2 (assessments, 45) · 3 (OMR gen, 126) · 4 (scan/grade, 233 total).
+- 2026-06-17: **🎉 MVP COMPLETE (Phases 1–5).** Phase 5 (Analytics & export) merged to `main`.
+  A teacher can now run the entire loop end-to-end: **create class/test/MCQs → generate
+  personalized OMR sheets → print → scan & auto-grade → read analytics → export / retest & compare.**
+  Phase 5 adds: test-level analytics (distribution, average/median, toppers, hardest questions,
+  per-option choice distribution — all shuffle-correct), student-level (topic accuracy), retest
+  improvement (deltas + class trend), CSV/Excel/PDF export, Recharts dashboards. Reviewed
+  ANALYTICS-CORRECT & SCOPE-SECURE. **308 backend tests green.**
+- **Done (MVP = Phases 1–5, all merged to `main`):**
+  - P0 Foundations (decoupled Django+DRF / React skeleton, owner-scope, local Postgres).
+  - P1 Accounts (register/verify/login/logout/reset/profile; JWT; reviewed).
+  - P2 Assessments (Class/Test/Question/Option/Marking/retest; scope-isolated).
+  - P3 OMR generation (geometry descriptor, shuffle, ReportLab sheets w/ QR/fiducials/roll/answer
+    grid; gated generation + batch PDF; visually validated).
+  - P4 Scanning & grading (OpenCV pipeline align/read/grade/stitch; synthetic round-trip;
+    review queue; grading-sound & scope-secure).
+  - P5 Analytics & export.
+- **Next (post-MVP, per `prompts/BUILD_ROADMAP.md`):**
+  - **Phase 6** Organizations & roles (org creation, invitations, membership, admin vs member,
+    org-scope isolation — extend `IsInScope` with the org-membership path, audit log).
+  - **Phase 7** Subscription & billing (Razorpay plans/subscriptions/webhooks; seat + scan caps).
+  - **Phase 8** Hardening (OWASP pass, Celery+Redis async scanning, threshold calibration vs real
+    scans, perf/indexes, a11y, code-splitting; + the deferred items below).
+  - **Phase 9** Mobile app (React Native/Flutter against the existing API).
 
-## The OMR engine (recap for analytics + future)
-StudentResult (score/max/correct/wrong/blank/needs_review) + QuestionResponse (q_pos, marked,
-is_correct, flagged) per student per test. Retest chain via `Test.parent_test`/`attempt_number`;
-improvement analytics compare a student's StudentResults across the chain. Grading always uses the
-OmrSheet's stored `answer_key` (per-sheet shuffle). Low-confidence reads → ReviewItem (never guessed).
+## Architecture patterns (recap — FOLLOW in Phases 6+)
+- Direct `OwnerScopedModel` → `ScopedModelViewSet` (IsInScope). Child-scoped (under a Test) →
+  `IsAuthenticated` + queryset filtered through the parent's scope.
+- PII via `common.encryption.EncryptedTextField`. Free-tier gates server-side.
+- Per-sheet shuffle: grade + analytics map via the OmrSheet's `question_order`/`option_order`/`answer_key`.
 
-## Architecture patterns (recap)
-- Direct `OwnerScopedModel` → `ScopedModelViewSet` (IsInScope). Child-scoped (everything under a
-  Test: Question, OmrSheet, ScanJob, StudentResult, ReviewItem, …) → `IsAuthenticated` + queryset
-  filtered through `test__user` (or `omr_sheet__test__user`, `scan_job__batch__test__user`).
-- PII: `common.encryption.EncryptedTextField`. Free-tier gates server-side (403 + upgrade msg).
-- Scanning is EAGER/sync in dev (no Celery broker); Celery+Redis = a prod/Phase-8 enhancement.
-
-## Deferred follow-ups
-- **Phase 8 hardening:** Celery+Redis async scanning; threshold (FILL_HIGH/LOW) calibration vs real
-  photos; fiducial detection robustness vs logos; cropped review-region images; register enumeration;
-  verify-email throttle; account lockout; frontend code-splitting (bundle ~890 kB).
-- **Phase 6:** `IsInScope` org-membership path. **Phase 3 leftover:** question/option image upload API.
-- **Partial-marking note:** a question with net-zero partial credit counts as wrong_count (documented).
+## Deferred follow-ups (for Phase 6/8)
+- **Phase 6:** extend `IsInScope.has_object_permission` with the org-membership path + `super()`.
+- **Phase 8 hardening:** Celery+Redis async scanning (dev is eager); FILL_HIGH/LOW + fiducial
+  calibration vs real photos; cropped review-region images; register-email enumeration; verify-email
+  throttle; account lockout (django-axes); frontend code-splitting (bundle ~918 kB).
+- **Leftovers:** question/option image upload API (models have ImageField, serializers omit);
+  unused User.first_name/last_name; hand-authored form.jsx still unused; partial-marking net-zero
+  counts as wrong (documented).
 
 ## Resolved
-- Phase-1 AllowAny. Phase-2 child-scope 403. Phase-3 sheet header overlaps. Phase-4 review-queue
-  (needs_review clear, double_mark dedup, no_qr surfaced).
+- P1 AllowAny · P2 child-scope 403 · P3 sheet header overlaps · P4 review-queue (needs_review/dedup/no_qr).
