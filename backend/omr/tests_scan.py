@@ -4,6 +4,7 @@ Tests for omr.simulate — synthetic scan simulator (Task 2, Phase 4).
 TDD: these tests define the contract that simulate.py must satisfy.
 """
 
+import cv2
 import numpy as np
 from PIL import Image
 from django.test import TestCase
@@ -688,3 +689,432 @@ class SimulateScaleTests(TestCase):
         region = img[y0:y1, x0:x1]
         self.assertLess(region.mean(), 80,
                         f"Scale-2 fiducial should be dark (mean<80), got {region.mean():.1f}")
+
+
+# ===========================================================================
+# Phase 4 Task 4 — fill-ratio + hysteresis bubble reader (read.py) TDD tests
+# ===========================================================================
+
+def _make_descriptor_and_meta(num_questions=10, num_options=4, roll_digits=3,
+                               test_id=20, seed=42):
+    """Shared helper: build descriptor + sheet_meta."""
+    descriptor = build_template(
+        num_questions=num_questions,
+        num_options=num_options,
+        roll_digits=roll_digits,
+    )
+    sheet_code, human_code = make_sheet_code(test_id, seed)
+    sheet_meta = {
+        "sheet_code": sheet_code,
+        "human_readable_code": human_code,
+        "institution": "Test School",
+        "test_title": "Bubble Reader Test",
+        "subject": "OMR",
+        "student_name": "Tester",
+        "roll_label": "Roll No.",
+        "roll_digits": descriptor["roll_grid"]["cols"],
+    }
+    return descriptor, sheet_meta
+
+
+class ToBinaryTests(TestCase):
+    """omr.scan.read.to_binary — basic binarisation contract."""
+
+    def test_returns_uint8_binary(self):
+        from omr.scan.read import to_binary
+        gray = np.full((100, 100), 200, dtype=np.uint8)
+        binary = to_binary(gray)
+        self.assertEqual(binary.dtype, np.uint8)
+        unique = set(binary.ravel().tolist())
+        self.assertTrue(unique.issubset({0, 255}),
+                        f"binary should only contain 0 and 255, got {unique}")
+
+    def test_white_image_gives_all_zeros(self):
+        """A pure-white image (all ink=none) → all zeros after INV threshold."""
+        from omr.scan.read import to_binary
+        gray = np.full((50, 50), 255, dtype=np.uint8)
+        binary = to_binary(gray)
+        self.assertEqual(binary.max(), 0,
+                         "Pure-white image should map to all zeros in binary")
+
+    def test_dark_region_maps_to_255(self):
+        """Ink (dark) pixels become 255 in binary (inverse threshold)."""
+        from omr.scan.read import to_binary
+        gray = np.full((100, 100), 200, dtype=np.uint8)
+        # Stamp a dark region
+        gray[20:40, 20:40] = 0
+        binary = to_binary(gray)
+        # The dark region should be ink (255)
+        region = binary[20:40, 20:40]
+        self.assertGreater(region.mean(), 200,
+                           "Dark ink region should become 255 in binary image")
+
+    def test_same_shape(self):
+        from omr.scan.read import to_binary
+        gray = np.random.randint(0, 256, (100, 80), dtype=np.uint8)
+        binary = to_binary(gray)
+        self.assertEqual(binary.shape, gray.shape)
+
+
+class BubbleFillRatioTests(TestCase):
+    """omr.scan.read.bubble_fill_ratio — inner-disc sampling."""
+
+    def test_filled_disc_gives_high_ratio(self):
+        """A fully-filled disc should give a ratio near 1.0."""
+        from omr.scan.read import bubble_fill_ratio
+        binary = np.zeros((100, 100), dtype=np.uint8)
+        # Fully fill a disc of radius 9
+        cx, cy, r = 50, 50, 9
+        cv2.circle(binary, (cx, cy), r, 255, -1)
+        ratio = bubble_fill_ratio(binary, cx, cy, r)
+        self.assertGreater(ratio, 0.85,
+                           f"Fully filled disc should have ratio > 0.85, got {ratio:.3f}")
+
+    def test_empty_disc_gives_zero_ratio(self):
+        """An all-white (paper) disc gives ratio 0.0."""
+        from omr.scan.read import bubble_fill_ratio
+        binary = np.zeros((100, 100), dtype=np.uint8)
+        ratio = bubble_fill_ratio(binary, 50, 50, 9)
+        self.assertEqual(ratio, 0.0, f"Empty disc should give 0.0, got {ratio}")
+
+    def test_ratio_between_0_and_1(self):
+        """Fill ratio must always be in [0, 1]."""
+        from omr.scan.read import bubble_fill_ratio
+        binary = np.random.randint(0, 2, (100, 100), dtype=np.uint8) * 255
+        ratio = bubble_fill_ratio(binary, 50, 50, 9)
+        self.assertGreaterEqual(ratio, 0.0)
+        self.assertLessEqual(ratio, 1.0)
+
+
+class ClassifyTests(TestCase):
+    """omr.scan.read.classify — hysteresis thresholds."""
+
+    def test_above_high_is_filled(self):
+        from omr.scan.read import classify, FILL_HIGH
+        self.assertEqual(classify(FILL_HIGH), "filled")
+        self.assertEqual(classify(1.0), "filled")
+
+    def test_below_low_is_empty(self):
+        from omr.scan.read import classify, FILL_LOW
+        self.assertEqual(classify(FILL_LOW), "empty")
+        self.assertEqual(classify(0.0), "empty")
+
+    def test_between_is_ambiguous(self):
+        from omr.scan.read import classify, FILL_HIGH, FILL_LOW
+        mid = (FILL_HIGH + FILL_LOW) / 2
+        self.assertEqual(classify(mid), "ambiguous")
+
+    def test_just_below_high_is_ambiguous(self):
+        from omr.scan.read import classify, FILL_HIGH
+        self.assertEqual(classify(FILL_HIGH - 0.001), "ambiguous")
+
+    def test_just_above_low_is_ambiguous(self):
+        from omr.scan.read import classify, FILL_LOW
+        self.assertEqual(classify(FILL_LOW + 0.001), "ambiguous")
+
+
+class CanonicalRoundTripTests(TestCase):
+    """
+    Phase 4 Task 4 — Test 1: Canonical direct round-trip.
+
+    simulate_scan(scale=1.0) → to_binary → read_answers + read_roll
+    must recover exactly the marked answers and roll number.
+    """
+
+    def setUp(self):
+        self.descriptor, self.sheet_meta = _make_descriptor_and_meta(
+            num_questions=10, num_options=4, roll_digits=3,
+            test_id=20, seed=42,
+        )
+
+    def _simulate(self, marked, roll):
+        from omr.simulate import simulate_scan
+        return simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=marked, roll=roll,
+            page=0, scale=1.0,
+        )
+
+    def test_canonical_answers_round_trip(self):
+        """
+        read_answers on a canonical (scale=1) scan recovers exactly the
+        marked options and leaves blanks for unmarked questions.
+        """
+        from omr.scan.read import to_binary, read_answers
+
+        marked = {0: ["A"], 1: ["C"], 2: ["D"]}
+        roll = "042"
+
+        img = self._simulate(marked, roll)
+        binary = to_binary(img)
+        answers = read_answers(binary, self.descriptor, page=0)
+
+        # Check marked questions
+        for q_pos, labels in marked.items():
+            got = answers[q_pos]["marked"]
+            self.assertEqual(
+                sorted(got), sorted(labels),
+                f"q_pos={q_pos}: expected {labels}, got {got}",
+            )
+
+        # Check blank questions (1-based page 0 questions are 0..9)
+        for q_pos in range(10):
+            if q_pos in marked:
+                continue
+            got = answers[q_pos]["marked"]
+            self.assertEqual(
+                got, [],
+                f"Unmarked q_pos={q_pos} should have marked=[], got {got}",
+            )
+
+    def test_canonical_roll_round_trip(self):
+        """read_roll on a canonical scan recovers the exact roll string."""
+        from omr.scan.read import to_binary, read_roll
+
+        roll = "042"
+        img = self._simulate({}, roll)
+        binary = to_binary(img)
+        roll_str, flag = read_roll(binary, self.descriptor)
+
+        self.assertEqual(
+            roll_str, roll,
+            f"Expected roll={roll!r}, got {roll_str!r} (flag={flag})",
+        )
+        self.assertIsNone(flag,
+                          f"Clean roll '042' should have flag=None, got {flag!r}")
+
+    def test_canonical_fill_ratios_have_clear_margin(self):
+        """
+        Sanity-check: the measured fill ratios for filled vs empty bubbles
+        must be clearly on the correct side of the thresholds, with margin.
+
+        Specifically:
+            filled  ratio >= FILL_HIGH + 0.10   (>= 0.55 — well above threshold)
+            empty   ratio <  FILL_LOW            (< 0.20  — correctly below threshold)
+
+        Note: the printed bubble outline ring contributes a small but measurable
+        ink signal even for empty bubbles. The inner-disc sampling (r*0.6) mitigates
+        most of this, but empty bubbles may still read up to ~0.19. FILL_LOW=0.20
+        provides enough headroom so they still classify "empty".
+        """
+        from omr.scan.read import to_binary, bubble_fill_ratio, FILL_HIGH, FILL_LOW
+
+        marked = {0: ["A"]}
+        img = self._simulate(marked, "0")
+        binary = to_binary(img)
+
+        q0 = next(b for b in self.descriptor["answer_bubbles"] if b["q_pos"] == 0)
+        opts = {o["label"]: o for o in q0["options"]}
+
+        ratio_A = bubble_fill_ratio(
+            binary, opts["A"]["cx"], opts["A"]["cy"], opts["A"]["r"]
+        )
+        # Sample option C (not adjacent to A) for a cleaner empty measurement
+        ratio_C = bubble_fill_ratio(
+            binary, opts["C"]["cx"], opts["C"]["cy"], opts["C"]["r"]
+        )
+
+        self.assertGreaterEqual(
+            ratio_A, FILL_HIGH + 0.10,
+            f"Filled bubble A ratio ({ratio_A:.3f}) should be >= {FILL_HIGH + 0.10:.2f} "
+            f"(FILL_HIGH={FILL_HIGH})",
+        )
+        self.assertLess(
+            ratio_C, FILL_LOW,
+            f"Empty bubble C ratio ({ratio_C:.3f}) should be < FILL_LOW={FILL_LOW} "
+            "(correct side of threshold)",
+        )
+
+
+class WarpedRoundTripTests(TestCase):
+    """
+    Phase 4 Task 4 — Test 2: Warped round-trip.
+
+    simulate_scan(scale=2, transform=perspective) →
+        detect_fiducials → warp_to_canonical →
+        to_binary → read_answers must recover marked answers.
+    """
+
+    SCALE = 2.0
+
+    def setUp(self):
+        self.descriptor, self.sheet_meta = _make_descriptor_and_meta(
+            num_questions=10, num_options=4, roll_digits=3,
+            test_id=21, seed=55,
+        )
+
+    def test_warped_answers_round_trip(self):
+        """
+        After perspective warp + alignment, read_answers recovers the exact
+        marked options for a subset of questions.
+        """
+        from omr.simulate import simulate_scan, perspective_transform
+        from omr.scan.align import detect_fiducials, warp_to_canonical
+        from omr.scan.read import to_binary, read_answers
+
+        marked = {0: ["A"], 3: ["B"], 7: ["C"]}
+        roll = "137"
+
+        W_canon, H_canon = self.descriptor["page_px"]
+        W_scaled = round(W_canon * self.SCALE)
+        H_scaled = round(H_canon * self.SCALE)
+
+        transform = perspective_transform(W_scaled, H_scaled, jitter_px=15.0)
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=marked, roll=roll,
+            page=0, transform=transform, scale=self.SCALE,
+        )
+
+        # Alignment pipeline
+        pts = detect_fiducials(img, self.descriptor)
+        self.assertIsNotNone(pts, "detect_fiducials failed on warped scan")
+        canonical = warp_to_canonical(img, pts, self.descriptor)
+        self.assertEqual(canonical.shape, (H_canon, W_canon))
+
+        binary = to_binary(canonical)
+        answers = read_answers(binary, self.descriptor, page=0)
+
+        for q_pos, labels in marked.items():
+            got = answers[q_pos]["marked"]
+            self.assertEqual(
+                sorted(got), sorted(labels),
+                f"Warped round-trip: q_pos={q_pos} expected {labels}, got {got}",
+            )
+
+    def test_warped_roll_round_trip(self):
+        """
+        After perspective warp + alignment, read_roll recovers the exact roll.
+        """
+        from omr.simulate import simulate_scan, perspective_transform
+        from omr.scan.align import detect_fiducials, warp_to_canonical
+        from omr.scan.read import to_binary, read_roll
+
+        roll = "259"
+        W_canon, H_canon = self.descriptor["page_px"]
+        W_scaled = round(W_canon * self.SCALE)
+        H_scaled = round(H_canon * self.SCALE)
+
+        transform = perspective_transform(W_scaled, H_scaled, jitter_px=10.0)
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked={}, roll=roll,
+            page=0, transform=transform, scale=self.SCALE,
+        )
+
+        pts = detect_fiducials(img, self.descriptor)
+        self.assertIsNotNone(pts, "detect_fiducials failed on warped scan")
+        canonical = warp_to_canonical(img, pts, self.descriptor)
+
+        binary = to_binary(canonical)
+        roll_str, flag = read_roll(binary, self.descriptor)
+
+        self.assertEqual(
+            roll_str, roll,
+            f"Warped round-trip: expected roll={roll!r}, got {roll_str!r} (flag={flag})",
+        )
+        self.assertIsNone(flag,
+                          f"Clean warped roll '{roll}' should have flag=None, got {flag!r}")
+
+
+class DoubleMark_BlankTests(TestCase):
+    """
+    Phase 4 Task 4 — Tests 3 & 4: double-mark detection and blank handling.
+    """
+
+    def setUp(self):
+        self.descriptor, self.sheet_meta = _make_descriptor_and_meta(
+            num_questions=10, num_options=4, roll_digits=3,
+            test_id=22, seed=77,
+        )
+
+    def _binary(self, marked, roll="000"):
+        from omr.simulate import simulate_scan
+        from omr.scan.read import to_binary
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=marked, roll=roll, page=0, scale=1.0,
+        )
+        return to_binary(img)
+
+    def test_double_mark_sets_flag(self):
+        """
+        Marking two options on q_pos=0 (with multiple_allowed=False) must
+        set flag "double_mark" and include both labels in "marked".
+        """
+        from omr.scan.read import read_answers
+
+        marked = {0: ["A", "C"]}
+        binary = self._binary(marked)
+        answers = read_answers(binary, self.descriptor, page=0, multiple_allowed=False)
+
+        q0 = answers[0]
+        self.assertEqual(q0["flag"], "double_mark",
+                         f"Expected flag='double_mark', got {q0['flag']!r}")
+        self.assertIn("A", q0["marked"], "A should be in marked")
+        self.assertIn("C", q0["marked"], "C should be in marked")
+
+    def test_double_mark_allowed_when_flag_multiple(self):
+        """
+        When multiple_allowed=True, two filled options should NOT set
+        'double_mark'.
+        """
+        from omr.scan.read import read_answers
+
+        marked = {0: ["A", "B"]}
+        binary = self._binary(marked)
+        answers = read_answers(binary, self.descriptor, page=0, multiple_allowed=True)
+
+        q0 = answers[0]
+        self.assertNotEqual(
+            q0["flag"], "double_mark",
+            "multiple_allowed=True should suppress double_mark flag",
+        )
+        self.assertIn("A", q0["marked"])
+        self.assertIn("B", q0["marked"])
+
+    def test_blank_question_has_empty_marked_and_no_flag(self):
+        """
+        A question with no bubble filled should have marked=[] and flag=None.
+        """
+        from omr.scan.read import read_answers
+
+        # Mark nothing
+        binary = self._binary(marked={})
+        answers = read_answers(binary, self.descriptor, page=0)
+
+        for q_pos in range(10):
+            q = answers[q_pos]
+            self.assertEqual(
+                q["marked"], [],
+                f"q_pos={q_pos}: blank question should have marked=[], got {q['marked']}",
+            )
+            self.assertIsNone(
+                q["flag"],
+                f"q_pos={q_pos}: blank question should have flag=None, got {q['flag']!r}",
+            )
+
+    def test_clean_single_mark_has_no_flag(self):
+        """A single correctly-filled option must have flag=None."""
+        from omr.scan.read import read_answers
+
+        marked = {5: ["B"]}
+        binary = self._binary(marked)
+        answers = read_answers(binary, self.descriptor, page=0)
+
+        q5 = answers[5]
+        self.assertEqual(sorted(q5["marked"]), ["B"])
+        self.assertIsNone(q5["flag"],
+                          f"Clean single mark should have flag=None, got {q5['flag']!r}")
+
+    def test_all_questions_present_in_result(self):
+        """read_answers must return an entry for every question on the page."""
+        from omr.scan.read import read_answers
+
+        binary = self._binary(marked={0: ["A"]})
+        answers = read_answers(binary, self.descriptor, page=0)
+
+        page_qs = self.descriptor["page_map"][0]
+        for q_pos in page_qs:
+            self.assertIn(q_pos, answers,
+                          f"q_pos={q_pos} missing from read_answers result")
