@@ -7,15 +7,19 @@ from organizations.models import OrganizationMembership
 def get_active_org(request):
     """Return the active Organization for this request, or None for solo scope.
 
-    Reads the `X-Organization-Id` header (or `?org` query param).  If set,
-    verifies the user has an *active* membership; raises PermissionDenied
-    otherwise.  Caches the result on the request object to avoid repeated DB
-    hits within the same request cycle.
+    Reads the `X-Organization-Id` header ONLY.  If set, verifies the user has
+    an *active* membership; raises PermissionDenied otherwise.  Caches the
+    result on the request object to avoid repeated DB hits within the same
+    request cycle.
+
+    Header-only by design: a `?org=` query-param fallback would be
+    CSRF-reachable (a cross-origin GET could append `?org=`), so org activation
+    is restricted to the custom header the frontend already sends.
     """
     if hasattr(request, "_active_org_resolved"):
         return request._active_org_cache
 
-    org_id = request.headers.get("X-Organization-Id") or request.query_params.get("org")
+    org_id = request.headers.get("X-Organization-Id")
     if not org_id:
         request._active_org_resolved = True
         request._active_org_cache = None

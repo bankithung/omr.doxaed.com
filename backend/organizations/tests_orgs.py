@@ -944,6 +944,89 @@ class OrgGenerateTests(_OrgApiBase):
         self.assertIn(r.status_code, (400, 403))
 
 
+# ---------------------------------------------------------------------------
+# P) Org-shared Students (child of org-owned Roster) — StudentViewSet org scope
+# ---------------------------------------------------------------------------
+
+class OrgSharedStudentsTests(_OrgApiBase):
+    """
+    A creates an org-owned Roster + Student (via the org header).
+    B (same org) can GET/list that student under the org header.
+    C (different org) gets 404 / empty. A solo user (no header) gets 404 / empty.
+
+    Covers the gap that hid the StudentViewSet org-scope bug.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.roster, self.students = _make_org_roster(self.org, self.a, n_students=2)
+        self.student = self.students[0]
+
+    def test_org_member_b_can_retrieve_org_student(self):
+        """B (member of org1) can GET an org1-owned student detail under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/students/{self.student.id}/",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["id"], self.student.id)
+
+    def test_org_member_b_sees_student_in_roster_list(self):
+        """B can list org1-owned students filtered by ?roster= under org1 header."""
+        self._login(self.b)
+        r = self.client.get(
+            f"/api/v1/students/?roster={self.roster.id}",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        ids = {item["id"] for item in r.data["results"]}
+        for s in self.students:
+            self.assertIn(s.id, ids)
+
+    def test_org_member_b_can_update_org_student(self):
+        """B can PATCH an org1-owned student under org1 header."""
+        self._login(self.b)
+        r = self.client.patch(
+            f"/api/v1/students/{self.student.id}/",
+            {"full_name": "Renamed Student"},
+            format="json",
+            **self._org_header(),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["full_name"], "Renamed Student")
+
+    def test_cross_org_member_cannot_retrieve_org_student(self):
+        """C (org2 admin) gets 404 on an org1-owned student, even with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/students/{self.student.id}/",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_cross_org_member_sees_no_students_in_list(self):
+        """C (org2) sees no org1 students in the ?roster= list with org2 header."""
+        self._login(self.c)
+        r = self.client.get(
+            f"/api/v1/students/?roster={self.roster.id}",
+            **self._org_header(self.org2),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+    def test_solo_user_cannot_retrieve_org_student(self):
+        """A in solo mode (no header) gets 404 on an org-owned student."""
+        r = self.client.get(f"/api/v1/students/{self.student.id}/")
+        self.assertEqual(r.status_code, 404)
+
+    def test_solo_user_sees_no_org_students_in_list(self):
+        """A in solo mode (no header) sees no org-owned students in the list."""
+        r = self.client.get(f"/api/v1/students/?roster={self.roster.id}")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 0)
+
+
 # ===========================================================================
 # Phase 6 Task 3 — Org management endpoints: create, invite, accept, members,
 # roles, audit log.
