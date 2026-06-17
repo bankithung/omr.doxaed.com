@@ -582,3 +582,295 @@ class GeneratorTests(TestCase):
 
         self.assertTrue(has_qr(pdf1), "First render: QR not decodable")
         self.assertTrue(has_qr(pdf2), "Second render: QR not decodable")
+
+
+# ---------------------------------------------------------------------------
+# Task 5: Generation endpoint + gates + batch PDF
+# ---------------------------------------------------------------------------
+
+class GenerateEndpointTests(TestCase):
+    """
+    POST /api/v1/omr/generate/
+    GET  /api/v1/omr/sheets/?test=
+    """
+
+    GENERATE_URL = "/api/v1/omr/generate/"
+    SHEETS_URL = "/api/v1/omr/sheets/"
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from assessments.models import ClassGroup, Option, Question, Test
+        from rosters.models import Roster, Student
+
+        User = get_user_model()
+
+        # Primary user
+        self.user = User.objects.create_user(email="gen@example.com", password="pass")
+        # Second user for cross-tenant checks
+        self.other_user = User.objects.create_user(email="other@example.com", password="pass")
+
+        # Set up assessment data for self.user
+        cg = ClassGroup.objects.create(user=self.user, created_by=self.user, name="CG-Gen")
+        self.test = Test.objects.create(
+            user=self.user, class_group=cg, created_by=self.user, title="Gen Test"
+        )
+        # Add 3 questions with 4 options each (option A is correct)
+        for qi in range(3):
+            q = Question.objects.create(test=self.test, order_index=qi, text=f"Q{qi}")
+            for li, label in enumerate(["A", "B", "C", "D"]):
+                Option.objects.create(
+                    question=q, label=label, text=label, is_correct=(label == "A")
+                )
+
+        # Roster with 3 students
+        self.roster = Roster.objects.create(
+            user=self.user, created_by=self.user, name="Roster-Gen"
+        )
+        for i in range(1, 4):
+            Student.objects.create(roster=self.roster, roll_number=str(i), full_name=f"Student {i}")
+
+        # Cross-tenant: other user's test and roster
+        cg2 = ClassGroup.objects.create(user=self.other_user, created_by=self.other_user, name="CG-Other")
+        self.other_test = Test.objects.create(
+            user=self.other_user, class_group=cg2, created_by=self.other_user, title="Other Test"
+        )
+        q2 = Question.objects.create(test=self.other_test, order_index=0, text="Q-other")
+        Option.objects.create(question=q2, label="A", text="A", is_correct=True)
+        Option.objects.create(question=q2, label="B", text="B", is_correct=False)
+
+        self.other_roster = Roster.objects.create(
+            user=self.other_user, created_by=self.other_user, name="Roster-Other"
+        )
+        for i in range(1, 4):
+            Student.objects.create(roster=self.other_roster, roll_number=str(i))
+
+    def _auth(self, user=None):
+        """Return Authorization header dict, bypassing throttle via forced JWT."""
+        from rest_framework_simplejwt.tokens import RefreshToken
+        if user is None:
+            user = self.user
+        refresh = RefreshToken.for_user(user)
+        return {"HTTP_AUTHORIZATION": f"Bearer {str(refresh.access_token)}"}
+
+    # ---- happy path -------------------------------------------------------
+
+    def test_generate_returns_201(self):
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_generate_one_sheet_per_student(self):
+        from rosters.models import Student
+        student_count = Student.objects.filter(roster=self.roster).count()
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        data = resp.json()
+        self.assertEqual(data["count"], student_count)
+        self.assertEqual(len(data["sheets"]), student_count)
+
+    def test_generate_sheets_have_stored_fields(self):
+        """Each OmrSheet must have question_order, answer_key, template_descriptor stored."""
+        from omr.models import OmrSheet
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        # Verify DB rows
+        sheets = OmrSheet.objects.filter(test=self.test)
+        self.assertGreater(sheets.count(), 0)
+        for sheet in sheets:
+            self.assertIsInstance(sheet.question_order, list)
+            self.assertGreater(len(sheet.question_order), 0)
+            self.assertIsInstance(sheet.answer_key, dict)
+            self.assertGreater(len(sheet.answer_key), 0)
+            self.assertIsInstance(sheet.template_descriptor, dict)
+            self.assertIn("page_px", sheet.template_descriptor)
+
+    def test_generate_unique_sheet_codes(self):
+        """Each sheet must have a distinct sheet_code."""
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        data = resp.json()
+        codes = [s["sheet_code"] for s in data["sheets"]]
+        self.assertEqual(len(codes), len(set(codes)), "Sheet codes are not unique")
+
+    def test_generate_batch_pdf_url_present(self):
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        data = resp.json()
+        self.assertIn("batch_pdf_url", data)
+        self.assertTrue(data["batch_pdf_url"], "batch_pdf_url must not be empty")
+
+    def test_generate_deterministic_sheet_codes(self):
+        """Same test+student pair must produce the same sheet_code on a second generation."""
+        from omr.models import OmrSheet
+
+        resp1 = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp1.status_code, 201, resp1.content)
+
+        # Wipe the sheets so we can regenerate (codes are unique; second call would
+        # hit the unique constraint if we reuse them, so clear first)
+        OmrSheet.objects.filter(test=self.test).delete()
+
+        resp2 = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp2.status_code, 201, resp2.content)
+
+        codes1 = sorted(s["sheet_code"] for s in resp1.json()["sheets"])
+        codes2 = sorted(s["sheet_code"] for s in resp2.json()["sheets"])
+        self.assertEqual(codes1, codes2, "Sheet codes are not deterministic across calls")
+
+    # ---- gate: roster size -----------------------------------------------
+
+    def test_gate_roster_too_large_returns_403(self):
+        """Roster with 11 students → 403."""
+        from rosters.models import Roster, Student
+        big_roster = Roster.objects.create(
+            user=self.user, created_by=self.user, name="BigRoster"
+        )
+        for i in range(1, 12):  # 11 students
+            Student.objects.create(roster=big_roster, roll_number=str(i))
+
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": big_roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    # ---- gate: daily generation limit ------------------------------------
+
+    def test_gate_6th_generation_returns_403(self):
+        """6th generation in a day → 403."""
+        from django.utils import timezone
+        from omr.models import GenerationEvent
+
+        # Create 5 existing events for today
+        for _ in range(5):
+            GenerationEvent.objects.create(user=self.user, test=self.test)
+
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    def test_gate_5th_generation_allowed(self):
+        """Exactly 4 prior events → 5th generation should succeed (201)."""
+        from omr.models import GenerationEvent
+
+        # Create 4 existing events
+        for _ in range(4):
+            GenerationEvent.objects.create(user=self.user, test=self.test)
+
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    # ---- cross-tenant isolation ------------------------------------------
+
+    def test_cross_tenant_test_returns_400(self):
+        """Using another user's test → 400."""
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.other_test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_cross_tenant_roster_returns_400(self):
+        """Using another user's roster → 400."""
+        resp = self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.other_roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    # ---- GET /api/v1/omr/sheets/ -----------------------------------------
+
+    def test_list_sheets_requires_auth(self):
+        resp = self.client.get(f"{self.SHEETS_URL}?test={self.test.id}")
+        self.assertIn(resp.status_code, [401, 403])
+
+    def test_list_sheets_scoped_to_user(self):
+        """After generating, list endpoint returns only the user's sheets."""
+        from omr.models import OmrSheet
+        # Generate sheets first
+        self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        resp = self.client.get(
+            f"{self.SHEETS_URL}?test={self.test.id}",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        data = resp.json()
+        # All returned sheets must belong to this test
+        sheet_ids = [s["id"] for s in data.get("results", data)]
+        db_ids = list(OmrSheet.objects.filter(test=self.test).values_list("id", flat=True))
+        for sid in sheet_ids:
+            self.assertIn(sid, db_ids)
+
+    def test_list_sheets_not_visible_to_other_user(self):
+        """Sheets belonging to self.user are not returned to other_user."""
+        from omr.models import OmrSheet
+        # Generate for self.user
+        self.client.post(
+            self.GENERATE_URL,
+            {"test": self.test.id, "roster": self.roster.id},
+            content_type="application/json",
+            **self._auth(),
+        )
+        # Query as other_user for self.test
+        resp = self.client.get(
+            f"{self.SHEETS_URL}?test={self.test.id}",
+            **self._auth(user=self.other_user),
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        data = resp.json()
+        results = data.get("results", data)
+        self.assertEqual(len(results), 0, "Other user must not see sheets belonging to this user")

@@ -1,4 +1,29 @@
+from django.conf import settings
 from django.db import models
+
+
+class GenerationEvent(models.Model):
+    """
+    One row per generation call — used to enforce the ≤5 generations/day free-tier gate.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="generation_events",
+    )
+    test = models.ForeignKey(
+        "assessments.Test",
+        on_delete=models.CASCADE,
+        related_name="generation_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"GenerationEvent user={self.user_id} test={self.test_id} at {self.created_at}"
 
 
 class OmrSheet(models.Model):
@@ -35,7 +60,7 @@ class OmrSheet(models.Model):
     human_readable_code = models.CharField(max_length=32)
 
     # Shuffle state (the seed used for deterministic generation)
-    shuffle_version = models.IntegerField(default=0)
+    shuffle_version = models.BigIntegerField(default=0)
 
     # Per-sheet plan (from omr.shuffle.build_sheet_plan)
     question_order = models.JSONField(default=list)
