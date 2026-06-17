@@ -24,6 +24,7 @@ import cv2
 import fitz  # PyMuPDF
 import numpy as np
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -39,11 +40,21 @@ from omr.generator import render_sheet_pdf
 from omr.models import GenerationEvent, OmrSheet, ScanBatch, ScanEvent, ScanJob
 from omr.serializers import GenerateSerializer, OmrSheetSerializer, ScanBatchSerializer
 from omr.shuffle import build_sheet_plan
+from organizations.models import Organization
 from rosters.models import Roster
 
 # Free-tier limits (solo/per-user fallback)
 MAX_STUDENTS = 10
 MAX_DAILY_GENERATIONS = 5
+
+
+class _GateExceeded(Exception):
+    """Internal signal that a plan gate was exceeded under the per-org lock.
+
+    Raised inside a ``transaction.atomic()`` block so the lock-holding
+    transaction rolls back; the view catches it and returns a 403 with the
+    carried detail message outside the atomic block.
+    """
 
 
 _BIGINT_MAX = (2**63) - 1  # max signed 64-bit integer (PostgreSQL bigint)
@@ -108,35 +119,44 @@ class GenerateView(APIView):
         org = get_active_org(request)
 
         if org is not None:
-            # Org scope: use billing.limits for per-org quota enforcement
-            if not billing_limits.can_generate(org, len(students)):
-                plan = billing_limits.org_plan(org)
-                # Distinguish student cap vs daily cap for a useful error message
-                if (
-                    plan.students_per_generation_limit is not None
-                    and len(students) > plan.students_per_generation_limit
-                ):
-                    return Response(
-                        {
-                            "detail": (
+            # Org scope: enforce per-org quota and RESERVE the slot atomically.
+            # Serialize concurrent same-org requests with a row lock, re-check
+            # under the lock, then record the GenerationEvent now (before the
+            # expensive PDF work) so two concurrent calls can't both pass the
+            # gate and exceed the cap (closes the TOCTOU window).
+            try:
+                with transaction.atomic():
+                    Organization.objects.select_for_update().get(pk=org.pk)
+                    if not billing_limits.can_generate(org, len(students)):
+                        plan = billing_limits.org_plan(org)
+                        # Distinguish student cap vs daily cap for a useful message.
+                        if (
+                            plan.students_per_generation_limit is not None
+                            and len(students) > plan.students_per_generation_limit
+                        ):
+                            detail = (
                                 f"Your plan allows up to "
                                 f"{plan.students_per_generation_limit} students per generation. "
                                 "Upgrade your plan to generate larger batches."
                             )
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
+                        else:
+                            detail = (
+                                "Daily generation limit reached for your organisation's plan. "
+                                "Upgrade your plan for more daily generations."
+                            )
+                        # Raise to roll back the lock-holding transaction, then
+                        # return the 403 outside the atomic block.
+                        raise _GateExceeded(detail)
+                    # Reserve the slot now (org=org).
+                    GenerationEvent.objects.create(
+                        user=request.user, test=test, organization=org
                     )
+            except _GateExceeded as exc:
                 return Response(
-                    {
-                        "detail": (
-                            "Daily generation limit reached for your organisation's plan. "
-                            "Upgrade your plan for more daily generations."
-                        )
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
+                    {"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN
                 )
         else:
-            # Solo scope: original per-user free-tier checks
+            # Solo scope: original per-user free-tier checks (unchanged).
             if len(students) > MAX_STUDENTS:
                 return Response(
                     {
@@ -277,8 +297,13 @@ class GenerateView(APIView):
             f"/media/{batch_path.replace(chr(92), '/')}"
         )
 
-        # ---- record GenerationEvent (org=None for solo) -----------------
-        GenerationEvent.objects.create(user=request.user, test=test, organization=org)
+        # ---- record GenerationEvent (solo only) -------------------------
+        # Org-context events were already reserved under the per-org lock above
+        # to close the TOCTOU window; only solo events are recorded here.
+        if org is None:
+            GenerationEvent.objects.create(
+                user=request.user, test=test, organization=None
+            )
 
         # ---- response ---------------------------------------------------
         sheet_data = OmrSheetSerializer(
@@ -377,28 +402,38 @@ class ScanUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ---- scan gate (org-aware) ----------------------------------------
-        scan_org = get_active_org(request)
-        if scan_org is not None:
-            if not billing_limits.can_scan(scan_org):
-                plan = billing_limits.org_plan(scan_org)
-                return Response(
-                    {
-                        "detail": (
-                            f"Monthly scan limit reached for your organisation's plan "
-                            f"({plan.monthly_scan_limit} scans/month). "
-                            "Upgrade to scan more sheets."
-                        )
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
         uploaded_files = request.FILES.getlist("files")
         if not uploaded_files:
             return Response(
                 {"files": "At least one file is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # ---- scan gate (org-aware) — RESERVE before processing ------------
+        # Serialize concurrent same-org uploads with a per-org row lock,
+        # re-check the monthly cap under the lock, and record the ScanEvent
+        # (reserve the slot) BEFORE the expensive pipeline work, so two
+        # concurrent uploads can't both pass the gate and exceed the cap.
+        scan_org = get_active_org(request)
+        if scan_org is not None:
+            try:
+                with transaction.atomic():
+                    Organization.objects.select_for_update().get(pk=scan_org.pk)
+                    if not billing_limits.can_scan(scan_org):
+                        plan = billing_limits.org_plan(scan_org)
+                        raise _GateExceeded(
+                            f"Monthly scan limit reached for your organisation's plan "
+                            f"({plan.monthly_scan_limit} scans/month). "
+                            "Upgrade to scan more sheets."
+                        )
+                    # Reserve the slot now (one ScanEvent per upload batch).
+                    ScanEvent.objects.create(
+                        user=request.user, test=test, organization=scan_org
+                    )
+            except _GateExceeded as exc:
+                return Response(
+                    {"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN
+                )
 
         # Create ScanBatch
         batch = ScanBatch.objects.create(
@@ -470,17 +505,17 @@ class ScanUploadView(APIView):
         batch.status = ScanBatch.STATUS_DONE
         batch.save(update_fields=["status"])
 
-        # ---- record ScanEvent per batch (one event = one upload batch) ----
-        # Granularity: per-batch (not per-page).  A batch may contain multiple
-        # pages from one upload; recording one ScanEvent per upload call keeps
-        # the counter proportional to "scan jobs submitted" rather than
-        # "individual sheets processed", which is simpler to reason about and
-        # avoids inflating the count for multi-page PDFs.
-        ScanEvent.objects.create(
-            user=request.user,
-            test=test,
-            organization=scan_org,  # None for solo
-        )
+        # ---- record ScanEvent per batch (solo only) ----------------------
+        # Org-context ScanEvents were already reserved under the per-org lock
+        # before processing (closes the TOCTOU window).  Solo uploads have no
+        # hard cap, so record their event here once the batch completes.
+        # Granularity: per-batch (one event per upload call, not per page).
+        if scan_org is None:
+            ScanEvent.objects.create(
+                user=request.user,
+                test=test,
+                organization=None,
+            )
 
         return Response(
             {"batch_id": batch.id, "total": total, "processed": processed},

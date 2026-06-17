@@ -232,6 +232,22 @@ class AcceptInviteView(APIView):
 
         org = invitation.organization
 
+        # ---- seat gate (re-check at accept time) -----------------------------
+        # An invite created while the org was on a paid plan can be accepted
+        # after a downgrade.  Re-check the seat gate before granting a NEW active
+        # seat.  Re-accepting your own already-active seat must still work, so
+        # only gate when the user is not already an active member.
+        already_active = OrganizationMembership.objects.filter(
+            organization=org,
+            user=request.user,
+            status=OrganizationMembership.ACTIVE,
+        ).exists()
+        if not already_active and not billing_limits.can_add_seat(org):
+            return Response(
+                {"detail": "Seat limit reached for this organization's plan."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Create or re-activate membership.
         membership, created = OrganizationMembership.objects.get_or_create(
             organization=org,

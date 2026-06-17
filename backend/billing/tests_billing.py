@@ -781,6 +781,48 @@ class WebhookSignatureTest(TestCase):
         self.assertEqual(self.sub.status, Subscription.PAST_DUE)
 
     # ------------------------------------------------------------------
+    # current_period_end is cleared on cancel / halt (no stale date)
+    # ------------------------------------------------------------------
+
+    def test_cancelled_clears_current_period_end(self):
+        """subscription.cancelled → current_period_end is reset to None."""
+        self.sub.status = Subscription.ACTIVE
+        self.sub.current_period_end = timezone.now() + timedelta(days=30)
+        self.sub.save(update_fields=["status", "current_period_end"])
+
+        body = _webhook_body("subscription.cancelled", "sub_wh_abc")
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.CANCELED)
+        self.assertIsNone(self.sub.current_period_end)
+
+    def test_halted_clears_current_period_end(self):
+        """subscription.halted → current_period_end is reset to None."""
+        self.sub.status = Subscription.ACTIVE
+        self.sub.current_period_end = timezone.now() + timedelta(days=30)
+        self.sub.save(update_fields=["status", "current_period_end"])
+
+        body = _webhook_body("subscription.halted", "sub_wh_abc")
+        sig = _make_sig(body)
+        resp = self.client.post(
+            self.webhook_url,
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=sig,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, Subscription.PAST_DUE)
+        self.assertIsNone(self.sub.current_period_end)
+
+    # ------------------------------------------------------------------
     # INVALID signature → 400 (KEY security test)
     # ------------------------------------------------------------------
 
@@ -967,6 +1009,102 @@ class SeatGateInviteTest(TestCase):
             format="json",
         )
         self.assertIn("Upgrade", resp.data["detail"])
+
+
+# ---------------------------------------------------------------------------
+# Seat gate — AcceptInviteView (re-check at accept time; downgrade bypass)
+# ---------------------------------------------------------------------------
+
+
+class SeatGateAcceptTest(TestCase):
+    """Accepting an invite re-checks the seat gate so a downgrade can't be bypassed."""
+
+    def setUp(self):
+        from organizations.models import Invitation, OrganizationMembership
+
+        self.client = APIClient()
+        self.admin, self.org = _make_org_with_admin("accept_gate")
+        get_free_plan()
+        self.accept_url = "/api/v1/invitations/accept/"
+
+        # A user who was invited (e.g. while the org was on a paid plan).
+        self.invitee = User.objects.create_user(
+            email="invitee_accept@test.com", password="pass"
+        )
+        self.invitation = Invitation.objects.create(
+            organization=self.org,
+            email=self.invitee.email,
+            role=OrganizationMembership.MEMBER,
+            invited_by=self.admin,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+
+    def test_accept_blocked_when_seat_full_on_free_plan(self):
+        """Free plan (seat_limit=1, 1 admin) → accepting → 403, no 2nd membership."""
+        from organizations.models import OrganizationMembership
+
+        self.client.force_authenticate(user=self.invitee)
+        resp = self.client.post(
+            self.accept_url, {"token": str(self.invitation.token)}, format="json"
+        )
+        self.assertEqual(resp.status_code, 403, resp.data)
+        self.assertIn("Seat limit", resp.data["detail"])
+        # No new active membership was created for the invitee.
+        self.assertFalse(
+            OrganizationMembership.objects.filter(
+                organization=self.org,
+                user=self.invitee,
+                status=OrganizationMembership.ACTIVE,
+            ).exists()
+        )
+
+    def test_accept_succeeds_with_team_sub(self):
+        """With an active Team sub (seat_limit=50) the invitee can accept → 200."""
+        from organizations.models import OrganizationMembership
+
+        _give_team_sub(self.org)
+        self.client.force_authenticate(user=self.invitee)
+        resp = self.client.post(
+            self.accept_url, {"token": str(self.invitation.token)}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertTrue(
+            OrganizationMembership.objects.filter(
+                organization=self.org,
+                user=self.invitee,
+                status=OrganizationMembership.ACTIVE,
+            ).exists()
+        )
+
+    def test_reaccept_own_active_seat_not_gated(self):
+        """A user who is already an active member can accept again without hitting the gate."""
+        from organizations.models import Invitation, OrganizationMembership
+
+        # Make the invitee an existing active member (occupying the 1 free seat).
+        # Remove the admin first so there is exactly 1 active member = invitee.
+        OrganizationMembership.objects.filter(
+            organization=self.org, user=self.admin
+        ).update(status=OrganizationMembership.REMOVED)
+        OrganizationMembership.objects.create(
+            organization=self.org,
+            user=self.invitee,
+            role=OrganizationMembership.MEMBER,
+            status=OrganizationMembership.ACTIVE,
+        )
+        # New invitation for the same already-active user.
+        inv2 = Invitation.objects.create(
+            organization=self.org,
+            email=self.invitee.email,
+            role=OrganizationMembership.ADMIN,
+            invited_by=self.invitee,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        self.client.force_authenticate(user=self.invitee)
+        resp = self.client.post(
+            self.accept_url, {"token": str(inv2.token)}, format="json"
+        )
+        # Already active → gate skipped → 200 (role updated to admin).
+        self.assertEqual(resp.status_code, 200, resp.data)
 
 
 # ---------------------------------------------------------------------------

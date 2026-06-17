@@ -172,11 +172,13 @@ class WebhookView(APIView):
 
         elif event == "subscription.cancelled":
             sub.status = Subscription.CANCELED
-            sub.save(update_fields=["status", "updated_at"])
+            sub.current_period_end = None  # clear stale period end
+            sub.save(update_fields=["status", "current_period_end", "updated_at"])
 
         elif event == "subscription.halted":
             sub.status = Subscription.PAST_DUE
-            sub.save(update_fields=["status", "updated_at"])
+            sub.current_period_end = None  # clear stale period end
+            sub.save(update_fields=["status", "current_period_end", "updated_at"])
 
         # Unknown events are acknowledged but ignored (idempotent).
         return Response({"detail": "ok"}, status=status.HTTP_200_OK)
