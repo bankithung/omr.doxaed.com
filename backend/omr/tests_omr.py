@@ -350,3 +350,235 @@ class ShuffleBuildSheetPlanTests(TestCase):
 
         pos_str = str(0)  # first (and only) printed position
         self.assertEqual(set(p["answer_key"][pos_str]), expected_printed)
+
+
+# ---------------------------------------------------------------------------
+# Task 4: OmrSheet model + codes.py + generator.py
+# ---------------------------------------------------------------------------
+
+class OmrSheetModelTests(TestCase):
+    """OmrSheet model: save and round-trip JSON fields."""
+
+    def _make_test(self, email="t4@example.com"):
+        from django.contrib.auth import get_user_model
+        from assessments.models import ClassGroup, Test
+        User = get_user_model()
+        user = User.objects.create_user(email=email, password="pass")
+        cg = ClassGroup.objects.create(user=user, created_by=user, name="CG4")
+        return Test.objects.create(user=user, class_group=cg, created_by=user, title="T4")
+
+    def test_omrsheet_save_and_reload(self):
+        from omr.models import OmrSheet
+        from omr.codes import make_sheet_code
+
+        test = self._make_test()
+        sheet_code, human_code = make_sheet_code(test.id, seed=1)
+
+        sheet = OmrSheet.objects.create(
+            test=test,
+            sheet_code=sheet_code,
+            human_readable_code=human_code,
+            shuffle_version=1,
+            question_order=[1, 2, 3],
+            option_order={"1": ["A", "B"], "2": ["B", "A"], "3": ["A", "B"]},
+            answer_key={"0": ["A"], "1": ["B"], "2": ["A"]},
+            template_descriptor={"page_px": [827, 1169], "page_count": 1},
+            page_count=1,
+            page_map={"0": [0, 1, 2]},
+        )
+
+        reloaded = OmrSheet.objects.get(pk=sheet.pk)
+        self.assertEqual(reloaded.sheet_code, sheet_code)
+        self.assertEqual(reloaded.human_readable_code, human_code)
+        self.assertEqual(reloaded.question_order, [1, 2, 3])
+        self.assertEqual(reloaded.option_order, {"1": ["A", "B"], "2": ["B", "A"], "3": ["A", "B"]})
+        self.assertEqual(reloaded.answer_key, {"0": ["A"], "1": ["B"], "2": ["A"]})
+        self.assertEqual(reloaded.page_count, 1)
+
+    def test_sheet_code_unique(self):
+        from omr.models import OmrSheet
+        from omr.codes import make_sheet_code
+        from django.db import IntegrityError
+
+        test = self._make_test(email="t4b@example.com")
+        sheet_code, human_code = make_sheet_code(test.id, seed=999)
+
+        OmrSheet.objects.create(
+            test=test,
+            sheet_code=sheet_code,
+            human_readable_code=human_code,
+            page_count=1,
+        )
+        with self.assertRaises(IntegrityError):
+            OmrSheet.objects.create(
+                test=test,
+                sheet_code=sheet_code,
+                human_readable_code=human_code,
+                page_count=1,
+            )
+
+
+class SheetCodesTests(TestCase):
+    """omr.codes.make_sheet_code — determinism + format."""
+
+    def test_deterministic(self):
+        from omr.codes import make_sheet_code
+        c1, h1 = make_sheet_code(42, 100)
+        c2, h2 = make_sheet_code(42, 100)
+        self.assertEqual(c1, c2)
+        self.assertEqual(h1, h2)
+
+    def test_different_seeds_different_codes(self):
+        from omr.codes import make_sheet_code
+        c1, _ = make_sheet_code(42, 1)
+        c2, _ = make_sheet_code(42, 2)
+        self.assertNotEqual(c1, c2)
+
+    def test_different_test_ids_different_codes(self):
+        from omr.codes import make_sheet_code
+        c1, _ = make_sheet_code(1, 42)
+        c2, _ = make_sheet_code(2, 42)
+        self.assertNotEqual(c1, c2)
+
+    def test_format(self):
+        from omr.codes import make_sheet_code
+        code, human = make_sheet_code(7, 42)
+        # sheet_code must be "000007-XXXXXXXX"
+        self.assertTrue(code.startswith("000007-"), f"Bad prefix: {code}")
+        token = code.split("-")[1]
+        self.assertEqual(len(token), 8)
+        self.assertEqual(token, human)
+        # base32 chars: A-Z and 2-7
+        import re
+        self.assertRegex(token, r'^[A-Z2-7]{8}$')
+
+
+class GeneratorTests(TestCase):
+    """
+    omr.generator.render_sheet_pdf — PDF validity, QR round-trip, determinism.
+    """
+
+    def _make_descriptor(self, num_questions=60):
+        from omr.geometry import build_template
+        return build_template(num_questions=num_questions, num_options=4, roll_digits=3)
+
+    def _make_sheet_dict(self, sheet_code="000001-ABCDEFGH", human_code="ABCDEFGH"):
+        return {
+            "sheet_code": sheet_code,
+            "human_readable_code": human_code,
+            "institution": "Test School",
+            "test_title": "Mathematics Exam",
+            "subject": "Math",
+            "student_name": "Alice",
+            "roll_label": "Roll No.",
+            "roll_digits": 3,
+        }
+
+    def test_returns_bytes(self):
+        from omr.generator import render_sheet_pdf
+        descriptor = self._make_descriptor(num_questions=10)
+        sheet = self._make_sheet_dict()
+        pdf = render_sheet_pdf(sheet, descriptor)
+        self.assertIsInstance(pdf, bytes)
+        # PDF magic bytes
+        self.assertTrue(pdf.startswith(b"%PDF"), f"Not a PDF: {pdf[:10]}")
+
+    def test_page_count_matches_descriptor(self):
+        """60 questions → 2 pages (50/page)."""
+        import fitz
+        from omr.generator import render_sheet_pdf
+        descriptor = self._make_descriptor(num_questions=60)
+        sheet = self._make_sheet_dict()
+        pdf = render_sheet_pdf(sheet, descriptor)
+        doc = fitz.open(stream=pdf, filetype="pdf")
+        self.assertEqual(doc.page_count, descriptor["page_count"])
+        self.assertEqual(descriptor["page_count"], 2)
+
+    def test_qr_roundtrip(self):
+        """
+        Render a sheet, rasterise page 1 at 150 DPI, decode QR.
+        The decoded payload must start with the sheet_code.
+        """
+        import io
+        import fitz
+        from PIL import Image
+        from pyzbar.pyzbar import decode as pyzbar_decode
+        from omr.generator import render_sheet_pdf
+
+        sheet_code = "000042-TESTQRCO"
+        descriptor = self._make_descriptor(num_questions=60)
+        sheet = self._make_sheet_dict(sheet_code=sheet_code, human_code="TESTQRCO")
+
+        pdf = render_sheet_pdf(sheet, descriptor)
+        doc = fitz.open(stream=pdf, filetype="pdf")
+
+        pix = doc[0].get_pixmap(dpi=150)
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
+        codes = pyzbar_decode(img)
+
+        self.assertTrue(
+            any(d.data.decode().startswith(sheet_code) for d in codes),
+            f"QR round-trip failed. Decoded: {[d.data.decode() for d in codes]}",
+        )
+
+    def test_qr_payload_format(self):
+        """QR payload = sheet_code|page|total (1-indexed)."""
+        import io
+        import fitz
+        from PIL import Image
+        from pyzbar.pyzbar import decode as pyzbar_decode
+        from omr.generator import render_sheet_pdf
+
+        sheet_code = "000001-PAYLOADX"
+        num_q = 60
+        descriptor = self._make_descriptor(num_questions=num_q)
+        sheet = self._make_sheet_dict(sheet_code=sheet_code, human_code="PAYLOADX")
+
+        pdf = render_sheet_pdf(sheet, descriptor)
+        doc = fitz.open(stream=pdf, filetype="pdf")
+        total_pages = descriptor["page_count"]
+
+        for page_no in range(total_pages):
+            pix = doc[page_no].get_pixmap(dpi=150)
+            img = Image.open(io.BytesIO(pix.tobytes("png")))
+            codes = pyzbar_decode(img)
+            found = [d.data.decode() for d in codes]
+            expected_payload = f"{sheet_code}|{page_no + 1}|{total_pages}"
+            self.assertTrue(
+                any(d == expected_payload for d in found),
+                f"Page {page_no + 1}: expected '{expected_payload}', got {found}",
+            )
+
+    def test_determinism_page_count_and_qr(self):
+        """
+        Rendering twice with same inputs yields same page_count and a decodable QR
+        each time. (We do NOT assert byte-equality because ReportLab embeds a timestamp.)
+        """
+        import io
+        import fitz
+        from PIL import Image
+        from pyzbar.pyzbar import decode as pyzbar_decode
+        from omr.generator import render_sheet_pdf
+
+        sheet_code = "000007-DETERMIN"
+        descriptor = self._make_descriptor(num_questions=60)
+        sheet = self._make_sheet_dict(sheet_code=sheet_code, human_code="DETERMIN")
+
+        pdf1 = render_sheet_pdf(sheet, descriptor)
+        pdf2 = render_sheet_pdf(sheet, descriptor)
+
+        doc1 = fitz.open(stream=pdf1, filetype="pdf")
+        doc2 = fitz.open(stream=pdf2, filetype="pdf")
+
+        self.assertEqual(doc1.page_count, doc2.page_count)
+        self.assertEqual(doc1.page_count, descriptor["page_count"])
+
+        def has_qr(pdf_bytes):
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            pix = doc[0].get_pixmap(dpi=150)
+            img = Image.open(io.BytesIO(pix.tobytes("png")))
+            codes = pyzbar_decode(img)
+            return any(d.data.decode().startswith(sheet_code) for d in codes)
+
+        self.assertTrue(has_qr(pdf1), "First render: QR not decodable")
+        self.assertTrue(has_qr(pdf2), "Second render: QR not decodable")
