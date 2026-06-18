@@ -247,8 +247,16 @@ class GenerateView(APIView):
             )
 
             # For Mode B (roster_prebubbled), embed the student's roll number in
-            # the sheet dict so the generator can draw pre-filled discs.
+            # the sheet dict so the generator can draw pre-filled discs. Print the
+            # roll ZERO-PADDED to the grid width so a short roll fills every column
+            # right-aligned (conventional OMR), not left-aligned with trailing
+            # blanks. Digits-only for now (alphanumeric charset deferred). The
+            # scanner reconciles via symmetric zfill, so identity is unaffected.
             student_roll = student.roll_number or ""
+            if roll_kind == "prebubbled":
+                roll_value = student_roll.zfill(roll_digits) if student_roll.isdigit() else student_roll
+            else:
+                roll_value = ""
             sheet_dict = {
                 "sheet_code": sheet_code,
                 "human_readable_code": human_code,
@@ -258,7 +266,7 @@ class GenerateView(APIView):
                 "student_name": student.full_name or "",
                 "roll_label": "Roll No.",
                 "roll_digits": roll_digits,
-                "roll_value": student_roll if roll_kind == "prebubbled" else "",
+                "roll_value": roll_value,
             }
 
             pdf_bytes = render_sheet_pdf(sheet_dict, descriptor)
@@ -285,7 +293,7 @@ class GenerateView(APIView):
                     "page_map": descriptor["page_map"],
                     "assembly_status": OmrSheet.ASSEMBLY_READY,
                     "roll_kind": roll_kind,
-                    "roll_value": student_roll if roll_kind == "prebubbled" else "",
+                    "roll_value": roll_value,
                 },
             )
 
