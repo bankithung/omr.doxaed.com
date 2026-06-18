@@ -80,6 +80,18 @@
   per-page process_scan_job → policy-aware _persist_grading_result; StudentResult.disqualified_count;
   custom radio-card policy picker in TestWizard. 470 backend tests; E2E Chromium/Chrome/Edge 16/16 +
   modeB 17/17 green after each. Next: Phase 5 (folders/sharing/admin/subjects/onboarding) · Phase 6 polish.
+- 2026-06-18 — PRODUCT V2 **Phase 5 BACKEND** merged to `main` (9cc1719). 5A (folders app: Folder
+  OwnerScoped + FolderShare + ClassGroup.folder + Subject; 50 tests). 5B+5C (b50e744): `visibility_q`
+  union in common/scope.py (creator|member-share|org-share|loose=creator+admin; admin FULL access bounded
+  to active org; solo=Q() no-op) threaded into EVERY query site (+`.distinct()`) and reused by
+  IsInScope.has_object_permission (`view.get_queryset().filter(pk).exists()` → no list/object drift);
+  FolderViewSet/FolderShareViewSet (cross-org grantee→400), SubjectViewSet, ClassGroup `?folder=`+writable
+  folder; `can_edit_class` gates ALL writes (VIEW-only→403); grandfather migration (per-org "General"
+  folder + org-wide VIEW shares so existing data stays org-visible). **Adversarial red-team workflow**
+  (7 vectors): 6 clean, 1 HIGH found+fixed (0f2968e: Question/Section/Student perform_update gated only
+  SOURCE parent → a member could re-parent a child into a VIEW-only same-org test/roster via writable FK;
+  now gates source+dest, +2 regression tests). 917 backend tests; E2E Chromium/Chrome/Edge 16/16 + modeB
+  17/17. NEXT: Phase 5D/5E frontend (folders UI + sharing + subjects + onboarding) → Phase 6 polish.
 - 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
   + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
   distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).
