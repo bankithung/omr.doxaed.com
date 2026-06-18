@@ -59,7 +59,8 @@ function QuestionResponseRow({ resp }) {
 function StudentResultRow({ result, testId }) {
   const [expanded, setExpanded] = useState(false)
   const responses = result.responses ?? result.question_responses ?? []
-  const studentId = result.student?.id ?? result.student_id
+  // The API returns `student` as the FK id plus flat `student_roll`/`student_name`.
+  const studentId = result.student?.id ?? result.student
 
   return (
     <>
@@ -68,10 +69,10 @@ function StudentResultRow({ result, testId }) {
         onClick={() => setExpanded((v) => !v)}
       >
         <TableCell className="font-mono text-sm">
-          {result.student?.roll_number ?? result.omr_sheet ?? "—"}
+          {result.student_roll ?? result.student?.roll_number ?? result.omr_sheet ?? "—"}
         </TableCell>
         <TableCell>
-          {result.student?.name ?? result.student?.full_name ?? "—"}
+          {result.student_name ?? result.student?.name ?? result.student?.full_name ?? "—"}
         </TableCell>
         <TableCell>
           <ScoreBadge score={result.score ?? 0} maxScore={result.max_score ?? 0} />
@@ -190,7 +191,7 @@ export default function Results() {
               Avg score:{" "}
               {results.length > 0
                 ? (
-                    results.reduce((s, r) => s + (r.score ?? 0), 0) / results.length
+                    results.reduce((s, r) => s + Number(r.score ?? 0), 0) / results.length
                   ).toFixed(1)
                 : "—"}
             </span>
