@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
@@ -195,6 +195,36 @@ function QuestionEditor({ question, index, multipleCorrect, onChange, onRemove, 
   )
 }
 
+// ─── LogoPositionPicker — custom segmented control (NO native select) ─────────
+function LogoPositionPicker({ value, onChange }) {
+  const OPTIONS = [
+    { value: "left", label: "Left" },
+    { value: "center", label: "Center" },
+    { value: "right", label: "Right" },
+  ]
+  return (
+    <div className="flex rounded-lg border overflow-hidden">
+      {OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={[
+            "flex-1 px-3 py-2 text-sm font-medium transition-colors min-h-[40px]",
+            value === opt.value
+              ? "bg-primary text-primary-foreground"
+              : "bg-background text-foreground hover:bg-muted",
+            "border-r last:border-r-0 border-border",
+          ].join(" ")}
+          aria-pressed={value === opt.value}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── Step 1 – Details ─────────────────────────────────────────────────────────
 function StepDetails({ classId, onNext }) {
   const [title, setTitle] = useState("")
@@ -206,6 +236,13 @@ function StepDetails({ classId, onNext }) {
   const [multipleCorrectAllowed, setMultipleCorrectAllowed] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // Phase 3c: branding
+  const [sheetHeading, setSheetHeading] = useState("")
+  const [logoFile, setLogoFile] = useState(null)
+  const [logoPosition, setLogoPosition] = useState("left")
+  const [brandInheritOrg, setBrandInheritOrg] = useState(true)
+  const logoInputRef = useRef(null)
+
   async function handleNext(e) {
     e.preventDefault()
     if (!title.trim()) {
@@ -214,19 +251,43 @@ function StepDetails({ classId, onNext }) {
     }
     setSaving(true)
     try {
-      const payload = {
-        class_group: classId,
-        title: title.trim(),
-        ...(subject.trim() && { subject: subject.trim() }),
-        mode,
-        marking_scheme: {
+      // Build payload — use FormData only when a logo file is attached
+      let test
+      if (logoFile) {
+        const fd = new FormData()
+        fd.append("class_group", classId)
+        fd.append("title", title.trim())
+        if (subject.trim()) fd.append("subject", subject.trim())
+        fd.append("mode", mode)
+        fd.append("marking_scheme", JSON.stringify({
           marks_per_correct: parseFloat(marksPerCorrect) || 0,
           negative_marks_per_wrong: parseFloat(negativeMarks) || 0,
           partial_marking: partialMarking,
           multiple_correct_allowed: multipleCorrectAllowed,
-        },
+        }))
+        fd.append("sheet_heading", sheetHeading.trim())
+        fd.append("logo", logoFile)
+        fd.append("logo_position", logoPosition)
+        fd.append("brand_inherit_org", brandInheritOrg ? "true" : "false")
+        test = await createTest(fd)
+      } else {
+        const payload = {
+          class_group: classId,
+          title: title.trim(),
+          ...(subject.trim() && { subject: subject.trim() }),
+          mode,
+          marking_scheme: {
+            marks_per_correct: parseFloat(marksPerCorrect) || 0,
+            negative_marks_per_wrong: parseFloat(negativeMarks) || 0,
+            partial_marking: partialMarking,
+            multiple_correct_allowed: multipleCorrectAllowed,
+          },
+          sheet_heading: sheetHeading.trim(),
+          logo_position: logoPosition,
+          brand_inherit_org: brandInheritOrg,
+        }
+        test = await createTest(payload)
       }
-      const test = await createTest(payload)
       onNext(test.id, multipleCorrectAllowed)
     } catch (err) {
       const detail =
@@ -345,6 +406,82 @@ function StepDetails({ classId, onNext }) {
             Multiple correct answers allowed
           </Label>
         </div>
+      </div>
+
+      {/* Sheet branding card (Phase 3c) */}
+      <div className="rounded-xl border p-4 space-y-4">
+        <p className="text-sm font-medium">Sheet branding <span className="text-xs text-muted-foreground font-normal">(optional)</span></p>
+
+        <div className="flex items-center gap-3">
+          <Switch
+            id="brand-inherit-org"
+            checked={brandInheritOrg}
+            onCheckedChange={setBrandInheritOrg}
+          />
+          <Label htmlFor="brand-inherit-org" className="cursor-pointer text-sm">
+            Use organisation logo and heading
+          </Label>
+        </div>
+
+        {!brandInheritOrg && (
+          <div className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="sheet-heading">Sheet heading</Label>
+              <Input
+                id="sheet-heading"
+                placeholder="e.g. Springfield High School"
+                value={sheetHeading}
+                onChange={(e) => setSheetHeading(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Logo</Label>
+              {/* Custom file upload — no unstyled native input exposed */}
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-[40px]"
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  {logoFile ? "Change logo" : "Upload logo"}
+                </Button>
+                {logoFile && (
+                  <span className="text-sm text-muted-foreground truncate max-w-[180px]">
+                    {logoFile.name}
+                  </span>
+                )}
+                {logoFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setLogoFile(null); if (logoInputRef.current) logoInputRef.current.value = "" }}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              {/* Hidden native file input */}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="sr-only"
+                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                aria-label="Upload logo image"
+              />
+              <p className="text-xs text-muted-foreground">PNG or JPEG, max 2 MB</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Logo position</Label>
+              <LogoPositionPicker value={logoPosition} onChange={setLogoPosition} />
+            </div>
+          </div>
+        )}
       </div>
 
       <Button type="submit" disabled={saving || !title.trim()}>

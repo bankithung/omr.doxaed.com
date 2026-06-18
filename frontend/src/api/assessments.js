@@ -12,11 +12,25 @@ export const createClass = (d) =>
 export const listTests = (classId) =>
   api.get("/tests/", { params: { class_group: classId } }).then((r) => r.data)
 
-export const createTest = (d) =>
-  api.post("/tests/", d).then((r) => r.data)
+/**
+ * Create a test. Accepts plain objects (JSON) or FormData (multipart, for logo upload).
+ */
+export const createTest = (d) => {
+  const isFormData = typeof FormData !== "undefined" && d instanceof FormData
+  return api.post("/tests/", d, {
+    headers: isFormData ? { "Content-Type": "multipart/form-data" } : {},
+  }).then((r) => r.data)
+}
 
-export const updateTest = (id, d) =>
-  api.patch(`/tests/${id}/`, d).then((r) => r.data)
+/**
+ * Update a test. Accepts plain objects (JSON) or FormData (multipart, for logo upload).
+ */
+export const updateTest = (id, d) => {
+  const isFormData = typeof FormData !== "undefined" && d instanceof FormData
+  return api.patch(`/tests/${id}/`, d, {
+    headers: isFormData ? { "Content-Type": "multipart/form-data" } : {},
+  }).then((r) => r.data)
+}
 
 export const retest = (id) =>
   api.post(`/tests/${id}/retest/`).then((r) => r.data)

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from common.logo_validators import validate_logo_image
+
 from .models import AuditLog, Invitation, Organization, OrganizationMembership
 
 
@@ -66,3 +68,29 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = fields
+
+
+class OrgBrandingSerializer(serializers.ModelSerializer):
+    """
+    GET/PUT /api/v1/organizations/<id>/branding/
+    Exposes logo + default_sheet_heading.  Supports multipart upload for logo.
+    """
+
+    logo = serializers.ImageField(
+        required=False,
+        allow_null=True,
+        validators=[validate_logo_image],
+    )
+    default_sheet_heading = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
+
+    class Meta:
+        model = Organization
+        fields = ["logo", "default_sheet_heading"]
+
+    def update(self, instance, validated_data):
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save(update_fields=list(validated_data.keys()))
+        return instance

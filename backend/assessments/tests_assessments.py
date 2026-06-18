@@ -257,3 +257,65 @@ class QuestionImageUploadTests(ClassApiTests):
         r2 = self.client.patch(f"/api/v1/questions/{qid}/", {"image": None}, format="json")
         self.assertEqual(r2.status_code, 200)
         self.assertIsNone(r2.data["image"])
+
+
+class TestBrandingApiTests(ClassApiTests):
+    """Phase 3c: sheet_heading + logo + logo_position + brand_inherit_org round-trip."""
+
+    def _make_class(self):
+        return self.client.post("/api/v1/classes/", {"name": "C"}, format="json").data["id"]
+
+    def test_branding_heading_and_position_roundtrip(self):
+        """POST /tests/ with sheet_heading + logo_position round-trips correctly."""
+        cid = self._make_class()
+        r = self.client.post(
+            "/api/v1/tests/",
+            {
+                "class_group": cid,
+                "title": "Branded Test",
+                "sheet_heading": "My School",
+                "logo_position": "center",
+                "brand_inherit_org": False,
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["sheet_heading"], "My School")
+        self.assertEqual(r.data["logo_position"], "center")
+        self.assertFalse(r.data["brand_inherit_org"])
+        # Verify via GET
+        tid = r.data["id"]
+        r2 = self.client.get(f"/api/v1/tests/{tid}/")
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r2.data["sheet_heading"], "My School")
+        self.assertEqual(r2.data["logo_position"], "center")
+
+    def test_branding_logo_upload_multipart(self):
+        """PATCH /tests/<id>/ with a logo image (multipart) succeeds and returns logo URL."""
+        cid = self._make_class()
+        tid = self.client.post(
+            "/api/v1/tests/",
+            {"class_group": cid, "title": "Logo Test"},
+            format="json",
+        ).data["id"]
+
+        png_bytes = _tiny_png()
+        upload = SimpleUploadedFile("logo.png", png_bytes, content_type="image/png")
+        r = self.client.patch(
+            f"/api/v1/tests/{tid}/",
+            {"logo": upload},
+            format="multipart",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertIn("logo", r.data)
+        self.assertTrue(r.data["logo"], "Expected a non-empty logo URL")
+
+    def test_invalid_logo_position_rejected(self):
+        """logo_position must be left/center/right."""
+        cid = self._make_class()
+        r = self.client.post(
+            "/api/v1/tests/",
+            {"class_group": cid, "title": "Bad Position", "logo_position": "top"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)

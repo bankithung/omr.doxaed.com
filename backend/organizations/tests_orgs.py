@@ -1541,3 +1541,80 @@ class AuditLogEndpointTests(_OrgMgmtBase):
     def test_nonexistent_org_audit_returns_404(self):
         r = self.client.get("/api/v1/organizations/99999/audit/")
         self.assertEqual(r.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# W) Org branding endpoint (Phase 3c)
+# ---------------------------------------------------------------------------
+
+def _tiny_png_org():
+    """Return a minimal valid 1x1 red PNG (67 bytes)."""
+    import struct, zlib
+    def chunk(tag, data):
+        crc = zlib.crc32(tag + data) & 0xFFFFFFFF
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", crc)
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    idat = chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00"))
+    iend = chunk(b"IEND", b"")
+    return sig + ihdr + idat + iend
+
+
+class OrgBrandingEndpointTests(_OrgMgmtBase):
+    """GET + PUT /api/v1/organizations/<id>/branding/ — admin-only."""
+
+    def test_admin_can_get_branding(self):
+        """Admin can GET branding settings."""
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/branding/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("default_sheet_heading", r.data)
+        self.assertIn("logo", r.data)
+
+    def test_admin_can_set_heading(self):
+        """Admin can PUT a default_sheet_heading."""
+        r = self.client.put(
+            f"/api/v1/organizations/{self.org_id}/branding/",
+            {"default_sheet_heading": "Sunrise Academy"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["default_sheet_heading"], "Sunrise Academy")
+        # Verify via GET
+        r2 = self.client.get(f"/api/v1/organizations/{self.org_id}/branding/")
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r2.data["default_sheet_heading"], "Sunrise Academy")
+
+    def test_admin_can_upload_logo(self):
+        """Admin can PUT a logo image (multipart)."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        png = _tiny_png_org()
+        logo = SimpleUploadedFile("org_logo.png", png, content_type="image/png")
+        r = self.client.put(
+            f"/api/v1/organizations/{self.org_id}/branding/",
+            {"logo": logo, "default_sheet_heading": ""},
+            format="multipart",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertTrue(r.data.get("logo"), "Expected a non-empty logo URL")
+
+    def test_non_admin_cannot_get_branding(self):
+        """Plain member cannot access branding endpoint → 403."""
+        self._login(self.member_user)
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/branding/")
+        self.assertEqual(r.status_code, 403)
+
+    def test_non_admin_cannot_put_branding(self):
+        """Plain member cannot update branding → 403."""
+        self._login(self.member_user)
+        r = self.client.put(
+            f"/api/v1/organizations/{self.org_id}/branding/",
+            {"default_sheet_heading": "Hack"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_non_member_cannot_access_branding(self):
+        """Non-member → 403/404."""
+        self._login(self.outside_user)
+        r = self.client.get(f"/api/v1/organizations/{self.org_id}/branding/")
+        self.assertIn(r.status_code, (403, 404))

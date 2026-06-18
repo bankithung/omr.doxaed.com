@@ -3,6 +3,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +18,7 @@ from .serializers import (
     InviteSerializer,
     MemberRoleSerializer,
     MembershipSerializer,
+    OrgBrandingSerializer,
     OrganizationSerializer,
 )
 
@@ -409,4 +411,45 @@ class AuditLogView(APIView):
             return paginator.get_paginated_response(serializer.data)
 
         serializer = AuditLogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# Org branding
+# ---------------------------------------------------------------------------
+
+class OrgBrandingView(APIView):
+    """
+    GET  /api/v1/organizations/<id>/branding/ — admin only.
+    PUT  /api/v1/organizations/<id>/branding/ — admin only (multipart for logo).
+
+    Returns / updates Organization.logo + Organization.default_sheet_heading.
+    Non-members → 404 (via require_membership).
+    Non-admin members → 403 (via require_membership).
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request, org_id):
+        membership = require_membership(request, org_id, role=OrganizationMembership.ADMIN)
+        org = membership.organization
+        serializer = OrgBrandingSerializer(org, context={"request": request})
+        return Response(serializer.data)
+
+    def put(self, request, org_id):
+        membership = require_membership(request, org_id, role=OrganizationMembership.ADMIN)
+        org = membership.organization
+        serializer = OrgBrandingSerializer(
+            org, data=request.data, partial=False, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        _log(
+            org,
+            request.user,
+            "org.branding_updated",
+            target_type="organization",
+            target_id=org.id,
+        )
         return Response(serializer.data)

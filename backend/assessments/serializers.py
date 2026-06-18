@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from common.logo_validators import validate_logo_image
 from common.scope import parent_in_scope
 
 from .models import ClassGroup, MarkingScheme, Option, Question, Section, SectionMarkingScheme, Test
@@ -113,6 +114,21 @@ class TestSerializer(serializers.ModelSerializer):
         default="standard",
         required=False,
     )
+    # Phase 3c: branding fields — all optional, multipart-safe
+    sheet_heading = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
+    logo = serializers.ImageField(
+        required=False,
+        allow_null=True,
+        validators=[validate_logo_image],
+    )
+    logo_position = serializers.ChoiceField(
+        choices=["left", "center", "right"],
+        required=False,
+        default="left",
+    )
+    brand_inherit_org = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = Test
@@ -127,6 +143,11 @@ class TestSerializer(serializers.ModelSerializer):
             "mode",
             "default_options",
             "marking_scheme",
+            # branding
+            "sheet_heading",
+            "logo",
+            "logo_position",
+            "brand_inherit_org",
             "created_at",
             "updated_at",
         )
