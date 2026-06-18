@@ -1,16 +1,20 @@
-"""
+﻿"""
 omr.scan.pipeline — End-to-end scan processing pipeline.
 
 process_image(image, descriptor) -> dict
-    Full pipeline: decode QR → detect fiducials → warp → binary → read.
+    Full pipeline: decode QR -> detect fiducials -> warp -> binary -> read.
 
 process_scan_job(job)
     Load the job's image, run process_image, persist reads/status,
     then try to grade if all pages are in.
 
+_persist_grading_result(omr_sheet, grading, done_jobs)
+    Write StudentResult + QuestionResponses + ReviewItems; mark sheet complete.
+    Extracted so that the regrade endpoint can reuse it without a new ScanEvent.
+
 _maybe_grade(omr_sheet)
     Gather all done ScanJobs; if all pages present, aggregate reads,
-    call grade_sheet, persist StudentResult + QuestionResponses + ReviewItems.
+    call grade_sheet, call _persist_grading_result.
 """
 
 from __future__ import annotations
@@ -46,8 +50,10 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
         page        : int  (0-based; None if no QR)
         total       : int  (total pages; None if no QR)
         reads       : dict {q_pos (int): {"marked": [labels], "flag": str|None}}
+        fill_ratios : dict {q_pos (int): float}  per-question confidence proxy
         roll        : str | None
         flags       : list[str]
+        canonical   : np.ndarray | None  warped canonical image
     """
     flags: list[str] = []
 
@@ -59,8 +65,10 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
             "page": None,
             "total": None,
             "reads": {},
+            "fill_ratios": {},
             "roll": None,
             "flags": ["no_qr"],
+            "canonical": None,
         }
 
     sheet_code, page_1based, total = qr_result
@@ -74,8 +82,10 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
             "page": page,
             "total": total,
             "reads": {},
+            "fill_ratios": {},
             "roll": None,
             "flags": ["alignment"],
+            "canonical": None,
         }
 
     # ---- Stage 3: Warp to canonical space ----
@@ -99,13 +109,34 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
         if entry.get("flag"):
             flags.append(entry["flag"])
 
+    # ---- Stage 7: Derive per-question fill_ratio (confidence proxy) ----
+    # We derive fill_ratio from the classified reads without changing read.py.
+    # Rules:  blank/empty marks -> 0.0
+    #         faint flag        -> 0.35  (low confidence)
+    #         double_mark flag  -> 1.0   (ambiguous but definitely filled)
+    #         otherwise filled  -> 0.9
+    fill_ratios: dict[int, float] = {}
+    for q_pos, entry in reads.items():
+        flag = entry.get("flag")
+        marked = entry.get("marked", [])
+        if not marked:
+            fill_ratios[q_pos] = 0.0
+        elif flag == "faint":
+            fill_ratios[q_pos] = 0.35
+        elif flag == "double_mark":
+            fill_ratios[q_pos] = 1.0
+        else:
+            fill_ratios[q_pos] = 0.9
+
     return {
         "sheet_code": sheet_code,
         "page": page,
         "total": total,
         "reads": reads,
+        "fill_ratios": fill_ratios,
         "roll": roll,
         "flags": flags,
+        "canonical": canonical,
     }
 
 
@@ -197,6 +228,7 @@ def process_scan_job(job) -> None:
     job.page_no = page + 1  # store 1-based for consistency with existing field
     job.reads = {
         "answers": {str(k): v for k, v in result["reads"].items()},
+        "fill_ratios": {str(k): v for k, v in result.get("fill_ratios", {}).items()},
         "roll": result.get("roll"),
         "flags": flags,
     }
@@ -215,8 +247,24 @@ def process_scan_job(job) -> None:
     else:
         job.confidence = 1.0
 
-    job.save(update_fields=["omr_sheet", "page_no", "reads", "status",
-                             "error_reason", "confidence"])
+    update_fields = ["omr_sheet", "page_no", "reads", "status", "error_reason", "confidence"]
+
+    # Save warped canonical image to job.warped_file
+    canonical = result.get("canonical")
+    if canonical is not None:
+        try:
+            from django.core.files.base import ContentFile
+            ok, buf = cv2.imencode(".png", canonical)
+            if ok:
+                warped_bytes = buf.tobytes()
+                fname = f"warped_{job.id}_p{page + 1}.png"
+                job.warped_file.save(fname, ContentFile(warped_bytes), save=False)
+                update_fields.append("warped_file")
+        except Exception:
+            # Never let warped image failure break the pipeline
+            pass
+
+    job.save(update_fields=update_fields)
 
     # Create ReviewItems for each flag
     for flag in flags:
@@ -238,7 +286,7 @@ def _maybe_grade(omr_sheet) -> None:
     If so, aggregate reads, call grade_sheet, and persist the result.
     """
     from omr.models import ScanJob
-    from results.models import StudentResult, QuestionResponse, ReviewItem
+    from results.models import ReviewItem
 
     page_count = omr_sheet.page_count
     expected_pages = set(range(page_count))  # 0-based
@@ -295,6 +343,25 @@ def _maybe_grade(omr_sheet) -> None:
 
     # Grade the sheet
     grading = grade_sheet(omr_sheet, aggregated_reads)
+
+    # Persist result
+    _persist_grading_result(omr_sheet, grading, done_jobs)
+
+
+def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
+    """
+    Write StudentResult + QuestionResponses + ReviewItems; mark sheet complete.
+
+    Extracted from _maybe_grade so the regrade endpoint can reuse it without
+    creating a new ScanEvent (no double-charge).
+
+    Parameters
+    ----------
+    omr_sheet : omr.models.OmrSheet
+    grading   : dict returned by grade_sheet()
+    done_jobs : list of ScanJob instances that contributed reads
+    """
+    from results.models import StudentResult, QuestionResponse, ReviewItem
 
     # Build section_breakdown for persistence
     section_breakdown = {
@@ -459,7 +526,7 @@ def _normalize_roll(roll: str, width: int) -> str:
 
     This ensures that a student whose roll_number is "42" and whose sheet was
     printed with roll_digits=3 (stored as "042") compares equal to the scanner
-    reading "042" — neither triggers a false roll_mismatch.
+    reading "042" -- neither triggers a false roll_mismatch.
     """
     digits_only = "".join(c for c in roll if c.isdigit())
     if not digits_only:

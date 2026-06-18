@@ -1,5 +1,5 @@
-"""
-omr.views — Generation endpoint + OmrSheet list + scan upload + batch progress.
+﻿"""
+omr.views â€” Generation endpoint + OmrSheet list + scan upload + batch progress.
 
 POST /api/v1/omr/generate/
     Body: {test, roster, shuffle_questions=false, shuffle_options=false,
@@ -12,8 +12,8 @@ GET /api/v1/omr/sheets/?test=<id>
     Returns paginated list of OmrSheets scoped to request.user.
 
 GET /api/v1/omr/sheets/<id>/question-paper/
-    Authenticated, scoped endpoint — streams the per-student question paper PDF.
-    Only the sheet owner/org can access it.  Anonymous → 403/404.
+    Authenticated, scoped endpoint â€” streams the per-student question paper PDF.
+    Only the sheet owner/org can access it.  Anonymous â†’ 403/404.
 
 POST /api/v1/omr/scan/
     Multipart: test (id) + files (one or more images/PDFs)
@@ -75,7 +75,7 @@ def _derive_seed(test_id: int, student_id: int) -> int:
     digest = hashlib.sha256(raw).digest()
     # Take first 8 bytes as big-endian unsigned, then mask to signed 63-bit range
     unsigned = int.from_bytes(digest[:8], "big")
-    return unsigned & _BIGINT_MAX  # clears the sign bit → always positive and ≤ BIGINT_MAX
+    return unsigned & _BIGINT_MAX  # clears the sign bit â†’ always positive and â‰¤ BIGINT_MAX
 
 
 class GenerateView(APIView):
@@ -276,11 +276,11 @@ class GenerateView(APIView):
             for q in questions_list
         ]
 
-        # ---- resolve branding once (Test → Org fallback) -----------------
+        # ---- resolve branding once (Test â†’ Org fallback) -----------------
         # Resolution order per S4/Phase-3b spec:
         #   1. Test.sheet_heading / Test.logo (explicit test-level branding)
-        #   2. If brand_inherit_org=True → Org.default_sheet_heading / Org.logo
-        #   3. If nothing → no branding (sheet unchanged, descriptor identical)
+        #   2. If brand_inherit_org=True â†’ Org.default_sheet_heading / Org.logo
+        #   3. If nothing â†’ no branding (sheet unchanged, descriptor identical)
         resolved_heading = ""
         resolved_logo_path = ""
         resolved_logo_position = "left"
@@ -354,7 +354,7 @@ class GenerateView(APIView):
                 "roll_label": "Roll No.",
                 "roll_digits": roll_digits,
                 "roll_value": roll_value,
-                # Phase 3b branding (absent → generator skips branding, output unchanged)
+                # Phase 3b branding (absent â†’ generator skips branding, output unchanged)
                 "heading": resolved_heading,
                 "logo_path": resolved_logo_path,
                 "logo_position": resolved_logo_position,
@@ -367,7 +367,7 @@ class GenerateView(APIView):
             # NOT 500 on the deterministic sheet_code's unique constraint. The
             # seed is derived purely from (test, student), so a regenerated
             # sheet is logically identical (same answer_key / shuffle / code);
-            # update the existing row in place — this preserves its pk, so any
+            # update the existing row in place â€” this preserves its pk, so any
             # ScanJobs / StudentResults that reference it stay valid.
             omr_sheet, _created = OmrSheet.objects.update_or_create(
                 test=test,
@@ -423,7 +423,7 @@ class GenerateView(APIView):
         )
 
         # Per-student question papers are saved + authenticated above. The BATCH
-        # is a multi-student PII document — do NOT write it to /media/ (which is
+        # is a multi-student PII document â€” do NOT write it to /media/ (which is
         # served unauthenticated). Expose it ONLY via the authenticated,
         # scope-checked batch endpoint, which merges the papers on demand.
         batch_paper_url = None
@@ -506,9 +506,9 @@ class ScanUploadView(APIView):
 
     Validates that the test belongs to request.user.
     Creates a ScanBatch; for each file:
-        - If PDF → split into per-page PNG images via fitz.
-        - Else → treat as a single image.
-    For each image page → creates a ScanJob, saves the image bytes,
+        - If PDF â†’ split into per-page PNG images via fitz.
+        - Else â†’ treat as a single image.
+    For each image page â†’ creates a ScanJob, saves the image bytes,
     then EAGERLY calls process_scan_job (synchronous in dev).
     Updates batch total/processed; sets batch status=done.
     Returns 201 {batch_id, total, processed}.
@@ -545,7 +545,7 @@ class ScanUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ---- scan gate (org-aware) — RESERVE before processing ------------
+        # ---- scan gate (org-aware) â€” RESERVE before processing ------------
         # Serialize concurrent same-org uploads with a per-org row lock,
         # re-check the monthly cap under the lock, and record the ScanEvent
         # (reserve the slot) BEFORE the expensive pipeline work, so two
@@ -597,7 +597,7 @@ class ScanUploadView(APIView):
                 try:
                     per_page = _pdf_to_images(file_bytes)
                 except Exception as e:
-                    # PDF parse failure — skip this file gracefully
+                    # PDF parse failure â€” skip this file gracefully
                     continue
                 for i, png_bytes in enumerate(per_page):
                     page_counter += 1
@@ -621,7 +621,7 @@ class ScanUploadView(APIView):
         # Enqueue one task per page image.
         # Under CELERY_TASK_ALWAYS_EAGER=True (dev / tests) .delay() runs
         # the task synchronously inline, so all processing is complete before
-        # the loop returns — identical behaviour to the old direct call.
+        # the loop returns â€” identical behaviour to the old direct call.
         # In production (CELERY_TASK_ALWAYS_EAGER=False) the tasks run async
         # on a worker and the batch status is updated by the task itself.
         from omr.tasks import process_scan_job_task
@@ -633,7 +633,7 @@ class ScanUploadView(APIView):
 
         # Under eager mode the tasks have already run; refresh to get the
         # final counters set by the tasks.  In async mode this reflects
-        # whatever has been processed so far (usually 0 — the client polls
+        # whatever has been processed so far (usually 0 â€” the client polls
         # /scan-batches/<id>/ for progress).
         batch.refresh_from_db()
 
@@ -678,7 +678,7 @@ class OmrSheetQuestionPaperView(APIView):
     """
     GET /api/v1/omr/sheets/<pk>/question-paper/
 
-    Authenticated, scoped endpoint — streams the per-student question paper PDF.
+    Authenticated, scoped endpoint â€” streams the per-student question paper PDF.
 
     Security (S1):
     - Requires authentication (IsAuthenticated).
@@ -729,7 +729,7 @@ class OmrTestQuestionPapersBatchView(APIView):
     """
     GET /api/v1/omr/tests/<pk>/question-papers/
 
-    Authenticated, scoped — merges ALL of the test's per-student question papers
+    Authenticated, scoped â€” merges ALL of the test's per-student question papers
     into one PDF and streams it. This is a multi-student PII document, so it is
     served ONLY here (auth + owner/org scope), never via /media/ or AllowAny.
 
@@ -774,3 +774,177 @@ class OmrTestQuestionPapersBatchView(APIView):
             filename=f"question-papers-test-{test.id}.pdf",
         )
         return response
+
+
+class ScanBatchSheetsView(APIView):
+    """
+    GET /api/v1/omr/scan-batches/<id>/sheets/
+
+    Returns the list of ScanJobs for a batch, each with id, page_no, status,
+    confidence, error_reason, reads (answers + fill_ratios), omr_sheet id,
+    and warped_image_url.
+
+    Scoped to request.user via test__ (404 on cross-tenant access).
+
+    TODO Phase 5: add visibility_q(folder_prefix="test__class_group__folder__")
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        # Scope batch to owner
+        batch_qs = ScanBatch.objects.filter(scope_filter(request, "test__"))
+        try:
+            batch = batch_qs.get(pk=pk)
+        except ScanBatch.DoesNotExist:
+            raise Http404
+
+        jobs = ScanJob.objects.filter(batch=batch).order_by("page_no", "id")
+        data = []
+        for job in jobs:
+            warped_url = None
+            if job.warped_file:
+                warped_url = request.build_absolute_uri(
+                    f"/api/v1/omr/scan-jobs/{job.id}/warped/"
+                )
+            data.append({
+                "id": job.id,
+                "page_no": job.page_no,
+                "status": job.status,
+                "confidence": job.confidence,
+                "error_reason": job.error_reason,
+                "reads": job.reads,
+                "omr_sheet_id": job.omr_sheet_id,
+                "warped_image_url": warped_url,
+            })
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class ScanJobWarpedView(APIView):
+    """
+    GET /api/v1/omr/scan-jobs/<id>/warped/
+
+    Authenticated, scoped endpoint -- streams the warped canonical PNG for a ScanJob.
+
+    Security:
+    - Requires authentication (IsAuthenticated).
+    - Enforces owner/org scope via test__ chain; 404 (not 403) on cross-tenant.
+    - Returns 404 when warped_file is not set (not yet processed or alignment failed).
+
+    TODO Phase 5: add visibility_q(folder_prefix="test__class_group__folder__")
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        # Scope: ScanJob -> batch -> test -> user/org
+        job_qs = ScanJob.objects.filter(
+            scope_filter(request, "batch__test__"),
+            pk=pk,
+        )
+        try:
+            job = job_qs.get()
+        except ScanJob.DoesNotExist:
+            raise Http404
+
+        if not job.warped_file:
+            raise Http404
+
+        try:
+            f = job.warped_file.open("rb")
+        except (FileNotFoundError, OSError):
+            raise Http404
+
+        response = FileResponse(
+            f,
+            content_type="image/png",
+            as_attachment=False,
+        )
+        response["Content-Disposition"] = f'inline; filename="warped_job_{pk}.png"'
+        return response
+
+
+class OmrSheetRegradeView(APIView):
+    """
+    POST /api/v1/omr/sheets/<id>/regrade/
+
+    Re-runs grading on an already-scanned OmrSheet using its existing ScanJob reads.
+    Does NOT create a new ScanEvent (no double-charge).
+    Does NOT re-process images — only re-aggregates reads and calls grade_sheet.
+
+    Returns 200 with the updated StudentResult on success.
+    Returns 400 if the sheet has no usable reads (not yet scanned or all pages failed).
+
+    Scoped to request.user via test__ (404 on cross-tenant access).
+
+    TODO Phase 5: add visibility_q(folder_prefix="test__class_group__folder__")
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        # Scope-filter through the test owner chain
+        qs = OmrSheet.objects.filter(
+            scope_filter(request, "test__"),
+            pk=pk,
+        )
+        try:
+            omr_sheet = qs.get()
+        except OmrSheet.DoesNotExist:
+            raise Http404
+
+        from omr.models import ScanJob as _ScanJob
+        from omr.scan.grade import grade_sheet
+        from omr.scan.pipeline import _persist_grading_result
+        from results.models import StudentResult
+        from results.serializers import StudentResultSerializer
+
+        # Gather usable jobs (same logic as _maybe_grade)
+        processable_jobs = list(
+            _ScanJob.objects.filter(
+                omr_sheet=omr_sheet,
+                status__in=[_ScanJob.STATUS_DONE, _ScanJob.STATUS_NEEDS_REVIEW],
+            )
+        )
+        done_jobs = [
+            j for j in processable_jobs
+            if j.reads and "answers" in j.reads
+        ]
+
+        if not done_jobs:
+            return Response(
+                {"detail": "No usable scan reads found for this sheet."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Aggregate reads (same logic as _maybe_grade)
+        aggregated_reads: dict[int, list] = {}
+        for job in done_jobs:
+            answers = job.reads.get("answers", {})
+            for q_pos_str, entry in answers.items():
+                q_pos = int(q_pos_str)
+                marked = entry.get("marked", [])
+                if q_pos not in aggregated_reads:
+                    aggregated_reads[q_pos] = list(marked)
+                else:
+                    aggregated_reads[q_pos].extend(
+                        lbl for lbl in marked if lbl not in aggregated_reads[q_pos]
+                    )
+
+        # Grade and persist (no new ScanEvent)
+        grading = grade_sheet(omr_sheet, aggregated_reads)
+        _persist_grading_result(omr_sheet, grading, done_jobs)
+
+        # Return updated StudentResult
+        try:
+            result = StudentResult.objects.get(omr_sheet=omr_sheet)
+        except StudentResult.DoesNotExist:
+            return Response(
+                {"detail": "Regrade complete but StudentResult not found."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(
+            StudentResultSerializer(result).data,
+            status=status.HTTP_200_OK,
+        )
