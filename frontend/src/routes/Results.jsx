@@ -2,7 +2,12 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { listResults } from "@/api/scan"
+import { getPublishSettings, setPublishSettings } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Table,
   TableBody,
@@ -135,6 +140,234 @@ function StudentResultRow({ result, testId }) {
   )
 }
 
+// ────────────────────────────────────────────────
+// Publish control
+// ────────────────────────────────────────────────
+
+function PublishControl({ testId }) {
+  const [open, setOpen] = useState(false)
+  const [settings, setSettings] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Form state
+  const [isPublished, setIsPublished] = useState(false)
+  const [accessMode, setAccessMode] = useState("open")
+  const [accessCode, setAccessCode] = useState("")
+  const [showNames, setShowNames] = useState(true)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await getPublishSettings(testId)
+      setSettings(data)
+      setIsPublished(data.is_published ?? false)
+      setAccessMode(data.access_mode ?? "open")
+      setAccessCode(data.access_code ?? "")
+      setShowNames(data.show_names ?? true)
+      setShowLeaderboard(data.show_leaderboard ?? false)
+    } catch {
+      toast.error("Failed to load publish settings")
+    } finally {
+      setLoading(false)
+    }
+  }, [testId])
+
+  useEffect(() => {
+    if (open) loadSettings()
+  }, [open, loadSettings])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const body = {
+        is_published: isPublished,
+        access_mode: accessMode,
+        show_names: showNames,
+        show_leaderboard: showLeaderboard,
+      }
+      if (accessMode === "code" && accessCode.trim()) {
+        body.access_code = accessCode.trim()
+      }
+      const updated = await setPublishSettings(testId, body)
+      setSettings(updated)
+      setIsPublished(updated.is_published ?? isPublished)
+      setAccessMode(updated.access_mode ?? accessMode)
+      setShowLeaderboard(updated.show_leaderboard ?? showLeaderboard)
+      setShowNames(updated.show_names ?? showNames)
+      toast.success("Publish settings saved")
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        "Failed to save publish settings"
+      toast.error(msg)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleCopyLink() {
+    const url = settings?.public_url
+    if (!url) return
+    navigator.clipboard.writeText(url).then(
+      () => toast.success("Link copied to clipboard"),
+      () => toast.error("Failed to copy link"),
+    )
+  }
+
+  return (
+    <div className="mt-8 rounded-xl border">
+      {/* Collapsible header */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left"
+        aria-expanded={open}
+      >
+        <div>
+          <span className="font-semibold">Share results publicly</span>
+          {settings?.is_published && (
+            <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+              Published
+            </span>
+          )}
+        </div>
+        <span className="text-muted-foreground" aria-hidden="true">
+          {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t px-5 pb-5 pt-4">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading settings…</p>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {/* Published toggle */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="publish-toggle" className="text-sm font-medium">
+                    Publish results
+                  </Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Allow students to look up their result via a public link
+                  </p>
+                </div>
+                <Switch
+                  id="publish-toggle"
+                  checked={isPublished}
+                  onCheckedChange={setIsPublished}
+                />
+              </div>
+
+              {/* Public link (when published) */}
+              {isPublished && settings?.public_url && (
+                <div className="rounded-lg border bg-muted/40 px-4 py-3">
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Public link</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 truncate rounded bg-background px-2.5 py-1.5 text-xs font-mono">
+                      {settings.public_url}
+                    </code>
+                    <Button type="button" variant="outline" size="sm" onClick={handleCopyLink}>
+                      Copy
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Anyone with this link can look up results by roll number.
+                  </p>
+                </div>
+              )}
+
+              {/* Access mode */}
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm font-medium">Access mode</Label>
+                <RadioGroup value={accessMode} onValueChange={setAccessMode} className="gap-2">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="open" id="mode-open" />
+                    <Label htmlFor="mode-open" className="cursor-pointer font-normal">
+                      Anyone with the link
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="code" id="mode-code" />
+                    <Label htmlFor="mode-code" className="cursor-pointer font-normal">
+                      Require an access code
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Access code input (conditional) */}
+              {accessMode === "code" && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="access-code-input" className="text-sm font-medium">
+                    Access code
+                  </Label>
+                  <Input
+                    id="access-code-input"
+                    type="text"
+                    placeholder="Set a code students must enter"
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+              )}
+
+              {/* Show student names */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="show-names-toggle" className="text-sm font-medium">
+                    Show student names
+                  </Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Display names in results and leaderboard
+                  </p>
+                </div>
+                <Switch
+                  id="show-names-toggle"
+                  checked={showNames}
+                  onCheckedChange={setShowNames}
+                />
+              </div>
+
+              {/* Show leaderboard */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="show-leaderboard-toggle" className="text-sm font-medium">
+                    Show public leaderboard
+                  </Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Display class rankings below each student's result
+                  </p>
+                </div>
+                <Switch
+                  id="show-leaderboard-toggle"
+                  checked={showLeaderboard}
+                  onCheckedChange={setShowLeaderboard}
+                />
+              </div>
+
+              {/* Save */}
+              <div className="flex justify-end pt-1">
+                <Button type="button" onClick={handleSave} disabled={saving}>
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────
+// Main Results page
+// ────────────────────────────────────────────────
+
 export default function Results() {
   const { testId } = useParams()
   const [results, setResults] = useState([])
@@ -226,6 +459,9 @@ export default function Results() {
           </p>
         </>
       )}
+
+      {/* Publish / share control — always visible */}
+      <PublishControl testId={testId} />
     </div>
   )
 }

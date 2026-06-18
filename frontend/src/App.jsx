@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { Link, Route, Routes, useNavigate } from "react-router-dom"
+import { Link, Route, Routes, useNavigate, useLocation } from "react-router-dom"
 import { Toaster } from "@/components/ui/sonner"
 import { useAuth } from "@/auth/AuthContext"
 import { useOrg } from "@/org/OrgContext"
@@ -39,6 +39,7 @@ const OrgAudit = lazy(() => import("@/routes/OrgAudit"))
 const AcceptInvite = lazy(() => import("@/routes/AcceptInvite"))
 const Billing = lazy(() => import("@/routes/Billing"))
 const StudentDetail = lazy(() => import("@/routes/StudentDetail"))
+const PublicResult = lazy(() => import("@/routes/PublicResult"))
 
 function OrgSwitcher() {
   const { orgs, activeOrg, setActiveOrg } = useOrg()
@@ -145,6 +146,10 @@ function Nav() {
 }
 
 export default function App() {
+  const location = useLocation()
+  // Public portal pages (e.g. /r/:slug) render without the app Nav/org-switcher
+  const isPublicPortal = location.pathname.startsWith("/r/")
+
   return (
     <div className="min-h-screen">
       <a
@@ -154,7 +159,7 @@ export default function App() {
         Skip to main content
       </a>
       <Toaster />
-      <Nav />
+      {!isPublicPortal && <Nav />}
       <main id="main">
         <Suspense fallback={<div className="p-8 text-muted-foreground">Loading…</div>}>
           <Routes>
@@ -167,6 +172,9 @@ export default function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Public result portal — no auth, no Nav */}
+            <Route path="/r/:slug" element={<PublicResult />} />
 
             {/* Protected routes */}
             <Route
