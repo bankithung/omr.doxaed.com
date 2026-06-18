@@ -255,19 +255,27 @@ class GenerateView(APIView):
             pdf_bytes = render_sheet_pdf(sheet_dict, descriptor)
             per_student_pdfs.append(pdf_bytes)
 
-            omr_sheet = OmrSheet.objects.create(
+            # Idempotent per (test, student): regenerating a test's sheets must
+            # NOT 500 on the deterministic sheet_code's unique constraint. The
+            # seed is derived purely from (test, student), so a regenerated
+            # sheet is logically identical (same answer_key / shuffle / code);
+            # update the existing row in place — this preserves its pk, so any
+            # ScanJobs / StudentResults that reference it stay valid.
+            omr_sheet, _created = OmrSheet.objects.update_or_create(
                 test=test,
                 student=student,
-                sheet_code=sheet_code,
-                human_readable_code=human_code,
-                shuffle_version=seed,
-                question_order=plan["question_order"],
-                option_order=plan["option_order"],
-                answer_key=plan["answer_key"],
-                template_descriptor=descriptor,
-                page_count=descriptor["page_count"],
-                page_map=descriptor["page_map"],
-                assembly_status=OmrSheet.ASSEMBLY_READY,
+                defaults={
+                    "sheet_code": sheet_code,
+                    "human_readable_code": human_code,
+                    "shuffle_version": seed,
+                    "question_order": plan["question_order"],
+                    "option_order": plan["option_order"],
+                    "answer_key": plan["answer_key"],
+                    "template_descriptor": descriptor,
+                    "page_count": descriptor["page_count"],
+                    "page_map": descriptor["page_map"],
+                    "assembly_status": OmrSheet.ASSEMBLY_READY,
+                },
             )
 
             # Save per-student PDF file
