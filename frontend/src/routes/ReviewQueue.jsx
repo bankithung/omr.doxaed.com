@@ -13,6 +13,9 @@ const REASON_LABELS = {
   double_mark: "Double mark",
   faint: "Faint / ambiguous bubble",
   missing_page: "Missing page",
+  // Phase 1B — scan identity + roll reconciliation
+  test_mismatch: "Wrong test — sheet belongs to a different test",
+  roll_mismatch: "Roll number mismatch — verify student identity",
 }
 
 function ReasonBadge({ reason }) {

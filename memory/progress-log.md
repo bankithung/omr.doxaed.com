@@ -52,3 +52,11 @@
   generation idempotent (update_or_create on (test,student), pk preserved) + regression test.
   Re-verified full loop + new front door across Chromium/Chrome/Edge (15/15). Demo acct
   teacher@omrflow.test / Teacher@12345.
+- 2026-06-18 — Multi-mode OMR initiative (branch `feat/omr-modes`). Deep research+design workflow →
+  spec `docs/superpowers/specs/2026-06-18-omr-modes-and-advanced-features.md` (6 modes, 7-phase
+  roadmap, critique SOLID). **Phase 1 DONE** (1A generation: Test.mode/template_spec, build_template
+  roll_kind, solid pre-bubbled roll discs proven scannable on the real Otsu path +0.55 margin,
+  zero-padded roll; 1B scan identity: QR test_id guard→test_mismatch, verify-only roll reconcile→
+  roll_mismatch, widened reason 20→32; 1C: wizard mode picker + writable mode + review labels).
+  E2E: standard 15/15 on Chromium/Chrome/Edge + Mode-B 16/16 (auto-identify + tamper flag). Not yet
+  merged. Next: Phase 2 (analytics core).

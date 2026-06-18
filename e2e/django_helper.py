@@ -139,9 +139,60 @@ def cmd_make_scans(test_id, out_dir):
     print(json.dumps(manifest))
 
 
+def cmd_make_scan_tampered(test_id, out_dir):
+    """Render ONE synthetic scan of the test's first sheet but with a WRONG roll
+    (each digit shifted +1 mod 10) — correct answers, valid QR. Used to prove the
+    Mode B roll reconciliation raises roll_mismatch while QR identity still holds.
+    Prints {sheet_id, file, real_roll, tampered_roll}."""
+    import cv2
+    from omr.models import OmrSheet
+    from omr.scan.pipeline import simulate_correct_marks
+    from omr.simulate import simulate_scan
+
+    os.makedirs(out_dir, exist_ok=True)
+    sheet = (
+        OmrSheet.objects.filter(test_id=test_id)
+        .select_related("student", "test")
+        .order_by("id")
+        .first()
+    )
+    if sheet is None:
+        print(json.dumps({}))
+        return
+    descriptor = sheet.template_descriptor
+    roll_cols = descriptor["roll_grid"]["cols"]
+    real_roll = (sheet.student.roll_number or "0").zfill(roll_cols)[:roll_cols]
+    # Tamper: shift each digit +1 mod 10 -> a different, valid, same-width roll.
+    tampered = "".join(str((int(c) + 1) % 10) if c.isdigit() else c for c in real_roll)
+
+    marked = simulate_correct_marks(sheet)
+    sheet_meta = {
+        "sheet_code": sheet.sheet_code,
+        "human_readable_code": sheet.human_readable_code,
+        "institution": "E2E Academy",
+        "test_title": sheet.test.title,
+        "subject": sheet.test.subject or "",
+        "student_name": sheet.student.full_name or "Student",
+        "roll_label": "Roll No.",
+        "roll_digits": roll_cols,
+    }
+    img = simulate_scan(descriptor, sheet_meta, marked=marked, roll=tampered, page=0, scale=2.0)
+    ok, buf = cv2.imencode(".png", img)
+    if not ok:
+        raise RuntimeError("imencode failed")
+    fpath = os.path.abspath(os.path.join(out_dir, f"tampered_{sheet.id}.png"))
+    with open(fpath, "wb") as fh:
+        fh.write(buf.tobytes())
+    print(json.dumps({
+        "sheet_id": sheet.id, "file": fpath,
+        "real_roll": real_roll, "tampered_roll": tampered,
+    }))
+
+
 def main():
     if len(sys.argv) < 2:
-        print("usage: django_helper.py {token <email> | make-scans <test_id> <out_dir>}",
+        print("usage: django_helper.py {token <email> | latest-ids <email> | "
+              "make-scans <test_id> <out_dir> | make-scan-tampered <test_id> <out_dir>}",
               file=sys.stderr)
         sys.exit(2)
     cmd = sys.argv[1]
@@ -151,6 +202,8 @@ def main():
         cmd_latest_ids(sys.argv[2])
     elif cmd == "make-scans":
         cmd_make_scans(int(sys.argv[2]), sys.argv[3])
+    elif cmd == "make-scan-tampered":
+        cmd_make_scan_tampered(int(sys.argv[2]), sys.argv[3])
     else:
         print(f"unknown command: {cmd}", file=sys.stderr)
         sys.exit(2)

@@ -155,6 +155,12 @@ def _draw_roll_grid(c: Canvas, roll_grid: dict, sheet: dict, page_h_px: float) -
 
     Layout: digit-column headers (0, 1, 2 … N-1 → one column per digit place),
     row labels (digit 0–9) on the left, bubble outlines in a grid.
+
+    When roll_grid["prefilled"] is True AND sheet["roll_value"] is set, draws
+    solid filled discs at the appropriate digit row for each column so that the
+    roll is pre-marked for the student.  The disc is drawn at the full bubble
+    radius (r_pt) so the inner-disc sampler (r*0.6) lands on solid black ink and
+    reads well above FILL_HIGH (0.45) after Otsu binarisation.
     """
     from omr.geometry import MARGIN
 
@@ -166,6 +172,17 @@ def _draw_roll_grid(c: Canvas, roll_grid: dict, sheet: dict, page_h_px: float) -
     rows = roll_grid["rows"]               # always 10
 
     roll_label = sheet.get("roll_label", "Roll No.")
+
+    # Determine which cells to pre-fill (Mode B)
+    prefilled = roll_grid.get("prefilled", False)
+    roll_value = sheet.get("roll_value", "") if prefilled else ""
+    prefilled_cells: dict[int, int] = {}  # col_idx → digit (row)
+    if prefilled and roll_value:
+        for col_idx, digit_char in enumerate(roll_value):
+            if col_idx >= cols:
+                break
+            if digit_char.isdigit():
+                prefilled_cells[col_idx] = int(digit_char)
 
     # Label above the grid
     c.setFont("Helvetica-Bold", 8)
@@ -179,7 +196,7 @@ def _draw_roll_grid(c: Canvas, roll_grid: dict, sheet: dict, page_h_px: float) -
         hx_pt, hy_pt = px_to_pt(cx, oy - row_pitch // 2 - 4, page_h_px)
         c.drawCentredString(hx_pt, hy_pt, str(col))
 
-    # Row labels (digit 0–9) + bubble outlines
+    # Row labels (digit 0–9) + bubble outlines (+ solid fill for pre-bubbled)
     r_pt = px_len_to_pt(radius)
     c.setStrokeColorRGB(0, 0, 0)
     c.setFillColorRGB(0, 0, 0)
@@ -194,7 +211,16 @@ def _draw_roll_grid(c: Canvas, roll_grid: dict, sheet: dict, page_h_px: float) -
         for col in range(cols):
             cx = ox + col * col_pitch
             cx_pt, cy_pt = px_to_pt(cx, cy, page_h_px)
-            c.circle(cx_pt, cy_pt, r_pt, fill=0, stroke=1)
+
+            # Check if this cell should be pre-filled (solid disc)
+            if col in prefilled_cells and prefilled_cells[col] == row:
+                # Solid filled disc at full radius — the inner sampler (r*0.6)
+                # will land on solid black ink → fill ratio ≈ 1.0, well above
+                # FILL_HIGH (0.45).  Draw outline ring on top for visual clarity.
+                c.circle(cx_pt, cy_pt, r_pt, fill=1, stroke=1)
+            else:
+                # Normal empty bubble outline only
+                c.circle(cx_pt, cy_pt, r_pt, fill=0, stroke=1)
 
 
 def _draw_answer_bubbles(c: Canvas, answer_bubbles: list, page_no: int,

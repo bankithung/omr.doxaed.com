@@ -111,6 +111,43 @@ class TestApiTests(ClassApiTests):  # reuse _auth/setUp (cache.clear included)
         self.assertEqual(r.data["parent_test"], tid)
         self.assertEqual(r.data["attempt_number"], 2)
 
+    def test_create_test_with_mode_roster_prebubbled(self):
+        """mode=roster_prebubbled is accepted and round-trips."""
+        cid = self._make_class()
+        r = self.client.post(
+            "/api/v1/tests/",
+            {"class_group": cid, "title": "Roster Test", "mode": "roster_prebubbled"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["mode"], "roster_prebubbled")
+        # verify it persists via GET
+        tid = r.data["id"]
+        r2 = self.client.get(f"/api/v1/tests/{tid}/")
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r2.data["mode"], "roster_prebubbled")
+
+    def test_create_test_default_mode_is_standard(self):
+        """Omitting mode defaults to standard."""
+        cid = self._make_class()
+        r = self.client.post(
+            "/api/v1/tests/",
+            {"class_group": cid, "title": "Standard Test"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["mode"], "standard")
+
+    def test_create_test_invalid_mode_rejected(self):
+        """An unknown mode value must be rejected with 400."""
+        cid = self._make_class()
+        r = self.client.post(
+            "/api/v1/tests/",
+            {"class_group": cid, "title": "Bad Mode Test", "mode": "invalid_mode"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+
 
 class QuestionApiTests(ClassApiTests):
     def _make_test(self):

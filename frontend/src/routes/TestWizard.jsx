@@ -199,6 +199,7 @@ function QuestionEditor({ question, index, multipleCorrect, onChange, onRemove, 
 function StepDetails({ classId, onNext }) {
   const [title, setTitle] = useState("")
   const [subject, setSubject] = useState("")
+  const [mode, setMode] = useState("standard")
   const [marksPerCorrect, setMarksPerCorrect] = useState("1")
   const [negativeMarks, setNegativeMarks] = useState("0")
   const [partialMarking, setPartialMarking] = useState(false)
@@ -217,6 +218,7 @@ function StepDetails({ classId, onNext }) {
         class_group: classId,
         title: title.trim(),
         ...(subject.trim() && { subject: subject.trim() }),
+        mode,
         marking_scheme: {
           marks_per_correct: parseFloat(marksPerCorrect) || 0,
           negative_marks_per_wrong: parseFloat(negativeMarks) || 0,
@@ -261,6 +263,36 @@ function StepDetails({ classId, onNext }) {
             onChange={(e) => setSubject(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Mode picker card */}
+      <div className="rounded-xl border p-4 space-y-3">
+        <p className="text-sm font-medium">Test mode</p>
+        <RadioGroup value={mode} onValueChange={setMode} className="space-y-3">
+          <div className="flex items-start gap-3">
+            <RadioGroupItem id="mode-standard" value="standard" className="mt-0.5" />
+            <div>
+              <Label htmlFor="mode-standard" className="cursor-pointer font-medium">
+                Standard
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Students bubble their own roll number.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <RadioGroupItem id="mode-roster" value="roster_prebubbled" className="mt-0.5" />
+            <div>
+              <Label htmlFor="mode-roster" className="cursor-pointer font-medium">
+                Roster — pre-bubbled roll numbers
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Each student's roll number is auto-printed (pre-filled) on their sheet, so scanning
+                auto-identifies the student. You'll pick the roster when you generate sheets.
+              </p>
+            </div>
+          </div>
+        </RadioGroup>
       </div>
 
       {/* Marking scheme card */}

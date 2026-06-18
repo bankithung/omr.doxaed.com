@@ -222,6 +222,22 @@ class OmrSheet(models.Model):
     page_count = models.IntegerField(default=1)
     page_map = models.JSONField(default=dict)
 
+    # Roll identification mode (Phase 1A)
+    ROLL_KIND_WRITEIN = "writein"
+    ROLL_KIND_PREBUBBLED = "prebubbled"
+    ROLL_KIND_NONE = "none"
+    ROLL_KIND_CHOICES = [
+        (ROLL_KIND_WRITEIN, "Write-in"),
+        (ROLL_KIND_PREBUBBLED, "Pre-bubbled"),
+        (ROLL_KIND_NONE, "None"),
+    ]
+    roll_kind = models.CharField(
+        max_length=16,
+        choices=ROLL_KIND_CHOICES,
+        default=ROLL_KIND_WRITEIN,
+    )
+    roll_value = models.CharField(max_length=32, blank=True, default="")
+
     # Generated PDF
     pdf_file = models.FileField(upload_to="omr_sheets/", null=True, blank=True)
 
