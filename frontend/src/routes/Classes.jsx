@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 import { listClasses, createClass } from "@/api/assessments"
+import { listFolders } from "@/api/folders"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,9 +14,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { EmptyState } from "@/components/ui/empty-state"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
+
+// Sentinel value for the "No folder" option (radix Select disallows empty-string values).
+const NO_FOLDER = "__none__"
 
 const COLUMNS = [
   {
@@ -59,6 +70,8 @@ export default function Classes() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [folderId, setFolderId] = useState(NO_FOLDER)
+  const [folders, setFolders] = useState([])
   const [submitting, setSubmitting] = useState(false)
 
   async function fetchClasses() {
@@ -74,11 +87,16 @@ export default function Classes() {
 
   useEffect(() => {
     fetchClasses()
+    // Folders are optional — silently ignore failures (e.g. solo scope quirks).
+    listFolders()
+      .then((data) => setFolders(data.results ?? data))
+      .catch(() => setFolders([]))
   }, [])
 
   function openDialog() {
     setName("")
     setDescription("")
+    setFolderId(NO_FOLDER)
     setDialogOpen(true)
   }
 
@@ -90,7 +108,10 @@ export default function Classes() {
     }
     setSubmitting(true)
     try {
-      await createClass({ name: name.trim(), description: description.trim() })
+      const payload = { name: name.trim(), description: description.trim() }
+      // Folder is optional and additive — only sent when explicitly chosen.
+      if (folderId !== NO_FOLDER) payload.folder = Number(folderId)
+      await createClass(payload)
       toast.success("Class created")
       setDialogOpen(false)
       fetchClasses()
@@ -152,6 +173,24 @@ export default function Classes() {
                 rows={3}
               />
             </div>
+            {folders.length > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="class-folder">Folder (optional)</Label>
+                <Select value={folderId} onValueChange={setFolderId}>
+                  <SelectTrigger id="class-folder" className="w-full">
+                    <SelectValue placeholder="No folder" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_FOLDER}>No folder</SelectItem>
+                    {folders.map((f) => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <DialogFooter showCloseButton>
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Creating…" : "Create"}

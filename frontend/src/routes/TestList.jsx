@@ -7,10 +7,13 @@ import {
   ClipboardList,
   RefreshCw,
   CheckCircle,
+  X as XIcon,
 } from "lucide-react"
 import { getClass, listTests, retest } from "@/api/assessments"
+import { listSubjects, createSubject, deleteSubject } from "@/api/subjects"
 import { listRosters, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -280,6 +283,141 @@ function TestActions({ test, onGenerate, onRetest, retestingId }) {
   )
 }
 
+// ─── Subjects section (per class) ──────────────────
+//
+// Lists subjects for the class, supports inline add + custom-confirm delete.
+// Surfaces view-only (403) errors inline via toast — never alert.
+
+function SubjectsSection({ classId }) {
+  const [subjects, setSubjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [name, setName] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const fetchSubjects = useCallback(async () => {
+    try {
+      const data = await listSubjects(classId)
+      setSubjects(data.results ?? data)
+    } catch {
+      toast.error("Failed to load subjects")
+    } finally {
+      setLoading(false)
+    }
+  }, [classId])
+
+  useEffect(() => {
+    fetchSubjects()
+  }, [fetchSubjects])
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!name.trim()) {
+      toast.error("Subject name is required")
+      return
+    }
+    setAdding(true)
+    try {
+      await createSubject({ class_group: Number(classId), name: name.trim() })
+      setName("")
+      toast.success("Subject added")
+      fetchSubjects()
+    } catch (err) {
+      const msg =
+        err?.response?.data?.name?.[0] ||
+        err?.response?.data?.detail ||
+        "Failed to add subject"
+      toast.error(msg)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteSubject(deleteTarget.id)
+      toast.success("Subject removed")
+      setDeleteTarget(null)
+      fetchSubjects()
+    } catch (err) {
+      const msg = err?.response?.data?.detail || "Failed to remove subject"
+      toast.error(msg)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="mb-8 rounded-xl border p-4">
+      <p className="text-sm font-semibold">Subjects</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Define subjects for this class to pick them quickly when creating tests.
+      </p>
+
+      <form onSubmit={handleAdd} className="mt-3 flex items-center gap-2">
+        <Input
+          placeholder="e.g. Mathematics"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="flex-1"
+          aria-label="New subject name"
+        />
+        <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
+          {adding ? "Adding…" : "Add subject"}
+        </Button>
+      </form>
+
+      <div className="mt-3">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading subjects…</p>
+        ) : subjects.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No subjects yet.</p>
+        ) : (
+          <ul className="flex flex-wrap gap-2">
+            {subjects.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-background py-1 pl-3 pr-1.5 text-sm"
+              >
+                <span>{s.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(s)}
+                  aria-label={`Remove subject ${s.name}`}
+                  className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-destructive transition-colors"
+                >
+                  <XIcon className="size-3.5" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Delete confirm (custom — never window.confirm) */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !deleting && !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove subject</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remove <strong>{deleteTarget?.name}</strong> from this class? Existing tests keep
+            their subject text.
+          </p>
+          <DialogFooter showCloseButton>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Removing…" : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
 // ─── Main TestList screen ──────────────────────────
 
 export default function TestList() {
@@ -393,6 +531,9 @@ export default function TestList() {
           </Button>
         }
       />
+
+      {/* Subjects (Phase 5D) */}
+      <SubjectsSection classId={id} />
 
       {tests.length === 0 ? (
         <EmptyState

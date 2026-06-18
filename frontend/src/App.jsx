@@ -17,6 +17,8 @@ const ForgotPassword = lazy(() => import("@/routes/ForgotPassword"))
 const ResetPassword = lazy(() => import("@/routes/ResetPassword"))
 const Profile = lazy(() => import("@/routes/Profile"))
 const Classes = lazy(() => import("@/routes/Classes"))
+const Folders = lazy(() => import("@/routes/Folders"))
+const FolderDetail = lazy(() => import("@/routes/FolderDetail"))
 const TestList = lazy(() => import("@/routes/TestList"))
 const TestWizard = lazy(() => import("@/routes/TestWizard"))
 const Rosters = lazy(() => import("@/routes/Rosters"))
@@ -166,6 +168,22 @@ export default function App() {
             element={
               <ShellProtectedRoute>
                 <TestList />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/folders"
+            element={
+              <ShellProtectedRoute>
+                <Folders />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/folders/:id"
+            element={
+              <ShellProtectedRoute>
+                <FolderDetail />
               </ShellProtectedRoute>
             }
           />

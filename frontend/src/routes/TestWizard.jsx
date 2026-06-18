@@ -1,8 +1,9 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 import { createTest, createQuestion, updateTest } from "@/api/assessments"
+import { listSubjects } from "@/api/subjects"
 import { Stepper } from "@/components/ui/stepper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +12,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+// Sentinel for the "Other (type it in)" choice in the subject Select.
+const SUBJECT_OTHER = "__other__"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const OPTION_LABELS = ["A", "B", "C", "D", "E", "F"]
@@ -274,6 +285,11 @@ function MultiMarkPolicyPicker({ value, onChange }) {
 function StepDetails({ classId, onNext }) {
   const [title, setTitle] = useState("")
   const [subject, setSubject] = useState("")
+  // Subjects defined on the class (Phase 5D). When present, offer a custom Select;
+  // otherwise the free-text "e.g. Mathematics" input remains the only path.
+  const [subjects, setSubjects] = useState([])
+  // Which Select item is picked: a subject name, or SUBJECT_OTHER (free text).
+  const [subjectChoice, setSubjectChoice] = useState("")
   const [mode, setMode] = useState("standard")
   const [marksPerCorrect, setMarksPerCorrect] = useState("1")
   const [negativeMarks, setNegativeMarks] = useState("0")
@@ -288,6 +304,35 @@ function StepDetails({ classId, onNext }) {
   const [logoPosition, setLogoPosition] = useState("left")
   const [brandInheritOrg, setBrandInheritOrg] = useState(true)
   const logoInputRef = useRef(null)
+
+  // Load the class's subjects. Optional + additive — failure is silent so the
+  // free-text fallback always works (E2E drives the no-subjects path).
+  useEffect(() => {
+    let cancelled = false
+    listSubjects(classId)
+      .then((data) => {
+        if (!cancelled) setSubjects(data.results ?? data)
+      })
+      .catch(() => {
+        if (!cancelled) setSubjects([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [classId])
+
+  // Picking a subject from the Select fills `subject` directly; "Other" clears it
+  // so the free-text input takes over.
+  function handleSubjectChoice(value) {
+    setSubjectChoice(value)
+    if (value === SUBJECT_OTHER) {
+      setSubject("")
+    } else {
+      setSubject(value)
+    }
+  }
+
+  const useFreeText = subjects.length === 0 || subjectChoice === SUBJECT_OTHER
 
   async function handleNext(e) {
     e.preventDefault()
@@ -365,12 +410,32 @@ function StepDetails({ classId, onNext }) {
 
         <div className="space-y-1.5">
           <Label htmlFor="test-subject">Subject</Label>
-          <Input
-            id="test-subject"
-            placeholder="e.g. Mathematics"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
+          {/* When the class defines subjects, offer a custom Select (NO native
+              select). Choosing "Other" reveals the free-text input below, which
+              is the ONLY control when the class has no subjects (E2E path). */}
+          {subjects.length > 0 && (
+            <Select value={subjectChoice} onValueChange={handleSubjectChoice}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a subject…" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((s) => (
+                  <SelectItem key={s.id} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value={SUBJECT_OTHER}>Other (type it in)</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {useFreeText && (
+            <Input
+              id="test-subject"
+              placeholder="e.g. Mathematics"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          )}
         </div>
       </div>
 
