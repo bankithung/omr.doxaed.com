@@ -57,6 +57,16 @@ export function AuthProvider({ children }) {
     setUser(data.user)
   }
 
+  // Mirror of login() for the Google Identity Services flow. Exchanges a Google
+  // ID token (JWT credential) for our own {access, refresh, user} pair via the
+  // backend /auth/google/ endpoint, then stores tokens identically to login().
+  async function loginWithGoogle(idToken) {
+    const { data } = await authApi.googleLogin(idToken)
+    localStorage.setItem("access", data.access)
+    localStorage.setItem("refresh", data.refresh)
+    setUser(data.user)
+  }
+
   async function logout() {
     const refresh = localStorage.getItem("refresh")
     try { if (refresh) await authApi.logout(refresh) } catch { /* ignore */ }
@@ -66,7 +76,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   )

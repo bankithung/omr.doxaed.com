@@ -201,7 +201,15 @@ export default function Footer() {
           variants={reduce ? undefined : item}
           className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row"
         >
-          <p className="font-mono-data text-xs text-neutral-500">© 2026 DoxaEd OMR</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <p className="font-mono-data text-xs text-neutral-500">© 2026 DoxaEd OMR</p>
+            <Link to="/terms" className="text-xs text-neutral-400 transition-colors hover:text-white">
+              Terms
+            </Link>
+            <Link to="/privacy" className="text-xs text-neutral-400 transition-colors hover:text-white">
+              Privacy
+            </Link>
+          </div>
           <p className="text-center text-xs text-neutral-500">
             Built for tutors, coaching centres, schools &amp; competitive-exam prep
           </p>

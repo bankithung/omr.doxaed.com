@@ -16,6 +16,8 @@ const Register = lazy(() => import("@/routes/Register"))
 const VerifyEmail = lazy(() => import("@/routes/VerifyEmail"))
 const ForgotPassword = lazy(() => import("@/routes/ForgotPassword"))
 const ResetPassword = lazy(() => import("@/routes/ResetPassword"))
+const Terms = lazy(() => import("@/routes/Terms"))
+const Privacy = lazy(() => import("@/routes/Privacy"))
 const Profile = lazy(() => import("@/routes/Profile"))
 const Classes = lazy(() => import("@/routes/Classes"))
 const Folders = lazy(() => import("@/routes/Folders"))
@@ -100,8 +102,20 @@ export default function App() {
   const isPublicPortal = location.pathname.startsWith("/r/")
 
   // Show the minimal public nav only for logged-out users on non-portal pages.
-  // The landing page ("/") ships its own sticky hero nav, so skip it there.
-  const showPublicNav = !user && !isPublicPortal && location.pathname !== "/"
+  // The landing page ("/") ships its own sticky hero nav, and the auth pages
+  // (branded split AuthLayout) + legal pages ship their own headers, so skip
+  // the public nav on all of them to render them full-screen and clean.
+  const SELF_CHROMED = [
+    "/",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/terms",
+    "/privacy",
+  ]
+  const showPublicNav =
+    !user && !isPublicPortal && !SELF_CHROMED.includes(location.pathname)
 
   return (
     <div className="min-h-screen">
@@ -139,6 +153,8 @@ export default function App() {
           <Route path="/verify-email" element={<main id="main"><VerifyEmail /></main>} />
           <Route path="/forgot-password" element={<main id="main"><ForgotPassword /></main>} />
           <Route path="/reset-password" element={<main id="main"><ResetPassword /></main>} />
+          <Route path="/terms" element={<main id="main"><Terms /></main>} />
+          <Route path="/privacy" element={<main id="main"><Privacy /></main>} />
 
           {/* Onboarding — full-screen wizard, no AppShell (login required) */}
           <Route
