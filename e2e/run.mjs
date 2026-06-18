@@ -1,0 +1,314 @@
+/**
+ * OMRFlow full end-to-end browser test.
+ *
+ * Drives the COMPLETE product loop in a real browser, across every available
+ * browser engine (bundled Chromium, system Chrome, system Edge):
+ *
+ *   register → verify email → login → create class → create test (MCQs)
+ *   → create roster + students → generate OMR sheets → upload synthetic
+ *   scans → auto-grade → results → analytics → export (CSV/Excel/PDF)
+ *
+ * The two steps a pure-UI test can't do by itself are bridged by the Django
+ * helper (e2e/django_helper.py), exactly as a real user would experience them:
+ *   - email verification: regenerate the same uid/token the email contains
+ *   - scanned sheets: render synthetic filled scans of the REAL generated
+ *     sheets, then upload them through the actual UI.
+ *
+ * Usage:  node run.mjs            (all browsers)
+ *         node run.mjs chromium   (one browser)
+ */
+import { chromium } from "playwright"
+import { execFileSync } from "node:child_process"
+import { fileURLToPath } from "node:url"
+import path from "node:path"
+import fs from "node:fs"
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const REPO = path.dirname(HERE)
+const PYTHON = path.join(REPO, "backend", ".venv", "Scripts", "python.exe")
+const HELPER = path.join(HERE, "django_helper.py")
+const SHOTS = path.join(HERE, "screenshots")
+const SCANS = path.join(HERE, "scans")
+const DOWNLOADS = path.join(HERE, "downloads")
+
+const FRONTEND = "http://localhost:5173"
+const RUN_ID = Date.now().toString(36)
+
+// Browser matrix: name → launch opts. channel maps to a system browser.
+const BROWSERS = [
+  { name: "chromium", opts: {} },
+  { name: "chrome", opts: { channel: "chrome" } },
+  { name: "edge", opts: { channel: "msedge" } },
+]
+
+const N_QUESTIONS = 5
+const N_OPTIONS = 4
+const STUDENTS = ["101", "102", "103", "104", "105"]
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function py(...args) {
+  const out = execFileSync(PYTHON, [HELPER, ...args], {
+    cwd: HERE,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  // The helper prints exactly one JSON line on stdout.
+  const line = out.trim().split("\n").filter(Boolean).pop()
+  return JSON.parse(line)
+}
+
+function ensureDir(d) {
+  fs.mkdirSync(d, { recursive: true })
+}
+
+async function shot(page, browser, label) {
+  const dir = path.join(SHOTS, browser)
+  ensureDir(dir)
+  await page.screenshot({ path: path.join(dir, `${label}.png`), fullPage: true })
+}
+
+const log = (msg) => console.log(`  ${msg}`)
+
+// ── the journey for one browser ──────────────────────────────────────────────
+async function runJourney(browserName, launchOpts) {
+  const result = { browser: browserName, steps: [], ok: false, error: null }
+  const email = `omrflow.e2e.${browserName}.${RUN_ID}@example.com`
+  const password = "E2ePass!2026"
+  const fullName = `E2E ${browserName}`
+
+  let browser
+  const step = async (name, fn) => {
+    process.stdout.write(`  • ${name} … `)
+    await fn()
+    console.log("ok")
+    result.steps.push(name)
+  }
+
+  try {
+    browser = await chromium.launch({ headless: true, ...launchOpts })
+    const context = await browser.newContext({ acceptDownloads: true })
+    const page = await context.newPage()
+    page.setDefaultTimeout(30000)
+
+    // 1. Register
+    await step("register", async () => {
+      await page.goto(`${FRONTEND}/register`)
+      await page.getByPlaceholder("Jane Smith").fill(fullName)
+      await page.getByPlaceholder("you@example.com").fill(email)
+      await page.getByPlaceholder("••••••••").fill(password)
+      await page.getByRole("button", { name: "Create account" }).click()
+      await page.waitForURL("**/login", { timeout: 20000 })
+      await shot(page, browserName, "01-registered")
+    })
+
+    // 2. Verify email (regenerate the email's uid/token, visit the link)
+    await step("verify-email", async () => {
+      const tok = py("token", email)
+      await page.goto(`${FRONTEND}${tok.verify_path}`)
+      await page.getByText("Email verified", { exact: false }).waitFor({ timeout: 20000 })
+      await shot(page, browserName, "02-verified")
+    })
+
+    // 3. Login
+    await step("login", async () => {
+      await page.goto(`${FRONTEND}/login`)
+      await page.getByPlaceholder("you@example.com").fill(email)
+      await page.getByPlaceholder("••••••••").fill(password)
+      await page.getByRole("button", { name: "Sign in" }).click()
+      await page.waitForURL("**/profile", { timeout: 20000 })
+      await shot(page, browserName, "03-loggedin")
+    })
+
+    // 4. Create class
+    await step("create-class", async () => {
+      await page.goto(`${FRONTEND}/classes`)
+      await page.getByRole("button", { name: "Create class" }).first().click()
+      const dlg = page.getByRole("dialog")
+      await dlg.getByPlaceholder("e.g. Class 8A").fill(`E2E Class ${RUN_ID}`)
+      await dlg.getByRole("button", { name: "Create", exact: true }).click()
+      await page.getByText("Class created", { exact: false }).waitFor({ timeout: 15000 })
+      await shot(page, browserName, "04-class")
+    })
+    const ids1 = py("latest-ids", email)
+    const classId = ids1.class_id
+
+    // 5. Create test with N questions × N options (option A correct)
+    await step("create-test", async () => {
+      await page.goto(`${FRONTEND}/classes/${classId}/tests/new`)
+      // Step 1 — details
+      await page.getByPlaceholder("e.g. Mid-term Exam").fill(`E2E Test ${RUN_ID}`)
+      await page.getByPlaceholder("e.g. Mathematics").fill("Mathematics")
+      await page.getByRole("button", { name: "Next: Add questions" }).click()
+      // Step 2 — questions
+      for (let i = 0; i < N_QUESTIONS; i++) {
+        if (i > 0) {
+          await page.getByRole("button", { name: "+ Add question" }).click()
+        }
+        const card = page.locator("div.rounded-xl.border", {
+          has: page.locator(`#q-text-${i}`),
+        })
+        await page.locator(`#q-text-${i}`).fill(`Question ${i + 1}: 2 + 2 = ?`)
+        // grow from 2 → N_OPTIONS options
+        for (let k = 2; k < N_OPTIONS; k++) {
+          await card.getByRole("button", { name: "+ Add option" }).click()
+        }
+        const optTexts = ["Four", "Three", "Five", "Six"]
+        for (let j = 0; j < N_OPTIONS; j++) {
+          const label = String.fromCharCode(65 + j)
+          await card.getByPlaceholder(`Option ${label}`).fill(optTexts[j] ?? `Opt ${label}`)
+        }
+        // mark option A correct (radio)
+        await page.locator(`#q${i}-opt0-radio`).click()
+        await card.getByRole("button", { name: /^Save question$/ }).click()
+        await card.getByText("Saved", { exact: true }).first().waitFor({ timeout: 15000 })
+      }
+      await page.getByRole("button", { name: "Next: Review" }).click()
+      await page.getByRole("button", { name: "Finish & mark ready" }).click()
+      await page.waitForURL(`**/classes/${classId}`, { timeout: 20000 })
+      await shot(page, browserName, "05-test-created")
+    })
+    const ids2 = py("latest-ids", email)
+    const testId = ids2.test_id
+
+    // 6. Create roster + students
+    await step("create-roster", async () => {
+      await page.goto(`${FRONTEND}/rosters`)
+      await page.getByRole("button", { name: "Create roster" }).first().click()
+      const dlg = page.getByRole("dialog")
+      await dlg.getByPlaceholder("e.g. Class 10A").fill(`E2E Roster ${RUN_ID}`)
+      await dlg.getByRole("button", { name: /^Creat/ }).click()
+      await page.getByText("Roster created", { exact: false }).waitFor({ timeout: 15000 })
+    })
+    const ids3 = py("latest-ids", email)
+    const rosterId = ids3.roster_id
+
+    await step("add-students", async () => {
+      await page.goto(`${FRONTEND}/rosters/${rosterId}`)
+      for (let i = 0; i < STUDENTS.length; i++) {
+        const roll = STUDENTS[i]
+        await page.getByRole("button", { name: "Add student" }).first().click()
+        const dlg = page.getByRole("dialog")
+        await dlg.getByPlaceholder("e.g. Asha Devi").fill(`Student ${roll}`)
+        await dlg.getByPlaceholder("e.g. 101").fill(roll)
+        await dlg.getByRole("button", { name: "Add student", exact: true }).click()
+        // Wait for the dialog to close (toasts stack across iterations, so don't match on them)
+        await dlg.waitFor({ state: "hidden", timeout: 15000 })
+      }
+      await shot(page, browserName, "06-roster")
+    })
+
+    // 7. Generate OMR sheets
+    await step("generate-sheets", async () => {
+      await page.goto(`${FRONTEND}/classes/${classId}`)
+      await page.getByRole("button", { name: "Generate sheets" }).first().click()
+      // pick the roster in the shadcn Select (dialog-scoped trigger; options render in a portal)
+      const dlg = page.getByRole("dialog")
+      await dlg.getByText("Select a roster…").click()
+      await page.getByRole("option", { name: `E2E Roster ${RUN_ID}` }).click()
+      await dlg.getByRole("button", { name: "Generate", exact: true }).click()
+      await page.getByText("Sheets generated successfully!", { exact: false }).first().waitFor({ timeout: 60000 })
+      await shot(page, browserName, "07-generated")
+    })
+
+    // 8. Render synthetic scans of the real generated sheets
+    let manifest
+    await step("render-scans", async () => {
+      const outDir = path.join(SCANS, `${browserName}-${RUN_ID}`)
+      manifest = py("make-scans", String(testId), outDir)
+      if (!Array.isArray(manifest) || manifest.length === 0) {
+        throw new Error("make-scans produced no sheets")
+      }
+      log(`${manifest.length} synthetic scans rendered`)
+    })
+
+    // 9. Upload scans → auto-grade
+    await step("upload-and-grade", async () => {
+      await page.goto(`${FRONTEND}/tests/${testId}/scan`)
+      const files = manifest.flatMap((m) => m.files)
+      await page.locator('input[type="file"]').setInputFiles(files)
+      await page.getByRole("button", { name: /Upload & scan/ }).click()
+      await page.getByText("processed successfully", { exact: false }).first().waitFor({ timeout: 90000 })
+      await shot(page, browserName, "08-scanned")
+    })
+
+    // 10. Results
+    await step("results", async () => {
+      await page.goto(`${FRONTEND}/tests/${testId}/results`)
+      await page.waitForLoadState("networkidle")
+      // at least one student roll should appear
+      await page.getByText(STUDENTS[0], { exact: false }).first().waitFor({ timeout: 20000 })
+      await shot(page, browserName, "09-results")
+    })
+
+    // 10b. Student detail drill-down (best-effort — verifies the drill-down page)
+    try {
+      const detail = page.getByRole("link", { name: "Detail" }).first()
+      if (await detail.count()) {
+        await detail.click()
+        await page.waitForURL("**/students/**", { timeout: 15000 })
+        await page.waitForLoadState("networkidle")
+        await shot(page, browserName, "09b-student-detail")
+        result.steps.push("student-detail")
+        log("student-detail page loaded")
+      }
+    } catch (e) {
+      log(`student-detail skipped: ${e.message}`)
+    }
+
+    // 11. Analytics + exports
+    await step("analytics", async () => {
+      await page.goto(`${FRONTEND}/tests/${testId}/analytics`)
+      await page.getByRole("heading", { name: "Analytics" }).waitFor({ timeout: 20000 })
+      await page.getByText("Score distribution", { exact: false }).first().waitFor({ timeout: 20000 })
+      await shot(page, browserName, "10-analytics")
+    })
+
+    await step("export", async () => {
+      ensureDir(DOWNLOADS)
+      for (const [label, fmt] of [["Export CSV", "csv"], ["Export Excel", "xlsx"], ["Export PDF", "pdf"]]) {
+        const [download] = await Promise.all([
+          page.waitForEvent("download", { timeout: 30000 }),
+          page.getByRole("button", { name: label }).click(),
+        ])
+        const dest = path.join(DOWNLOADS, `${browserName}-${RUN_ID}-results.${fmt}`)
+        await download.saveAs(dest)
+        const size = fs.statSync(dest).size
+        if (size <= 0) throw new Error(`${fmt} export was empty`)
+        log(`${fmt} → ${size} bytes`)
+      }
+      await shot(page, browserName, "11-exported")
+    })
+
+    result.ok = true
+    await context.close()
+  } catch (err) {
+    result.error = err?.message || String(err)
+  } finally {
+    if (browser) await browser.close().catch(() => {})
+  }
+  return result
+}
+
+// ── main ─────────────────────────────────────────────────────────────────────
+async function main() {
+  const only = process.argv[2]
+  const matrix = only ? BROWSERS.filter((b) => b.name === only) : BROWSERS
+  const results = []
+  for (const b of matrix) {
+    console.log(`\n=== ${b.name} ===`)
+    const r = await runJourney(b.name, b.opts)
+    results.push(r)
+    if (r.ok) console.log(`  ✅ ${b.name}: full loop passed (${r.steps.length} steps)`)
+    else console.log(`  ❌ ${b.name}: failed at "${r.steps[r.steps.length - 1] ?? "launch"}" → ${r.error}`)
+  }
+
+  console.log("\n================ SUMMARY ================")
+  for (const r of results) {
+    console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.browser}  (${r.steps.length} steps)${r.ok ? "" : "  — " + r.error}`)
+  }
+  const allOk = results.every((r) => r.ok)
+  fs.writeFileSync(path.join(HERE, "last-run.json"), JSON.stringify(results, null, 2))
+  process.exit(allOk ? 0 : 1)
+}
+
+main()

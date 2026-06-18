@@ -76,7 +76,7 @@ class OrganizationListCreateView(APIView):
     GET  /api/v1/organizations/  → list orgs the user is an active member of.
     POST /api/v1/organizations/  → create an org (owner=request.user).
 
-    # TODO Phase 7: require active subscription before allowing org creation.
+    # Org creation is intentionally open; the free plan gates the org to 1 seat (admin). Paid plans unlock more seats/caps via billing.
     """
 
     permission_classes = [IsAuthenticated]

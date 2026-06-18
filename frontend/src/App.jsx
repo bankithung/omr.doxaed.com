@@ -33,8 +33,10 @@ const ReviewQueue = lazy(() => import("@/routes/ReviewQueue"))
 const Analytics = lazy(() => import("@/routes/Analytics"))
 const Organizations = lazy(() => import("@/routes/Organizations"))
 const OrgMembers = lazy(() => import("@/routes/OrgMembers"))
+const OrgAudit = lazy(() => import("@/routes/OrgAudit"))
 const AcceptInvite = lazy(() => import("@/routes/AcceptInvite"))
 const Billing = lazy(() => import("@/routes/Billing"))
+const StudentDetail = lazy(() => import("@/routes/StudentDetail"))
 
 function OrgSwitcher() {
   const { orgs, activeOrg, setActiveOrg } = useOrg()
@@ -286,6 +288,22 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Billing />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organizations/:id/audit"
+              element={
+                <ProtectedRoute>
+                  <OrgAudit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tests/:testId/students/:studentId"
+              element={
+                <ProtectedRoute>
+                  <StudentDetail />
                 </ProtectedRoute>
               }
             />

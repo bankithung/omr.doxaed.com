@@ -1530,3 +1530,109 @@ class PlanUsageEndpointTest(TestCase):
         resp = self.client.get(self.plan_url)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["plan"]["code"], "team")
+
+
+# ---------------------------------------------------------------------------
+# Plan list endpoint  GET /api/v1/billing/plans/
+# ---------------------------------------------------------------------------
+
+
+def _seed_all_plans():
+    """Create all four standard plans matching seed_plans.py values."""
+    Plan.objects.get_or_create(
+        code=Plan.FREE,
+        defaults={
+            "name": "Free",
+            "price_inr": "0.00",
+            "seat_limit": 1,
+            "students_per_generation_limit": 10,
+            "generations_per_day_limit": 5,
+            "monthly_scan_limit": 50,
+        },
+    )
+    Plan.objects.get_or_create(
+        code=Plan.TEAM,
+        defaults={
+            "name": "Team",
+            "price_inr": "500.00",
+            "seat_limit": 50,
+            "students_per_generation_limit": None,
+            "generations_per_day_limit": None,
+            "monthly_scan_limit": 5000,
+        },
+    )
+    Plan.objects.get_or_create(
+        code=Plan.BUSINESS,
+        defaults={
+            "name": "Business",
+            "price_inr": "1000.00",
+            "seat_limit": 200,
+            "students_per_generation_limit": None,
+            "generations_per_day_limit": None,
+            "monthly_scan_limit": 20000,
+        },
+    )
+    Plan.objects.get_or_create(
+        code=Plan.ENTERPRISE,
+        defaults={
+            "name": "Enterprise",
+            "price_inr": "0.00",
+            "seat_limit": None,
+            "students_per_generation_limit": None,
+            "generations_per_day_limit": None,
+            "monthly_scan_limit": None,
+        },
+    )
+
+
+class PlanListEndpointTest(TestCase):
+    """GET /api/v1/billing/plans/ returns all seeded plans with correct values."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = make_user("planlist_user")
+        _seed_all_plans()
+        self.url = "/api/v1/billing/plans/"
+
+    def test_unauthenticated_returns_401_or_403(self):
+        """Unauthenticated request → 401 or 403."""
+        resp = self.client.get(self.url)
+        self.assertIn(resp.status_code, (401, 403))
+
+    def test_authenticated_returns_200(self):
+        """Authenticated user → 200."""
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+
+    def test_returns_four_plans(self):
+        """Response contains exactly 4 plans."""
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.get(self.url)
+        self.assertEqual(len(resp.data), 4, resp.data)
+
+    def test_team_plan_values(self):
+        """Team plan has seat_limit=50, monthly_scan_limit=5000, generations_per_day_limit=None."""
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.get(self.url)
+        plans_by_code = {p["code"]: p for p in resp.data}
+        self.assertIn("team", plans_by_code)
+        team = plans_by_code["team"]
+        self.assertEqual(team["limits"]["seat_limit"], 50)
+        self.assertEqual(team["limits"]["monthly_scan_limit"], 5000)
+        self.assertIsNone(team["limits"]["generations_per_day_limit"])
+
+    def test_each_plan_has_required_fields(self):
+        """Each plan entry must have code, name, price_inr, and limits."""
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.get(self.url)
+        for plan in resp.data:
+            self.assertIn("code", plan)
+            self.assertIn("name", plan)
+            self.assertIn("price_inr", plan)
+            self.assertIn("limits", plan)
+            limits = plan["limits"]
+            self.assertIn("seat_limit", limits)
+            self.assertIn("students_per_generation_limit", limits)
+            self.assertIn("generations_per_day_limit", limits)
+            self.assertIn("monthly_scan_limit", limits)

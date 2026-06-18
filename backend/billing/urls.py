@@ -1,8 +1,13 @@
 from django.urls import path
 
-from .views import OrgPlanView, SubscribeView, WebhookView
+from .views import OrgPlanView, PlanListView, SubscribeView, WebhookView
 
 urlpatterns = [
+    path(
+        "billing/plans/",
+        PlanListView.as_view(),
+        name="billing-plans-list",
+    ),
     path(
         "billing/organizations/<int:org_id>/subscribe/",
         SubscribeView.as_view(),

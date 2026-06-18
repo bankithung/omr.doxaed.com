@@ -189,6 +189,36 @@ class WebhookView(APIView):
 # ---------------------------------------------------------------------------
 
 
+class PlanListView(APIView):
+    """
+    GET /api/v1/billing/plans/
+
+    Returns all seeded plans ordered by price_inr, each with code, name,
+    price_inr (str), and limits.  No org context needed — any authenticated
+    user can call this (e.g. to render the pricing page).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        plans = Plan.objects.all().order_by("price_inr", "code")
+        data = [
+            {
+                "code": p.code,
+                "name": p.name,
+                "price_inr": str(p.price_inr),
+                "limits": {
+                    "seat_limit": p.seat_limit,
+                    "students_per_generation_limit": p.students_per_generation_limit,
+                    "generations_per_day_limit": p.generations_per_day_limit,
+                    "monthly_scan_limit": p.monthly_scan_limit,
+                },
+            }
+            for p in plans
+        ]
+        return Response(data)
+
+
 class OrgPlanView(APIView):
     """
     GET /api/v1/billing/organizations/{id}/plan/
