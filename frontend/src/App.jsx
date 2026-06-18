@@ -10,6 +10,7 @@ import AppShell from "@/components/AppShell"
 const Health = lazy(() => import("@/routes/Health"))
 const StyleGuide = lazy(() => import("@/routes/StyleGuide"))
 const Dashboard = lazy(() => import("@/routes/Dashboard"))
+const Onboarding = lazy(() => import("@/routes/Onboarding"))
 const Login = lazy(() => import("@/routes/Login"))
 const Register = lazy(() => import("@/routes/Register"))
 const VerifyEmail = lazy(() => import("@/routes/VerifyEmail"))
@@ -137,6 +138,18 @@ export default function App() {
           <Route path="/verify-email" element={<main id="main"><VerifyEmail /></main>} />
           <Route path="/forgot-password" element={<main id="main"><ForgotPassword /></main>} />
           <Route path="/reset-password" element={<main id="main"><ResetPassword /></main>} />
+
+          {/* Onboarding — full-screen wizard, no AppShell (login required) */}
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <main id="main">
+                  <Onboarding />
+                </main>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Protected routes — wrapped in AppShell */}
           <Route
