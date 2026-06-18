@@ -19,4 +19,5 @@
 - Roadmap: Phases 0–9, MVP = 1–5. Build one phase at a time.
 
 ## Memory index
+- [brand-name](brand-name.md) — product is "DoxaEd OMR" (was OMRFlow); user-facing strings only, keep internal `omrflow` ids
 - [phase5-visibility-decisions](phase5-visibility-decisions.md) — owner-approved folders/sharing visibility + admin-override choices (gate Phase 5B/5C)

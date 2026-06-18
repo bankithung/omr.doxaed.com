@@ -2,14 +2,17 @@ import { chromium } from "playwright"
 
 const FRONTEND = process.env.FRONTEND || "http://localhost:5173"
 const browser = await chromium.launch()
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })
+const VW = Number(process.env.VW || 1440)
+const VH = Number(process.env.VH || 900)
+const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, deviceScaleFactor: 1 })
 const page = await ctx.newPage()
 await page.goto(`${FRONTEND}/`, { waitUntil: "load" })
 await page.waitForTimeout(900) // hero entrance
 
+const PFX = process.env.PFX || "cine"
 const shot = async (label) => {
-  await page.screenshot({ path: `cine-${label}.png` }) // viewport-only
-  console.log("shot cine-" + label)
+  await page.screenshot({ path: `${PFX}-${label}.png` }) // viewport-only
+  console.log("shot " + PFX + "-" + label)
 }
 
 // Hero (top)
@@ -30,7 +33,7 @@ const cp = await page.evaluate(() => {
 console.log("centerpiece:", JSON.stringify(cp))
 
 if (cp) {
-  const vh = 900
+  const vh = VH
   const range = cp.height - vh
   // 4 acts: assemble / fan-out / scan / analytics
   const acts = [
