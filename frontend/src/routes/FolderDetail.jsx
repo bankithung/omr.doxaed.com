@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // ─── PermissionSegment — custom VIEW/EDIT segmented control (NO native select) ──
@@ -491,13 +492,13 @@ export default function FolderDetail() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Breadcrumb */}
-      <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/folders" className="hover:text-foreground hover:underline">
-          Folders
-        </Link>
-        <span>/</span>
-        <span className="truncate">{folder.name}</span>
-      </div>
+      <Breadcrumb
+        className="mb-2"
+        items={[
+          { label: "Folders", to: "/folders" },
+          { label: folder.name },
+        ]}
+      />
 
       <PageHeader
         className="mb-6"

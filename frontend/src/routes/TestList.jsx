@@ -38,6 +38,7 @@ import { DataList } from "@/components/ui/data-list"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/ui/page-header"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
 
 // ─── Status badge ─────────────────────────────────
 
@@ -533,13 +534,13 @@ export default function TestList() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Breadcrumb */}
-      <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/classes" className="hover:text-foreground hover:underline">
-          Classes
-        </Link>
-        <span>/</span>
-        <span>{classGroup?.name ?? "Class"}</span>
-      </div>
+      <Breadcrumb
+        className="mb-2"
+        items={[
+          { label: "Classes", to: "/classes" },
+          { label: classGroup?.name ?? "Class" },
+        ]}
+      />
 
       <PageHeader
         className="mb-6"

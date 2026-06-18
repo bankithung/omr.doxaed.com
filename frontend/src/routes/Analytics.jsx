@@ -29,6 +29,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatGridSkeleton } from "@/components/ui/list-skeletons"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { TestProgressRail } from "@/components/ui/test-progress-rail"
 import { BarChart2 } from "lucide-react"
 
 // ────────────────────────────────────────────────
@@ -61,15 +63,25 @@ function DistributionChart({ distribution }) {
   }
   const data = distribution.map((d) => ({ bucket: d.bucket, count: d.count }))
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
-        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-        <Tooltip />
-        <Bar dataKey="count" fill="var(--color-info, #6366f1)" radius={[4, 4, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
+    // min-w-0 lets ResponsiveContainer shrink to 320px without clipping
+    <div className="w-full min-w-0">
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 16, left: -8 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="bucket"
+            tick={{ fontSize: 10 }}
+            interval={0}
+            angle={-30}
+            textAnchor="end"
+            height={44}
+          />
+          <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={28} />
+          <Tooltip />
+          <Bar dataKey="count" fill="var(--color-info, #6366f1)" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
 
@@ -80,7 +92,7 @@ function ToppersSection({ toppers }) {
     )
   }
   return (
-    <div className="rounded-xl border">
+    <div className="overflow-x-auto rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -116,7 +128,7 @@ function HardestQuestionsSection({ hardestQuestions }) {
     )
   }
   return (
-    <div className="rounded-xl border">
+    <div className="overflow-x-auto rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -294,29 +306,31 @@ function ImprovementTab({ testId }) {
       {lineData.length > 0 && (
         <div>
           <h3 className="mb-3 text-sm font-semibold">Class average by attempt</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={lineData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="attempt" tick={{ fontSize: 11 }} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-              <Tooltip formatter={(v) => `${v}%`} />
-              <Line
-                type="monotone"
-                dataKey="average"
-                stroke="var(--color-info, #6366f1)"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="w-full min-w-0">
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={lineData} margin={{ top: 4, right: 8, bottom: 4, left: -8 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="attempt" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" width={36} />
+                <Tooltip formatter={(v) => `${v}%`} />
+                <Line
+                  type="monotone"
+                  dataKey="average"
+                  stroke="var(--color-info, #6366f1)"
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 
       {studentRows.length > 0 && (
         <div>
           <h3 className="mb-3 text-sm font-semibold">Per-student delta (latest attempt)</h3>
-          <div className="rounded-xl border">
+          <div className="overflow-x-auto rounded-xl border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -522,7 +536,7 @@ function ItemAnalysisTab({ testId }) {
       {items.length > 0 && (
         <div>
           <h3 className="mb-3 text-sm font-semibold">Per-item psychometrics</h3>
-          <div className="rounded-xl border">
+          <div className="overflow-x-auto rounded-xl border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -721,41 +735,33 @@ export default function Analytics() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       {/* Breadcrumb */}
-      <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/classes" className="hover:text-foreground hover:underline">
-          Classes
-        </Link>
-        <span>/</span>
-        <span className="hover:text-foreground">
+      <Breadcrumb
+        className="mb-2"
+        items={[
+          { label: "Classes", to: "/classes" },
+          { label: test.title ?? `Test #${testId}` },
+          { label: "Analytics" },
+        ]}
+      />
+
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold">Analytics</h1>
+        <p className="text-sm text-muted-foreground">
           {test.title ?? `Test #${testId}`}
-        </span>
-        <span>/</span>
-        <span>Analytics</span>
+        </p>
       </div>
 
-      <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Analytics</h1>
-          <p className="text-sm text-muted-foreground">
-            {test.title ?? `Test #${testId}`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/tests/${testId}/results`}>Results</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/tests/${testId}/review`}>Review queue</Link>
-          </Button>
-        </div>
-      </div>
+      {/* Test lifecycle rail (replaces the old sibling button row) */}
+      <TestProgressRail testId={testId} current="analytics" className="mb-6" />
 
       <Tabs defaultValue="overview">
-        <TabsList className="mb-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="questions">Questions</TabsTrigger>
-          <TabsTrigger value="item-analysis">Item Analysis</TabsTrigger>
-          <TabsTrigger value="improvement">Improvement</TabsTrigger>
+        {/* Horizontally scrollable on mobile so all tabs (incl. Item Analysis)
+            stay reachable without wrapping/clipping. */}
+        <TabsList className="mb-6 max-w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsTrigger value="overview" className="flex-none shrink-0">Overview</TabsTrigger>
+          <TabsTrigger value="questions" className="flex-none shrink-0">Questions</TabsTrigger>
+          <TabsTrigger value="item-analysis" className="flex-none shrink-0">Item Analysis</TabsTrigger>
+          <TabsTrigger value="improvement" className="flex-none shrink-0">Improvement</TabsTrigger>
         </TabsList>
 
         {/* ── Overview tab ── */}

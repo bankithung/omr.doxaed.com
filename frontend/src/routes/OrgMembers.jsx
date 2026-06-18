@@ -320,7 +320,7 @@ export default function OrgMembers() {
           }
         />
       ) : (
-        <div className="rounded-xl border">
+        <div className="overflow-x-auto rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>

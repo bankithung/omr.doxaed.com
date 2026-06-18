@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { getStudentDetail, downloadStudentReportCard } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { DetailHeaderSkeleton, TableSkeleton } from "@/components/ui/list-skeletons"
@@ -24,7 +25,7 @@ function TopicAccuracySection({ topicAccuracy }) {
     )
   }
   return (
-    <div className="rounded-xl border">
+    <div className="overflow-x-auto rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -67,7 +68,7 @@ function PerQuestionSection({ perQuestion }) {
     )
   }
   return (
-    <div className="rounded-xl border">
+    <div className="overflow-x-auto rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -210,26 +211,29 @@ export default function StudentDetail() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Breadcrumb */}
-      <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to={`/tests/${testId}/results`} className="hover:text-foreground hover:underline">
-          Results
-        </Link>
-        <span>/</span>
-        <span>Student #{studentId}</span>
-      </div>
+      <Breadcrumb
+        className="mb-4"
+        items={[
+          { label: "Classes", to: "/classes" },
+          { label: `Test #${testId}` },
+          { label: "Results", to: `/tests/${testId}/results` },
+          { label: `Student #${studentId}` },
+        ]}
+      />
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Student Detail</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
+            className="min-h-[40px]"
             disabled={downloading}
             onClick={handleDownloadReportCard}
           >
             {downloading ? "Downloading…" : "Download report card"}
           </Button>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="min-h-[40px]">
             <Link to={`/tests/${testId}/results`}>Back to results</Link>
           </Button>
         </div>

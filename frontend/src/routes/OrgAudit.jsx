@@ -85,7 +85,7 @@ export default function OrgAudit() {
           description="Audit events will appear here as members and admins take actions."
         />
       ) : (
-        <div className="rounded-xl border">
+        <div className="overflow-x-auto rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>

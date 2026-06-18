@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/ui/page-header"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { TestProgressRail } from "@/components/ui/test-progress-rail"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { TableSkeleton } from "@/components/ui/list-skeletons"
@@ -536,30 +538,34 @@ export default function Results() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      <Breadcrumb
+        className="mb-2"
+        items={[
+          { label: "Classes", to: "/classes" },
+          { label: `Test #${testId}` },
+          { label: "Results" },
+        ]}
+      />
+
       <PageHeader
-        className="mb-6"
+        className="mb-4"
         title="Results"
         description={`Test #${testId}`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={downloadingBulk}
-              onClick={handleBulkReportCards}
-              className="min-h-[40px]"
-            >
-              {downloadingBulk ? "Downloading…" : "Download all report cards"}
-            </Button>
-            <Button asChild variant="outline" size="sm" className="min-h-[40px]">
-              <Link to={`/tests/${testId}/scan`}>Scan more</Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="min-h-[40px]">
-              <Link to={`/tests/${testId}/review`}>Review queue</Link>
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={downloadingBulk}
+            onClick={handleBulkReportCards}
+            className="min-h-[40px]"
+          >
+            {downloadingBulk ? "Downloading…" : "Download all report cards"}
+          </Button>
         }
       />
+
+      {/* Test lifecycle rail (replaces the old Scan/Review sibling buttons) */}
+      <TestProgressRail testId={testId} current="results" className="mb-6" />
 
       {loading ? (
         <TableSkeleton rows={6} />
