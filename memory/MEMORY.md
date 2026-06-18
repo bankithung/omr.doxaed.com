@@ -1,9 +1,9 @@
 # OMRFlow — Memory Index
 
-**Status:** Phase 7 (Billing) DONE (2026-06-17). MVP + orgs + billing done. Next: Phase 8 (Hardening), then 9 (Mobile).
+**Status:** Phase 8 (Hardening) DONE (2026-06-18). Webapp PRODUCTION-READY (pending external ops). Next: Phase 9 (Mobile) + browser E2E.
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
-**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–7. 496 tests.
-⚠️ LIVE Razorpay payments need the user's keys in `backend/.env` + a payments security review.
+**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–8. 535 tests, lint clean.
+⚠️ Before launch: real Razorpay keys + payments review; TLS + prod env; Redis+Celery worker; audits/backups/monitoring. See `docs/DEPLOYMENT.md` + `docs/SECURITY-CHECKLIST.md`.
 
 ## Next steps
 - The full MVP loop works: create test → generate OMR sheets → scan & auto-grade → analytics/export → retest.

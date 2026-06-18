@@ -33,3 +33,7 @@
   gates (reserve-before-work), Razorpay gateway + signature-verified webhook, billing UI. Reviewed
   BILLING-SECURE after fixing a Critical seat-gate-on-accept bypass + a TOCTOU race. 496 tests green.
   Live payments pending the user's Razorpay keys.
+- 2026-06-18 — Phase 8 complete (branch `phase-8`): production-grade hardening — env-driven prod
+  security (check --deploy clean), django-axes lockout, no-enumeration register, Celery async (eager
+  in dev) + DB indexes, frontend code-splitting (940→307 kB) + a11y + clean lint, image-upload API,
+  deployment config + DEPLOYMENT.md + SECURITY-CHECKLIST.md. 535 tests green. Verified PRODUCTION-READY.
