@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { listReview, resolveReview } from "@/api/scan"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"]
 
@@ -20,9 +21,7 @@ const REASON_LABELS = {
 
 function ReasonBadge({ reason }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
-      {REASON_LABELS[reason] ?? reason}
-    </span>
+    <Badge variant="error">{REASON_LABELS[reason] ?? reason}</Badge>
   )
 }
 
@@ -81,8 +80,10 @@ function ReviewItemCard({ item, onResolved }) {
           {OPTION_LABELS.map((label) => (
             <button
               key={label}
+              type="button"
+              aria-pressed={selected.includes(label)}
               onClick={() => toggleOption(label)}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-semibold transition-colors ${
+              className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border text-sm font-semibold transition-colors ${
                 selected.includes(label)
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input bg-transparent text-foreground hover:bg-muted"
