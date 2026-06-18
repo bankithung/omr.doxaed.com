@@ -1,5 +1,25 @@
 # Current State
 
+- 2026-06-18: **Multi-mode OMR — Phase 1 (mode scaffold + Mode B pre-bubbled roll) COMPLETE**
+  (branch `feat/omr-modes`). New product direction: multiple test-creation MODES + advanced
+  differentiators, designed in `docs/superpowers/specs/2026-06-18-omr-modes-and-advanced-features.md`
+  (6 modes — Standard, Roster pre-bubbled roll, Competitive NEET/UPSC, Mixed-types JEE/GATE,
+  Data-capture, Survey — + a 7-phase roadmap; critique verdict SOLID).
+  **Phase 1 shipped (1A+1B+1C):** `Test.mode` (default `standard` = zero change) + `template_spec`;
+  `build_template(roll_kind=...)` + descriptor `roll_grid.kind/prefilled`; generator draws SOLID
+  pre-bubbled roll discs (proven scannable on the REAL fitz→Otsu path, fill ratio 1.0, +0.55 margin
+  over FILL_HIGH); `OmrSheet.roll_kind/roll_value` (roll zero-padded right-aligned to grid width);
+  **scan identity** — `_parse_test_id_from_sheet_code` cross-checks the QR's test_id vs the batch →
+  `test_mismatch` (never grades against the wrong test); **verify-only roll reconciliation** —
+  prebubbled roll read & symmetric-zfill-normalized vs `student.roll_number` → `roll_mismatch`
+  review flag (identity ALWAYS from QR; short rolls never false-fire); widened `ReviewItem.reason`
+  20→32 + `test_mismatch`/`roll_mismatch` reasons; TestWizard mode picker + writable `mode` API +
+  friendly review labels. **VERIFIED:** full E2E across Chromium/Chrome/Edge (standard 15/15 each)
+  + a Mode-B journey (16/16: pre-bubbled roll → auto-identify → graded → **tampered roll flags
+  roll_mismatch**). Backend suite green. NOT yet merged to `main` (pending final suite + merge).
+  **Next: Phase 2** (analytics core — item analysis/percentile/report card), then Phase 3+ (Mode C
+  competitive: sections/series/negative-marking). Owner decisions for Mode C deferred (NEET-vs-UPSC
+  fidelity, 4-vs-5 options) — building generic; will confirm at Phase 3.
 - 2026-06-18: **Real front door + idempotent generation fix** (branch `feat/landing-home` → `main`).
   Manual user testing exposed two issues the automated loop missed. (1) The root route `/` rendered a
   dev **API-health stub** and the nav exposed the internal Style Guide — replaced with a real
