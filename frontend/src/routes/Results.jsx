@@ -10,12 +10,11 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
-import { TestProgressRail } from "@/components/ui/test-progress-rail"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { TableSkeleton } from "@/components/ui/list-skeletons"
+import { TableSkeleton } from "@/components/ui/skeletons"
 import {
   Table,
   TableBody,
@@ -24,6 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+
+const HEAD_CLASS = "sticky top-0 z-10 h-9 bg-surface-1 px-3 text-xs font-medium text-muted-foreground"
 
 // ─── Badges ───────────────────────────────────────
 
@@ -107,7 +108,7 @@ function StudentResultRow({ result, testId }) {
         className="cursor-pointer hover:bg-muted/50"
         onClick={() => setExpanded((v) => !v)}
       >
-        <TableCell className="font-mono text-sm">
+        <TableCell className="font-mono text-xs tabular">
           {result.student_roll ?? result.student?.roll_number ?? result.omr_sheet ?? "—"}
         </TableCell>
         <TableCell>
@@ -188,7 +189,7 @@ function StudentResultCard({ result, testId }) {
     result.student_name ?? result.student?.name ?? result.student?.full_name ?? "—"
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm">
+    <div className="rounded-lg border border-border bg-card">
       {/* Card header — tap to expand */}
       <button
         type="button"
@@ -198,7 +199,7 @@ function StudentResultCard({ result, testId }) {
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-sm font-medium">Roll: {roll}</span>
+            <span className="font-mono text-xs font-medium tabular">Roll: {roll}</span>
             <ScoreBadge
               score={result.score ?? 0}
               maxScore={result.max_score ?? 0}
@@ -324,7 +325,7 @@ function PublishControl({ testId }) {
   }
 
   return (
-    <div className="mt-8 rounded-xl border">
+    <div className="rounded-lg border border-border">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -537,18 +538,8 @@ export default function Results() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <Breadcrumb
-        className="mb-2"
-        items={[
-          { label: "Classes", to: "/classes" },
-          { label: `Test #${testId}` },
-          { label: "Results" },
-        ]}
-      />
-
+    <PageShell>
       <PageHeader
-        className="mb-4"
         title="Results"
         description={`Test #${testId}`}
         actions={
@@ -563,9 +554,6 @@ export default function Results() {
           </Button>
         }
       />
-
-      {/* Test lifecycle rail (replaces the old Scan/Review sibling buttons) */}
-      <TestProgressRail testId={testId} current="results" className="mb-6" />
 
       {loading ? (
         <TableSkeleton rows={6} />
@@ -587,37 +575,43 @@ export default function Results() {
           }
         />
       ) : (
-        <>
+        <div className="space-y-4">
           {/* Summary row */}
-          <div className="mb-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             <span>
-              {results.length} student{results.length !== 1 ? "s" : ""}
+              <strong className="tabular text-foreground">{results.length}</strong> student
+              {results.length !== 1 ? "s" : ""}
             </span>
             <span>
               Avg score:{" "}
-              {results.length > 0
-                ? (
-                    results.reduce((s, r) => s + Number(r.score ?? 0), 0) /
-                    results.length
-                  ).toFixed(1)
-                : "—"}
+              <strong className="tabular text-foreground">
+                {results.length > 0
+                  ? (
+                      results.reduce((s, r) => s + Number(r.score ?? 0), 0) /
+                      results.length
+                    ).toFixed(1)
+                  : "—"}
+              </strong>
             </span>
             <span>
-              Needs review: {results.filter((r) => r.needs_review).length}
+              Needs review:{" "}
+              <strong className="tabular text-foreground">
+                {results.filter((r) => r.needs_review).length}
+              </strong>
             </span>
           </div>
 
           {/* Desktop table (md+) */}
-          <div className="hidden md:block rounded-xl border">
+          <div className="hidden overflow-hidden rounded-lg border border-border md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Roll</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Correct / Wrong / Blank</TableHead>
-                  <TableHead>Flag</TableHead>
-                  <TableHead className="text-right">Details</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={HEAD_CLASS}>Roll</TableHead>
+                  <TableHead className={HEAD_CLASS}>Name</TableHead>
+                  <TableHead className={HEAD_CLASS}>Score</TableHead>
+                  <TableHead className={HEAD_CLASS}>Correct / Wrong / Blank</TableHead>
+                  <TableHead className={HEAD_CLASS}>Flag</TableHead>
+                  <TableHead className={`${HEAD_CLASS} text-right`}>Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -635,15 +629,15 @@ export default function Results() {
             ))}
           </div>
 
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Click a row to expand per-question responses. Click "Detail" for
             the full analytics drill-down.
           </p>
-        </>
+        </div>
       )}
 
       {/* Publish / share control — always visible */}
       <PublishControl testId={testId} />
-    </div>
+    </PageShell>
   )
 }

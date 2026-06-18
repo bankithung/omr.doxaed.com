@@ -5,11 +5,11 @@ import { CheckCircleIcon } from "lucide-react"
 import { listReview, resolveReview } from "@/api/scan"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
-import { TestProgressRail } from "@/components/ui/test-progress-rail"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { ListSkeleton } from "@/components/ui/list-skeletons"
+import { TableSkeleton } from "@/components/ui/skeletons"
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"]
 
@@ -63,7 +63,7 @@ function ReviewItemCard({ item, onResolved }) {
   }
 
   return (
-    <div className="rounded-xl border p-4">
+    <div className="rounded-lg border border-border p-4">
       <div className="mb-3 flex flex-wrap items-start gap-2">
         <ReasonBadge reason={item.reason} />
         {item.sheet_code && (
@@ -146,26 +146,14 @@ export default function ReviewQueue() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <Breadcrumb
-        className="mb-2"
-        items={[
-          { label: "Classes", to: "/classes" },
-          { label: `Test #${testId}` },
-          { label: "Review" },
-        ]}
+    <PageShell className="max-w-3xl">
+      <PageHeader
+        title="Review queue"
+        description={`Test #${testId}`}
       />
 
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold">Review queue</h1>
-        <p className="text-sm text-muted-foreground">Test #{testId}</p>
-      </div>
-
-      {/* Test lifecycle rail (replaces the old Results/Scan sibling buttons) */}
-      <TestProgressRail testId={testId} current="review" className="mb-6" />
-
       {loading ? (
-        <ListSkeleton rows={3} />
+        <TableSkeleton rows={3} />
       ) : error ? (
         <ErrorState
           title="Couldn't load review queue"
@@ -193,6 +181,6 @@ export default function ReviewQueue() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

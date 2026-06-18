@@ -14,11 +14,10 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { ListSkeleton } from "@/components/ui/list-skeletons"
-import { DataList } from "@/components/ui/data-list"
+import { DataTable } from "@/components/ui/DataTable"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
+import { Badge } from "@/components/ui/badge"
 
 function CreateRosterDialog({ onCreated }) {
   const [open, setOpen] = useState(false)
@@ -91,7 +90,7 @@ const COLUMNS = [
     key: "students",
     header: "Students",
     cell: (roster) => (
-      <span className="text-muted-foreground">
+      <span className="text-muted-foreground tabular">
         {roster.student_count ?? roster.students_count ?? "—"}
       </span>
     ),
@@ -133,36 +132,35 @@ export default function Rosters() {
   }, [fetchRosters])
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <PageShell>
       <PageHeader
-        className="mb-6"
         title="Rosters"
         description="Manage student rosters for OMR sheet generation."
         actions={<CreateRosterDialog onCreated={fetchRosters} />}
       />
 
-      {loading ? (
-        <ListSkeleton rows={4} />
-      ) : error ? (
-        <ErrorState
-          title="Couldn't load rosters"
-          description="Something went wrong while loading your rosters."
-          onRetry={fetchRosters}
-        />
-      ) : rosters.length === 0 ? (
-        <EmptyState
-          icon={UsersIcon}
-          title="No rosters yet"
-          description="Create a roster to manage students and generate OMR sheets."
-          action={<CreateRosterDialog onCreated={fetchRosters} />}
-        />
-      ) : (
-        <DataList
-          columns={COLUMNS}
-          rows={rosters}
-          getRowKey={(r) => r.id}
-        />
+      {!loading && !error && rosters.length > 0 && (
+        <div className="-mb-4">
+          <Badge variant="neutral" className="tabular">
+            {rosters.length} {rosters.length === 1 ? "roster" : "rosters"}
+          </Badge>
+        </div>
       )}
-    </div>
+
+      <DataTable
+        columns={COLUMNS}
+        rows={rosters}
+        getRowKey={(r) => r.id}
+        loading={loading}
+        error={error}
+        onRetry={fetchRosters}
+        empty={{
+          icon: UsersIcon,
+          title: "No rosters yet",
+          description: "Create a roster to manage students and generate OMR sheets.",
+          action: <CreateRosterDialog onCreated={fetchRosters} />,
+        }}
+      />
+    </PageShell>
   )
 }

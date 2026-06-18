@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { createTest, createQuestion, updateTest } from "@/api/assessments"
 import { listSubjects } from "@/api/subjects"
 import { Stepper, StepperCompact } from "@/components/ui/stepper"
+import { PageShell } from "@/components/ui/page-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -825,7 +826,7 @@ export default function TestWizard() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 space-y-8">
+    <PageShell className="max-w-3xl">
       {/* Page header */}
       <div>
         <button
@@ -835,7 +836,7 @@ export default function TestWizard() {
         >
           ← Back to class
         </button>
-        <h1 className="mt-2 text-2xl font-bold">Create test</h1>
+        <h1 className="mt-2 font-heading text-2xl font-bold tracking-tight">Create test</h1>
       </div>
 
       {/* Step indicator — compact under md, full horizontal stepper ≥md */}
@@ -865,6 +866,6 @@ export default function TestWizard() {
           onBack={() => setStep(1)}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

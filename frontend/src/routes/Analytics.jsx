@@ -28,10 +28,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatGridSkeleton } from "@/components/ui/list-skeletons"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
-import { TestProgressRail } from "@/components/ui/test-progress-rail"
+import { CardGridSkeleton } from "@/components/ui/skeletons"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
 import { BarChart2 } from "lucide-react"
+
+const HEAD_CLASS = "sticky top-0 z-10 h-9 bg-surface-1 px-3 text-xs font-medium text-muted-foreground"
 
 // ────────────────────────────────────────────────
 // Helpers
@@ -78,7 +80,7 @@ function DistributionChart({ distribution }) {
           />
           <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={28} />
           <Tooltip />
-          <Bar dataKey="count" fill="var(--color-info, #6366f1)" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -92,27 +94,27 @@ function ToppersSection({ toppers }) {
     )
   }
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-8">#</TableHead>
-            <TableHead>Roll</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Score</TableHead>
-            <TableHead>Percentage</TableHead>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={`${HEAD_CLASS} w-8`}>#</TableHead>
+            <TableHead className={HEAD_CLASS}>Roll</TableHead>
+            <TableHead className={HEAD_CLASS}>Name</TableHead>
+            <TableHead className={HEAD_CLASS}>Score</TableHead>
+            <TableHead className={HEAD_CLASS}>Percentage</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {toppers.map((t, i) => (
             <TableRow key={t.student?.roll ?? i}>
-              <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-              <TableCell className="font-mono text-sm">{t.student?.roll ?? "—"}</TableCell>
+              <TableCell className="tabular text-muted-foreground">{i + 1}</TableCell>
+              <TableCell className="font-mono text-xs tabular">{t.student?.roll ?? "—"}</TableCell>
               <TableCell>{t.student?.name ?? "—"}</TableCell>
-              <TableCell className="tabular-nums">
+              <TableCell className="tabular">
                 {t.score ?? "—"}/{t.max_score ?? "—"}
               </TableCell>
-              <TableCell className="tabular-nums">{pct(t.score, t.max_score)}</TableCell>
+              <TableCell className="tabular">{pct(t.score, t.max_score)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -128,20 +130,20 @@ function HardestQuestionsSection({ hardestQuestions }) {
     )
   }
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">Q#</TableHead>
-            <TableHead>Question</TableHead>
-            <TableHead className="w-28">Wrong rate</TableHead>
-            <TableHead className="w-20">Responses</TableHead>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={`${HEAD_CLASS} w-12`}>Q#</TableHead>
+            <TableHead className={HEAD_CLASS}>Question</TableHead>
+            <TableHead className={`${HEAD_CLASS} w-28`}>Wrong rate</TableHead>
+            <TableHead className={`${HEAD_CLASS} w-20`}>Responses</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {hardestQuestions.map((q) => (
             <TableRow key={q.question_id ?? q.order_index}>
-              <TableCell className="font-mono text-sm text-muted-foreground">
+              <TableCell className="font-mono text-xs tabular text-muted-foreground">
                 {q.order_index != null ? q.order_index + 1 : "—"}
               </TableCell>
               <TableCell className="max-w-xs truncate text-sm">{q.text ?? "—"}</TableCell>
@@ -158,7 +160,7 @@ function HardestQuestionsSection({ hardestQuestions }) {
                   {fmtRate(q.wrong_rate)}
                 </Badge>
               </TableCell>
-              <TableCell className="tabular-nums text-sm text-muted-foreground">
+              <TableCell className="tabular text-sm text-muted-foreground">
                 {q.n ?? "—"}
               </TableCell>
             </TableRow>
@@ -182,7 +184,7 @@ function OptionDistributionSection({ optionDistribution }) {
         const options = q.options ?? []
         const total = options.reduce((s, o) => s + (o.count ?? 0), 0)
         return (
-          <div key={q.question_id} className="rounded-xl border p-4">
+          <div key={q.question_id} className="rounded-lg border border-border p-4">
             <p className="mb-2 text-sm font-medium">{q.text ?? `Question ${q.question_id}`}</p>
             <div className="flex flex-col gap-1.5">
               {options.map((o) => {
@@ -192,7 +194,7 @@ function OptionDistributionSection({ optionDistribution }) {
                   <div key={o.label} className="flex items-center gap-2 text-xs">
                     <span
                       className={`w-5 shrink-0 font-medium ${
-                        isCorrect ? "text-green-600" : "text-muted-foreground"
+                        isCorrect ? "text-[var(--color-success)]" : "text-muted-foreground"
                       }`}
                     >
                       {o.label}
@@ -200,7 +202,7 @@ function OptionDistributionSection({ optionDistribution }) {
                     <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted">
                       <div
                         className={`absolute inset-y-0 left-0 rounded transition-all ${
-                          isCorrect ? "bg-green-500" : "bg-primary/40"
+                          isCorrect ? "bg-[var(--color-success)]" : "bg-primary/40"
                         }`}
                         style={{ width: `${barPct}%` }}
                       />
@@ -316,7 +318,7 @@ function ImprovementTab({ testId }) {
                 <Line
                   type="monotone"
                   dataKey="average"
-                  stroke="var(--color-info, #6366f1)"
+                  stroke="var(--chart-1)"
                   strokeWidth={2}
                   dot={{ r: 4 }}
                   activeDot={{ r: 6 }}
@@ -330,31 +332,31 @@ function ImprovementTab({ testId }) {
       {studentRows.length > 0 && (
         <div>
           <h3 className="mb-3 text-sm font-semibold">Per-student delta (latest attempt)</h3>
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Roll</TableHead>
-                  <TableHead>Attempts</TableHead>
-                  <TableHead>Latest %</TableHead>
-                  <TableHead>Delta vs prev</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={HEAD_CLASS}>Roll</TableHead>
+                  <TableHead className={HEAD_CLASS}>Attempts</TableHead>
+                  <TableHead className={HEAD_CLASS}>Latest %</TableHead>
+                  <TableHead className={HEAD_CLASS}>Delta vs prev</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {studentRows.map((row) => (
                   <TableRow key={row.roll}>
-                    <TableCell className="font-mono text-sm">{row.roll}</TableCell>
-                    <TableCell className="tabular-nums">{row.attempts}</TableCell>
-                    <TableCell className="tabular-nums">
+                    <TableCell className="font-mono text-xs tabular">{row.roll}</TableCell>
+                    <TableCell className="tabular">{row.attempts}</TableCell>
+                    <TableCell className="tabular">
                       {row.lastPct != null ? `${row.lastPct}%` : "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="tabular">
                       {row.delta == null ? (
                         <span className="text-muted-foreground">—</span>
                       ) : row.delta > 0 ? (
-                        <span className="text-green-600">+{row.delta}%</span>
+                        <span className="text-[var(--color-success)]">+{row.delta}%</span>
                       ) : row.delta < 0 ? (
-                        <span className="text-red-500">{row.delta}%</span>
+                        <span className="text-[var(--color-error)]">{row.delta}%</span>
                       ) : (
                         <span className="text-muted-foreground">0%</span>
                       )}
@@ -421,7 +423,7 @@ function DistractorSummary({ items }) {
     <div className="flex flex-col gap-2 text-sm">
       {nfdFlags.length > 0 && (
         <div>
-          <span className="font-medium text-amber-700 dark:text-amber-400">Non-functioning distractors </span>
+          <span className="font-medium text-[var(--color-warning)]">Non-functioning distractors </span>
           <span className="text-muted-foreground">(selected by &lt;5% of students):</span>
           <span className="ml-1">
             {nfdFlags.map((f) => f.replace("non_functioning_distractor:", "")).join(", ")}
@@ -430,7 +432,7 @@ function DistractorSummary({ items }) {
       )}
       {miskeyFlags.length > 0 && (
         <div>
-          <span className="font-medium text-red-700 dark:text-red-400">Possible miskey suspects </span>
+          <span className="font-medium text-[var(--color-error)]">Possible miskey suspects </span>
           <span className="text-muted-foreground">(high scorers chose distractor more than key):</span>
           <span className="ml-1">
             {miskeyFlags.map((f) => f.replace("miskey_suspect:", "")).join(", ")}
@@ -507,7 +509,7 @@ function ItemAnalysisTab({ testId }) {
     <div className="flex flex-col gap-8">
       {/* Small-cohort notice */}
       {smallCohort && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
+        <div className="rounded-lg border border-[var(--color-warning)]/40 bg-[color-mix(in_oklch,var(--color-warning)_10%,transparent)] px-4 py-3 text-sm text-[var(--color-warning)]">
           <strong>Needs at least 10 graded students for full item analysis.</strong>
           {" "}Currently {cohortSize} student{cohortSize !== 1 ? "s" : ""} graded.
           Difficulty (p-value) is shown; discrimination, point-biserial, and KR-20 require a larger cohort.
@@ -516,13 +518,13 @@ function ItemAnalysisTab({ testId }) {
 
       {/* KR-20 reliability */}
       {kr20Display != null && (
-        <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">
           <div>
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Reliability (KR-20)
             </span>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-bold tabular-nums">{kr20Display}</span>
+              <span className="text-2xl font-bold tabular">{kr20Display}</span>
               <span className="text-sm text-muted-foreground">{kr20Label}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -536,15 +538,15 @@ function ItemAnalysisTab({ testId }) {
       {items.length > 0 && (
         <div>
           <h3 className="mb-3 text-sm font-semibold">Per-item psychometrics</h3>
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">Q#</TableHead>
-                  <TableHead className="w-28">Difficulty (p)</TableHead>
-                  <TableHead className="w-28">Discrimination</TableHead>
-                  <TableHead className="w-32">Point-biserial</TableHead>
-                  <TableHead>Flags</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={`${HEAD_CLASS} w-12`}>Q#</TableHead>
+                  <TableHead className={`${HEAD_CLASS} w-28`}>Difficulty (p)</TableHead>
+                  <TableHead className={`${HEAD_CLASS} w-28`}>Discrimination</TableHead>
+                  <TableHead className={`${HEAD_CLASS} w-32`}>Point-biserial</TableHead>
+                  <TableHead className={HEAD_CLASS}>Flags</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -555,28 +557,28 @@ function ItemAnalysisTab({ testId }) {
                     pVal == null
                       ? ""
                       : pVal > 0.9
-                      ? "text-blue-600"
+                      ? "text-[var(--color-info)]"
                       : pVal < 0.2
-                      ? "text-red-500"
+                      ? "text-[var(--color-error)]"
                       : "text-foreground"
                   return (
                     <TableRow key={item.q_pos ?? idx}>
-                      <TableCell className="font-mono text-sm text-muted-foreground">
+                      <TableCell className="font-mono text-xs tabular text-muted-foreground">
                         {(item.q_pos ?? idx) + 1}
                       </TableCell>
-                      <TableCell className={`tabular-nums font-medium ${pColour}`}>
+                      <TableCell className={`tabular font-medium ${pColour}`}>
                         {pDisplay}
                       </TableCell>
-                      <TableCell className="tabular-nums text-sm">
+                      <TableCell className="tabular text-sm">
                         {smallCohort ? (
-                          <span className="text-muted-foreground text-xs">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         ) : (
                           fmtMetric(item.discrimination)
                         )}
                       </TableCell>
-                      <TableCell className="tabular-nums text-sm">
+                      <TableCell className="tabular text-sm">
                         {smallCohort ? (
-                          <span className="text-muted-foreground text-xs">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         ) : (
                           fmtMetric(item.point_biserial)
                         )}
@@ -687,33 +689,33 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-6 space-y-2">
+      <PageShell>
+        <div className="space-y-2">
           <Skeleton className="h-7 w-40" />
           <Skeleton className="h-4 w-56" />
         </div>
-        <StatGridSkeleton count={5} className="mb-8 lg:grid-cols-5" />
-        <Skeleton className="mb-6 h-48 w-full rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-xl" />
-      </div>
+        <CardGridSkeleton count={5} className="lg:grid-cols-5" />
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-48 w-full rounded-lg" />
+      </PageShell>
     )
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <PageShell>
         <ErrorState
           title="Couldn't load analytics"
           description={error}
           onRetry={fetchSummary}
         />
-      </div>
+      </PageShell>
     )
   }
 
   if (!summary) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <PageShell>
         <EmptyState
           icon={BarChart2}
           title="No analytics data"
@@ -724,7 +726,7 @@ export default function Analytics() {
             </Button>
           }
         />
-      </div>
+      </PageShell>
     )
   }
 
@@ -733,31 +735,19 @@ export default function Analytics() {
   const median = summary.median
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        className="mb-2"
-        items={[
-          { label: "Classes", to: "/classes" },
-          { label: test.title ?? `Test #${testId}` },
-          { label: "Analytics" },
-        ]}
+    <PageShell>
+      <PageHeader
+        title="Analytics"
+        description={test.title ?? `Test #${testId}`}
       />
 
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold">Analytics</h1>
-        <p className="text-sm text-muted-foreground">
-          {test.title ?? `Test #${testId}`}
-        </p>
-      </div>
-
-      {/* Test lifecycle rail (replaces the old sibling button row) */}
-      <TestProgressRail testId={testId} current="analytics" className="mb-6" />
-
       <Tabs defaultValue="overview">
-        {/* Horizontally scrollable on mobile so all tabs (incl. Item Analysis)
-            stay reachable without wrapping/clipping. */}
-        <TabsList className="mb-6 max-w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Underline skin; horizontally scrollable on mobile so all tabs
+            (incl. Item Analysis) stay reachable without wrapping/clipping. */}
+        <TabsList
+          variant="line"
+          className="mb-6 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           <TabsTrigger value="overview" className="flex-none shrink-0">Overview</TabsTrigger>
           <TabsTrigger value="questions" className="flex-none shrink-0">Questions</TabsTrigger>
           <TabsTrigger value="item-analysis" className="flex-none shrink-0">Item Analysis</TabsTrigger>
@@ -845,6 +835,6 @@ export default function Analytics() {
           <ImprovementTab testId={testId} />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   )
 }

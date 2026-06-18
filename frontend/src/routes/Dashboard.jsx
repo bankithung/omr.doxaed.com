@@ -9,7 +9,18 @@ import { listRosters } from "@/api/omr"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StatCard } from "@/components/ui/stat-card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card"
+import {
+  CardGridSkeleton,
+  ListRowSkeleton,
+} from "@/components/ui/skeletons"
 
 const ONBOARDED_KEY = "omrflow_onboarded"
 const WELCOME_DISMISSED_KEY = "omrflow_welcome_dismissed"
@@ -108,43 +119,40 @@ export default function Dashboard() {
   const isNewUser = !loading && classes.length === 0 && rosters.length === 0
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 p-8">
+    <PageShell>
       {/* One-time "Workspace ready" banner — shown post-onboarding */}
       {!welcomeDismissed && (
-        <div className="flex items-start justify-between gap-4 rounded-xl border border-[var(--color-success)]/40 bg-card p-4">
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-[var(--color-success)]/40 bg-card p-4">
           <div>
             <p className="text-sm font-semibold text-[var(--color-success)]">Workspace ready</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               You're all set. Create a test or scan sheets whenever you're ready.
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={dismissWelcome}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Dismiss"
           >
             <X className="size-4" />
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {`Welcome back${user?.full_name ? `, ${user.full_name}` : ""}`}
-          </h1>
-          <p className="text-sm text-muted-foreground">Here's your grading workspace.</p>
-        </div>
-        <Button asChild>
-          <Link to="/classes">Create a test</Link>
-        </Button>
-      </div>
+      <PageHeader
+        title={`Welcome back${user?.full_name ? `, ${user.full_name}` : ""}`}
+        description="Here's your grading workspace."
+        actions={
+          <Button asChild>
+            <Link to="/classes">Create a test</Link>
+          </Button>
+        }
+      />
 
       {/* Verify-email banner */}
       {user && user.is_email_verified === false && (
-        <div className="rounded-xl border p-4 text-sm text-[var(--color-warning)]">
+        <div className="rounded-lg border border-border p-4 text-sm text-[var(--color-warning)]">
           Verify your email to unlock all features.{" "}
           <Link
             to="/profile"
@@ -161,7 +169,7 @@ export default function Dashboard() {
           <Link
             key={to}
             to={to}
-            className="rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/50"
+            className="motion-safe-card rounded-lg border border-border bg-card p-4 outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <Icon className="size-5 text-muted-foreground" />
             <h2 className="mt-3 text-base font-semibold">{title}</h2>
@@ -171,44 +179,49 @@ export default function Dashboard() {
       </div>
 
       {/* Stat row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Classes"
-          value={loading ? undefined : classes.length}
-          sub={
-            <Link to="/classes" className="text-primary hover:underline">
-              View all
-            </Link>
-          }
-        />
-        <StatCard
-          label="Rosters"
-          value={loading ? undefined : rosters.length}
-          sub={
-            <Link to="/rosters" className="text-primary hover:underline">
-              View all
-            </Link>
-          }
-        />
-        <StatCard
-          label="Organizations"
-          value={loading ? undefined : orgs.length}
-          sub={
-            <Link to="/organizations" className="text-primary hover:underline">
-              Manage
-            </Link>
-          }
-        />
-        <StatCard
-          label="Account"
-          value={user?.email ?? "—"}
-          sub={user?.is_email_verified ? "Verified" : "Unverified"}
-        />
-      </div>
+      {loading ? (
+        <CardGridSkeleton count={4} />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Classes"
+            value={classes.length}
+            sub={
+              <Link to="/classes" className="text-primary hover:underline">
+                View all
+              </Link>
+            }
+          />
+          <StatCard
+            label="Rosters"
+            value={rosters.length}
+            sub={
+              <Link to="/rosters" className="text-primary hover:underline">
+                View all
+              </Link>
+            }
+          />
+          <StatCard
+            label="Organizations"
+            value={orgs.length}
+            sub={
+              <Link to="/organizations" className="text-primary hover:underline">
+                Manage
+              </Link>
+            }
+          />
+          <StatCard
+            label="Account"
+            value={user?.email ?? "—"}
+            sub={user?.is_email_verified ? "Verified" : "Unverified"}
+          />
+        </div>
+      )}
 
       {/* Recent lists OR global new-user empty state */}
       {isNewUser ? (
         <EmptyState
+          icon={FileText}
           title="Create your first test"
           description="Add a class, build an MCQ test, then generate and scan sheets to auto-grade."
           action={
@@ -220,23 +233,25 @@ export default function Dashboard() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Recent classes */}
-          <div className="rounded-xl border">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="text-lg font-semibold">Recent classes</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent classes</CardTitle>
               <Link to="/classes" className="text-sm text-primary hover:underline">
                 View all
               </Link>
-            </div>
+            </CardHeader>
             {loading ? (
-              <div className="space-y-2 px-4 py-4" aria-hidden="true">
+              <div className="py-2" aria-hidden="true">
                 {[0, 1, 2].map((i) => (
-                  <Skeleton key={i} className="h-9 w-full" />
+                  <ListRowSkeleton key={i} />
                 ))}
               </div>
             ) : classes.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground">No classes yet.</p>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">No classes yet.</p>
+              </CardContent>
             ) : (
-              <ul className="divide-y">
+              <ul className="divide-y divide-border">
                 {classes.slice(0, 5).map((cls) => (
                   <li key={cls.id}>
                     <Link
@@ -252,26 +267,28 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
-          </div>
+          </Card>
 
           {/* Recent rosters */}
-          <div className="rounded-xl border">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="text-lg font-semibold">Recent rosters</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent rosters</CardTitle>
               <Link to="/rosters" className="text-sm text-primary hover:underline">
                 View all
               </Link>
-            </div>
+            </CardHeader>
             {loading ? (
-              <div className="space-y-2 px-4 py-4" aria-hidden="true">
+              <div className="py-2" aria-hidden="true">
                 {[0, 1, 2].map((i) => (
-                  <Skeleton key={i} className="h-9 w-full" />
+                  <ListRowSkeleton key={i} />
                 ))}
               </div>
             ) : rosters.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground">No rosters yet.</p>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">No rosters yet.</p>
+              </CardContent>
             ) : (
-              <ul className="divide-y">
+              <ul className="divide-y divide-border">
                 {rosters.slice(0, 5).map((roster) => (
                   <li key={roster.id}>
                     <Link
@@ -284,9 +301,9 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

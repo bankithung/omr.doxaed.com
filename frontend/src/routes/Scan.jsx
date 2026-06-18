@@ -34,8 +34,8 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
-import { TestProgressRail } from "@/components/ui/test-progress-rail"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
 import {
   Select,
   SelectContent,
@@ -85,12 +85,12 @@ function SheetCard({ sheet, onOpenCorrector }) {
 
   return (
     <div
-      className={`rounded-xl border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
+      className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
         st === "attention"
-          ? "border-amber-300 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-900/10"
+          ? "border-[var(--color-warning)]/40 bg-[color-mix(in_oklch,var(--color-warning)_8%,transparent)]"
           : st === "error"
-          ? "border-red-300 bg-red-50/40 dark:border-red-800 dark:bg-red-900/10"
-          : "border-border bg-background"
+          ? "border-[var(--color-error)]/40 bg-[color-mix(in_oklch,var(--color-error)_8%,transparent)]"
+          : "border-border bg-card"
       }`}
     >
       <div className="flex flex-col gap-1 min-w-0">
@@ -104,7 +104,7 @@ function SheetCard({ sheet, onOpenCorrector }) {
             {sheet.flags.map((f, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs bg-[color-mix(in_oklch,var(--color-warning)_15%,transparent)] text-[var(--color-warning)]"
               >
                 <FlagIcon className="size-2.5" />
                 {f}
@@ -113,7 +113,7 @@ function SheetCard({ sheet, onOpenCorrector }) {
           </div>
         )}
         {sheet.error_reason && (
-          <span className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+          <span className="mt-0.5 text-xs text-[var(--color-error)]">
             {sheet.error_reason}
           </span>
         )}
@@ -141,7 +141,7 @@ function SheetCard({ sheet, onOpenCorrector }) {
 
 function SheetCardSkeleton() {
   return (
-    <div className="rounded-xl border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col gap-2 flex-1">
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-4 w-48" />
@@ -172,26 +172,26 @@ function ResultsSummary({ sheets }) {
       : null
 
   return (
-    <div className="flex flex-wrap gap-4 rounded-xl border p-4 bg-muted/30">
+    <div className="flex flex-wrap gap-6 rounded-lg border border-border bg-surface-2 p-4">
       <div className="flex flex-col">
-        <span className="text-2xl font-bold">{total}</span>
+        <span className="text-2xl font-bold tabular">{total}</span>
         <span className="text-xs text-muted-foreground">sheets</span>
       </div>
       {needsAttention > 0 && (
         <div className="flex flex-col">
-          <span className="text-2xl font-bold text-amber-600">{needsAttention}</span>
+          <span className="text-2xl font-bold tabular text-[var(--color-warning)]">{needsAttention}</span>
           <span className="text-xs text-muted-foreground">need attention</span>
         </div>
       )}
       {errors > 0 && (
         <div className="flex flex-col">
-          <span className="text-2xl font-bold text-red-600">{errors}</span>
+          <span className="text-2xl font-bold tabular text-[var(--color-error)]">{errors}</span>
           <span className="text-xs text-muted-foreground">errors</span>
         </div>
       )}
       {avgScore != null && (
         <div className="flex flex-col">
-          <span className="text-2xl font-bold">{Math.round(avgScore * 100)}%</span>
+          <span className="text-2xl font-bold tabular">{Math.round(avgScore * 100)}%</span>
           <span className="text-xs text-muted-foreground">avg score</span>
         </div>
       )}
@@ -238,11 +238,11 @@ function DropZone({ onFiles, disabled, files }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !disabled && fileInputRef.current?.click()}
-        className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 transition-colors cursor-pointer ${
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 transition-colors ${
           dragging
             ? "border-primary bg-primary/5"
             : disabled
-            ? "border-border opacity-50 cursor-not-allowed"
+            ? "cursor-not-allowed border-border opacity-50"
             : "border-border hover:border-primary hover:bg-muted/30"
         }`}
         role="button"
@@ -476,25 +476,15 @@ export default function Scan() {
   const needsAttentionCount = sheets.filter((s) => sheetStatus(s) === "attention").length
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      {/* Breadcrumb + lifecycle rail — only when scoped to a specific test */}
-      {routeTestId && (
-        <>
-          <Breadcrumb
-            className="mb-2"
-            items={[
-              { label: "Classes", to: "/classes" },
-              { label: `Test #${routeTestId}` },
-              { label: "Scan" },
-            ]}
-          />
-          <h1 className="mb-4 text-2xl font-bold">Scan OMR sheets</h1>
-          <TestProgressRail testId={routeTestId} current="scan" className="mb-6" />
-        </>
-      )}
-      {!routeTestId && (
-        <h1 className="mb-6 text-2xl font-bold">Scan OMR sheets</h1>
-      )}
+    <PageShell>
+      <PageHeader
+        title="Scan OMR sheets"
+        description={
+          routeTestId
+            ? "Upload scanned sheets and auto-grade. Use the lifecycle panel to move between stages."
+            : "Pick a test, then upload scanned sheets to auto-grade."
+        }
+      />
 
       {/* ── Upload section ── */}
       {!done && (
@@ -567,8 +557,8 @@ export default function Scan() {
       {done && batch && (
         <div className="flex flex-col gap-5">
           {/* Completion banner — contains "processed successfully" for E2E */}
-          <div className="flex items-start gap-3 rounded-xl border border-border bg-background p-4">
-            <CheckCircle2Icon className="size-5 text-green-600 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
+            <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-[var(--color-success)]" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">
                 {batch.processed} of {batch.total} sheet(s) processed successfully.
@@ -598,7 +588,7 @@ export default function Scan() {
               <button
                 type="button"
                 onClick={() => setFilter("all")}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors min-h-[40px] ${
+                className={`min-h-[40px] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
                   filter === "all"
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-transparent hover:bg-muted"
@@ -609,7 +599,7 @@ export default function Scan() {
               <button
                 type="button"
                 onClick={() => setFilter("attention")}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors min-h-[40px] ${
+                className={`min-h-[40px] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
                   filter === "attention"
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-transparent hover:bg-muted"
@@ -629,7 +619,7 @@ export default function Scan() {
                 <SheetCardSkeleton />
               </>
             ) : filteredSheets.length === 0 ? (
-              <div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+              <div className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
                 {filter === "attention"
                   ? "No sheets need attention."
                   : "No sheets found for this batch."}
@@ -654,6 +644,6 @@ export default function Scan() {
         onClose={() => setCorrectorOpen(false)}
         onRegraded={handleRegraded}
       />
-    </div>
+    </PageShell>
   )
 }
