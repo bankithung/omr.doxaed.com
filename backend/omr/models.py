@@ -238,8 +238,11 @@ class OmrSheet(models.Model):
     )
     roll_value = models.CharField(max_length=32, blank=True, default="")
 
-    # Generated PDF
+    # Generated PDF (OMR answer sheet)
     pdf_file = models.FileField(upload_to="omr_sheets/", null=True, blank=True)
+
+    # Per-student shuffled question paper (PII-bearing — served via authenticated endpoint only)
+    question_paper_file = models.FileField(upload_to="omr_papers/", null=True, blank=True)
 
     # Status
     assembly_status = models.CharField(

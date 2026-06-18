@@ -10,6 +10,7 @@ class OmrSheetSerializer(serializers.ModelSerializer):
     """Read serializer for OmrSheet."""
 
     pdf_url = serializers.SerializerMethodField()
+    question_paper_url = serializers.SerializerMethodField()
 
     class Meta:
         model = OmrSheet
@@ -21,6 +22,7 @@ class OmrSheetSerializer(serializers.ModelSerializer):
             "page_count",
             "assembly_status",
             "pdf_url",
+            "question_paper_url",
             "question_order",
             "answer_key",
             "template_descriptor",
@@ -35,6 +37,22 @@ class OmrSheetSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.pdf_file.url)
         return obj.pdf_file.url
 
+    def get_question_paper_url(self, obj):
+        """
+        Return the AUTHENTICATED endpoint URL for the question paper.
+        Never exposes the raw /media/ path — callers must fetch via this
+        authenticated endpoint which enforces scope.
+        Returns None when no question paper has been generated yet.
+        """
+        if not obj.question_paper_file:
+            return None
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(
+                f"/api/v1/omr/sheets/{obj.pk}/question-paper/"
+            )
+        return f"/api/v1/omr/sheets/{obj.pk}/question-paper/"
+
 
 class GenerateSerializer(serializers.Serializer):
     """Validates the generation request body."""
@@ -43,6 +61,13 @@ class GenerateSerializer(serializers.Serializer):
     roster = serializers.IntegerField()
     shuffle_questions = serializers.BooleanField(default=False)
     shuffle_options = serializers.BooleanField(default=False)
+    emit_question_paper = serializers.BooleanField(default=False)
+
+    def validate(self, attrs):
+        # S7 / Phase 3a: force emit_question_paper when shuffle is on
+        if attrs.get("shuffle_questions") or attrs.get("shuffle_options"):
+            attrs["emit_question_paper"] = True
+        return attrs
 
 
 class ScanBatchSerializer(serializers.ModelSerializer):
