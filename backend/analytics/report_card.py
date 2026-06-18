@@ -115,9 +115,11 @@ def _resolve_org_name(test) -> str:
         except Exception:
             return ""
     elif test.user_id:
+        # Solo (non-org) test: prefer the user's real name. NEVER fall back to
+        # their login email — this header is on a card shared with students/parents.
         u = test.user
-        full = getattr(u, "get_full_name", lambda: "")()
-        return full or getattr(u, "email", "") or ""
+        full = getattr(u, "full_name", "") or getattr(u, "get_full_name", lambda: "")()
+        return full or ""
     return ""
 
 
