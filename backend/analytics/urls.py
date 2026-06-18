@@ -38,4 +38,9 @@ urlpatterns = [
         views.export_view,
         name="analytics-export",
     ),
+    path(
+        "analytics/test/<int:test_id>/publish/",
+        views.test_publish_view,
+        name="analytics-test-publish",
+    ),
 ]

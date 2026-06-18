@@ -2,6 +2,7 @@
 analytics.views — read-only analytics endpoints, scoped by test__user.
 """
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
@@ -10,7 +11,7 @@ from rest_framework.response import Response
 
 from assessments.models import Test
 from common.scope import scope_filter
-from results.models import StudentResult
+from results.models import StudentResult, PublicResultShare
 from analytics.services import improvement, student_detail, test_summary
 from analytics.models import TestProfile, StudentProfile
 
@@ -172,6 +173,87 @@ def bulk_report_cards_view(request, test_id: int):
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def test_publish_view(request, test_id: int):
+    """
+    GET/PUT /api/v1/analytics/test/{test_id}/publish/
+
+    Teacher-only (auth required, owner-scoped).
+
+    GET  — return current publish settings (defaults if no share exists yet).
+    PUT  — create/update the share. Body:
+           {is_published, access_mode, access_code?, show_names, show_leaderboard}
+           Returns {slug, public_url, is_published, access_mode, show_names, show_leaderboard}.
+    """
+    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+
+    if request.method == "GET":
+        try:
+            share = test.public_share
+        except PublicResultShare.DoesNotExist:
+            return Response({
+                "slug": None,
+                "public_url": None,
+                "is_published": False,
+                "access_mode": PublicResultShare.ACCESS_OPEN,
+                "show_names": True,
+                "show_leaderboard": False,
+            })
+        return Response(_share_response(share))
+
+    # PUT — create or update
+    data = request.data
+    try:
+        share = test.public_share
+    except PublicResultShare.DoesNotExist:
+        share = PublicResultShare(test=test)
+
+    # Validate access_mode
+    access_mode = data.get("access_mode", share.access_mode or PublicResultShare.ACCESS_OPEN)
+    if access_mode not in (PublicResultShare.ACCESS_OPEN, PublicResultShare.ACCESS_CODE):
+        return Response(
+            {"detail": "access_mode must be 'open' or 'code'."},
+            status=400,
+        )
+
+    share.is_published = bool(data.get("is_published", share.is_published))
+    share.access_mode = access_mode
+    share.show_names = bool(data.get("show_names", share.show_names))
+    share.show_leaderboard = bool(data.get("show_leaderboard", share.show_leaderboard))
+
+    # Hash the access_code if provided and mode is 'code'
+    if access_mode == PublicResultShare.ACCESS_CODE:
+        raw_code = data.get("access_code")
+        if raw_code:
+            share.set_access_code(raw_code)
+        elif not share.access_code_hash:
+            return Response(
+                {"detail": "access_code is required when access_mode is 'code'."},
+                status=400,
+            )
+    else:
+        # Clear hash when switching to open mode
+        share.access_code_hash = None
+
+    share.save()
+    return Response(_share_response(share))
+
+
+def _share_response(share: PublicResultShare) -> dict:
+    """Serialise a PublicResultShare for the teacher API."""
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+    public_url = f"{frontend_url}/r/{share.slug}"
+    return {
+        "slug": share.slug,
+        "public_url": public_url,
+        "is_published": share.is_published,
+        "access_mode": share.access_mode,
+        "show_names": share.show_names,
+        "show_leaderboard": share.show_leaderboard,
+    }
 
 
 @api_view(["GET"])

@@ -125,6 +125,7 @@ REST_FRAMEWORK = {
         "register": "5/min",
         "password_reset": "5/min",
         "verify_email": "10/min",
+        "public_lookup": "30/min",
     },
 }
 

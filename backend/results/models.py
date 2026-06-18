@@ -1,5 +1,63 @@
+import secrets
+
+from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from django.db import models
+
+
+class PublicResultShare(models.Model):
+    """
+    Teacher-controlled public portal for sharing test results.
+
+    A OneToOne to Test — one share record per test.
+    The slug is random and unguessable (secrets.token_urlsafe(12)).
+    When access_mode='code', access_code_hash stores a Django password hash;
+    never store plaintext.
+    """
+
+    ACCESS_OPEN = "open"
+    ACCESS_CODE = "code"
+    ACCESS_MODE_CHOICES = [
+        (ACCESS_OPEN, "Open (roll number only)"),
+        (ACCESS_CODE, "Code (roll + access code)"),
+    ]
+
+    test = models.OneToOneField(
+        "assessments.Test",
+        on_delete=models.CASCADE,
+        related_name="public_share",
+    )
+    slug = models.CharField(max_length=64, unique=True, db_index=True)
+    is_published = models.BooleanField(default=False)
+    access_mode = models.CharField(
+        max_length=8,
+        choices=ACCESS_MODE_CHOICES,
+        default=ACCESS_OPEN,
+    )
+    access_code_hash = models.CharField(max_length=255, null=True, blank=True)
+    show_names = models.BooleanField(default=True)
+    show_leaderboard = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"PublicResultShare test={self.test_id} slug={self.slug} published={self.is_published}"
+
+    @staticmethod
+    def generate_slug():
+        return secrets.token_urlsafe(12)
+
+    def set_access_code(self, plaintext: str) -> None:
+        """Hash and store the access code. Never stores plaintext."""
+        self.access_code_hash = make_password(plaintext)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self.generate_slug()
+        super().save(*args, **kwargs)
 
 
 class StudentResult(models.Model):
