@@ -236,7 +236,7 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
     await step("upload-and-grade", async () => {
       await page.goto(`${FRONTEND}/tests/${testId}/scan`)
       const files = manifest.flatMap((m) => m.files)
-      await page.locator('input[type="file"]').setInputFiles(files)
+      await page.locator('input[type="file"]').first().setInputFiles(files)
       await page.getByRole("button", { name: /Upload & scan/ }).click()
       await page.getByText("processed successfully", { exact: false }).first().waitFor({ timeout: 90000 })
       await shot(page, browserName, "08-scanned")
@@ -330,7 +330,7 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
         const t = py("make-scan-tampered", String(testId), outDir)
         if (!t.file) throw new Error("tampered scan not produced")
         await page.goto(`${FRONTEND}/tests/${testId}/scan`)
-        await page.locator('input[type="file"]').setInputFiles([t.file])
+        await page.locator('input[type="file"]').first().setInputFiles([t.file])
         await page.getByRole("button", { name: /Upload & scan/ }).click()
         await page.getByText("processed successfully", { exact: false }).first().waitFor({ timeout: 90000 })
         await page.goto(`${FRONTEND}/tests/${testId}/review`)
