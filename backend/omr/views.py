@@ -2,11 +2,18 @@
 omr.views — Generation endpoint + OmrSheet list + scan upload + batch progress.
 
 POST /api/v1/omr/generate/
-    Body: {test, roster, shuffle_questions=false, shuffle_options=false}
-    Returns 201: {sheets: [...], batch_pdf_url: str, count: int}
+    Body: {test, roster, shuffle_questions=false, shuffle_options=false,
+           emit_question_paper=false}
+    Returns 201: {sheets: [...], batch_pdf_url: str, count: int,
+                  batch_paper_url: str|null}
+    NOTE: emit_question_paper is auto-forced True when shuffle is on.
 
 GET /api/v1/omr/sheets/?test=<id>
     Returns paginated list of OmrSheets scoped to request.user.
+
+GET /api/v1/omr/sheets/<id>/question-paper/
+    Authenticated, scoped endpoint — streams the per-student question paper PDF.
+    Only the sheet owner/org can access it.  Anonymous → 403/404.
 
 POST /api/v1/omr/scan/
     Multipart: test (id) + files (one or more images/PDFs)
@@ -25,6 +32,7 @@ import fitz  # PyMuPDF
 import numpy as np
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -38,6 +46,7 @@ from omr.codes import make_sheet_code
 from omr.geometry import build_template
 from omr.generator import render_sheet_pdf
 from omr.models import GenerationEvent, OmrSheet, ScanBatch, ScanEvent, ScanJob
+from omr.question_paper import render_question_paper_pdf
 from omr.serializers import GenerateSerializer, OmrSheetSerializer, ScanBatchSerializer
 from omr.shuffle import build_sheet_plan
 from organizations.models import Organization
@@ -90,6 +99,7 @@ class GenerateView(APIView):
         roster_id = data["roster"]
         shuffle_questions = data["shuffle_questions"]
         shuffle_options = data["shuffle_options"]
+        emit_question_paper = data["emit_question_paper"]  # auto-forced True when shuffle on
 
         # ---- ownership validation ----------------------------------------
         try:
@@ -268,7 +278,8 @@ class GenerateView(APIView):
 
         # ---- per-student sheet generation --------------------------------
         created_sheets = []
-        per_student_pdfs = []  # list of bytes
+        per_student_pdfs = []   # list of bytes (OMR sheets)
+        per_student_papers = [] # list of bytes (question papers, when emit flag set)
 
         for student in students:
             seed = _derive_seed(test.id, student.id)
@@ -332,9 +343,18 @@ class GenerateView(APIView):
                 },
             )
 
-            # Save per-student PDF file
+            # Save per-student OMR PDF file
             pdf_filename = f"omr_sheets/{sheet_code}.pdf"
             omr_sheet.pdf_file.save(pdf_filename, ContentFile(pdf_bytes), save=True)
+
+            # Generate and save question paper when emit flag is set
+            if emit_question_paper:
+                paper_bytes = render_question_paper_pdf(omr_sheet)
+                paper_filename = f"omr_papers/{sheet_code}-paper.pdf"
+                omr_sheet.question_paper_file.save(
+                    paper_filename, ContentFile(paper_bytes), save=True
+                )
+                per_student_papers.append(paper_bytes)
 
             created_sheets.append(omr_sheet)
 
@@ -348,16 +368,36 @@ class GenerateView(APIView):
         batch_bytes = out_doc.tobytes()
         out_doc.close()
 
-        # Save batch PDF to MEDIA
+        # Save batch OMR PDF to MEDIA
+        from django.core.files.storage import default_storage
         batch_filename = f"omr_batches/{test.id}-{uuid.uuid4().hex}.pdf"
         batch_content = ContentFile(batch_bytes)
-
-        # Use Django's default storage to save
-        from django.core.files.storage import default_storage
         batch_path = default_storage.save(batch_filename, batch_content)
         batch_url = request.build_absolute_uri(
             f"/media/{batch_path.replace(chr(92), '/')}"
         )
+
+        # Merge and save batch question paper PDF (when papers were generated)
+        batch_paper_url = None
+        if per_student_papers:
+            paper_doc = fitz.open()
+            for paper_bytes in per_student_papers:
+                src = fitz.open(stream=paper_bytes, filetype="pdf")
+                paper_doc.insert_pdf(src)
+                src.close()
+            batch_paper_bytes = paper_doc.tobytes()
+            paper_doc.close()
+
+            paper_batch_filename = f"omr_papers/batch-{test.id}-{uuid.uuid4().hex}.pdf"
+            paper_batch_content = ContentFile(batch_paper_bytes)
+            paper_batch_path = default_storage.save(paper_batch_filename, paper_batch_content)
+            # Transient URL pointing to the authenticated batch paper endpoint.
+            # NOTE: batch papers are served via /media/ for now (transient download link
+            # after generation). Individual per-student papers use the authenticated
+            # /api/v1/omr/sheets/<id>/question-paper/ endpoint.
+            batch_paper_url = request.build_absolute_uri(
+                f"/media/{paper_batch_path.replace(chr(92), '/')}"
+            )
 
         # ---- record GenerationEvent (solo only) -------------------------
         # Org-context events were already reserved under the per-org lock above
@@ -372,14 +412,15 @@ class GenerateView(APIView):
             created_sheets, many=True, context={"request": request}
         ).data
 
-        return Response(
-            {
-                "sheets": sheet_data,
-                "batch_pdf_url": batch_url,
-                "count": len(created_sheets),
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        resp_data = {
+            "sheets": sheet_data,
+            "batch_pdf_url": batch_url,
+            "count": len(created_sheets),
+        }
+        if batch_paper_url is not None:
+            resp_data["batch_paper_url"] = batch_paper_url
+
+        return Response(resp_data, status=status.HTTP_201_CREATED)
 
 
 class OmrSheetListView(generics.ListAPIView):
@@ -598,3 +639,54 @@ class ScanBatchDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return ScanBatch.objects.filter(scope_filter(self.request, "test__"))
+
+
+class OmrSheetQuestionPaperView(APIView):
+    """
+    GET /api/v1/omr/sheets/<pk>/question-paper/
+
+    Authenticated, scoped endpoint — streams the per-student question paper PDF.
+
+    Security (S1):
+    - Requires authentication (IsAuthenticated).
+    - Enforces owner/org scope via scope_filter("test__") so a member of a
+      different user/org cannot access another user's paper.
+    - Returns 404 (not 403) when the sheet exists but is outside scope, to
+      avoid leaking whether the sheet id exists.
+    - Returns 404 when question_paper_file is not set (no paper generated yet).
+
+    TODO Phase 5: add visibility_q(request, folder_prefix="test__class_group__folder__")
+    to the queryset filter when folder-level sharing is introduced.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        # Scope-filter through the test owner chain
+        qs = OmrSheet.objects.filter(
+            scope_filter(request, "test__"),
+            pk=pk,
+        )
+        try:
+            omr_sheet = qs.get()
+        except OmrSheet.DoesNotExist:
+            raise Http404
+
+        if not omr_sheet.question_paper_file:
+            raise Http404
+
+        try:
+            f = omr_sheet.question_paper_file.open("rb")
+        except (FileNotFoundError, OSError):
+            raise Http404
+
+        sheet_code = omr_sheet.sheet_code or str(pk)
+        response = FileResponse(
+            f,
+            content_type="application/pdf",
+            as_attachment=False,
+        )
+        response["Content-Disposition"] = (
+            f'inline; filename="{sheet_code}-paper.pdf"'
+        )
+        return response
