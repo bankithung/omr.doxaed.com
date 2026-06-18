@@ -124,8 +124,9 @@ function Sheet({ i, n, p }) {
   const depth = Math.abs(spread) // 0 (front/centre) … (n-1)/2 (back)
   const isFront = depth < 0.5 // exactly the centre sheet on odd n
   const s = 0.27 + i * 0.012 // per-card stagger so the deal blooms (within Act 2)
-  // spread in % of the sheet's own width; symmetric so the fan stays centred.
-  const x = useTransform(p, [s, s + 0.22], ["0%", `${spread * 64}%`])
+  // spread in VIEWPORT WIDTH units (vw) so the fan scales with the screen and
+  // never clips on mobile — symmetric about centre so the fan stays centred.
+  const x = useTransform(p, [s, s + 0.22], ["0vw", `${spread * 9}vw`])
   const y = useTransform(p, [s, s + 0.22], [0, depth * depth * 4])
   const rotate = useTransform(p, [s, s + 0.22], [0, spread * 6])
   const scale = useTransform(p, [0.27, 0.36, 0.54], [0.9, 1, 0.9])
@@ -135,37 +136,42 @@ function Sheet({ i, n, p }) {
   const student = STUDENTS[i % STUDENTS.length]
 
   return (
-    <motion.div
-      style={{
-        x, y, rotate, scale, opacity,
-        transformOrigin: "50% 100%",
-        zIndex: n - Math.round(depth),
-      }}
-      className="absolute w-[clamp(110px,26vw,200px)] will-change-transform"
+    // Outer wrapper fills the stage and CENTERS the sheet (flex), so the fan is
+    // symmetric about the true centre. The inner motion sheet fans out from there
+    // (a bare `absolute` sheet would anchor to its top-left static position and
+    // make the whole fan drift left — the bug this fixes).
+    <div
+      className="absolute inset-0 flex items-center justify-center"
+      style={{ zIndex: n - Math.round(depth) }}
     >
-      <div className="glass relative rounded-2xl p-1.5">
-        <div className="mb-1 flex items-center justify-between gap-1 px-1.5 pt-1">
-          <span className="truncate text-[11px] font-semibold text-white">{student.name}</span>
-          {isFront ? (
-            <span
-              className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-neutral-950"
-              style={{ backgroundColor: student.tint }}
-            >
-              Shuffled
-            </span>
-          ) : (
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: student.tint, opacity: 0.85 }}
-            />
-          )}
+      <motion.div
+        style={{ x, y, rotate, scale, opacity, transformOrigin: "50% 100%" }}
+        className="w-[clamp(138px,30vw,260px)] will-change-transform"
+      >
+        <div className="glass relative rounded-2xl p-1.5 sm:p-2">
+          <div className="mb-1 flex items-center justify-between gap-1 px-1.5 pt-1">
+            <span className="truncate text-[11px] font-semibold text-white sm:text-xs">{student.name}</span>
+            {isFront ? (
+              <span
+                className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-neutral-950 sm:text-[10px]"
+                style={{ backgroundColor: student.tint }}
+              >
+                Shuffled
+              </span>
+            ) : (
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: student.tint, opacity: 0.85 }}
+              />
+            )}
+          </div>
+          <ShuffledSheet seed={i + 1} name={student.name} roll={String(101 + i)} tint={student.tint} className="aspect-[200/264]" />
+          {/* depth dimmer — fades back sheets so the front card pops */}
+          <motion.div aria-hidden style={{ opacity: dim }} className="pointer-events-none absolute inset-0 rounded-2xl bg-[#05060a]" />
         </div>
-        <ShuffledSheet seed={i + 1} name={student.name} roll={String(101 + i)} tint={student.tint} className="aspect-[200/264]" />
-        {/* depth dimmer — fades back sheets so the front card pops */}
-        <motion.div aria-hidden style={{ opacity: dim }} className="pointer-events-none absolute inset-0 rounded-2xl bg-[#05060a]" />
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
 
@@ -184,7 +190,7 @@ function Act2FanOut({ p }) {
     <motion.div style={{ opacity, visibility, zIndex }} className={[STAGE, "flex-col"].join(" ")}>
       <div className={STAGE_INNER}>
         {/* fan stage — fixed-ratio box centred in the viewport; sheets fan symmetrically */}
-        <div className="relative flex h-[clamp(260px,52vh,520px)] w-full items-center justify-center">
+        <div className="relative flex h-[clamp(300px,56vh,560px)] w-full items-center justify-center">
           {/* merge-node pulse behind the deck */}
           <motion.div
             aria-hidden

@@ -361,9 +361,10 @@ export function AnalyticsDashboard({ p }) {
         </span>
       </motion.div>
 
-      {/* charts row: auto-fit cells that never overlap — 1 col (phone) →
-          2 col (tablet) → 4 even cells filling the width (desktop). */}
-      <div className="mt-4 grid min-h-0 flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]">
+      {/* charts row: 2×2 on phone/tablet so the act fits the pinned viewport
+          height, 4 across on desktop. overflow-hidden guards against any
+          sub-pixel spill into the stat row below. */}
+      <div className="mt-3 grid min-h-0 flex-1 grid-cols-2 gap-2.5 overflow-hidden sm:mt-4 sm:gap-3 lg:grid-cols-4">
         {/* gauge + percentile */}
         <motion.div style={gaugeR} className="glass flex min-w-0 flex-col items-center justify-center gap-3.5 rounded-2xl p-3.5 sm:p-4">
           <ScoreGauge p={p} />
@@ -407,8 +408,8 @@ export function AnalyticsDashboard({ p }) {
         </motion.div>
       </div>
 
-      {/* honest insight tiles — own non-overlapping auto-fit row */}
-      <div className="mt-3 grid shrink-0 gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))]">
+      {/* honest insight tiles — own non-overlapping row: 2-up phone, 4-up ≥sm */}
+      <div className="mt-2.5 grid shrink-0 grid-cols-2 gap-2.5 sm:mt-3 sm:grid-cols-4">
         <StatTile p={p} from={0.9} to={0.99} value={15} label="Top score" suffix="/15" icon="trophy" accent="text-amber-300" />
         <StatTile p={p} from={0.9} to={0.99} value={28} label="Q12 hardest" suffix="%" icon="target" accent="text-rose-300" delay={0.01} />
         <StatTile p={p} from={0.9} to={0.99} value={4} label="To review" icon="task" accent="text-cyan-300" delay={0.02} />
