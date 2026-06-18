@@ -1,5 +1,5 @@
-﻿"""
-omr.views â€” Generation endpoint + OmrSheet list + scan upload + batch progress.
+"""
+omr.views — Generation endpoint + OmrSheet list + scan upload + batch progress.
 
 POST /api/v1/omr/generate/
     Body: {test, roster, shuffle_questions=false, shuffle_options=false,
@@ -12,8 +12,8 @@ GET /api/v1/omr/sheets/?test=<id>
     Returns paginated list of OmrSheets scoped to request.user.
 
 GET /api/v1/omr/sheets/<id>/question-paper/
-    Authenticated, scoped endpoint â€” streams the per-student question paper PDF.
-    Only the sheet owner/org can access it.  Anonymous â†’ 403/404.
+    Authenticated, scoped endpoint — streams the per-student question paper PDF.
+    Only the sheet owner/org can access it.  Anonymous → 403/404.
 
 POST /api/v1/omr/scan/
     Multipart: test (id) + files (one or more images/PDFs)
@@ -75,7 +75,7 @@ def _derive_seed(test_id: int, student_id: int) -> int:
     digest = hashlib.sha256(raw).digest()
     # Take first 8 bytes as big-endian unsigned, then mask to signed 63-bit range
     unsigned = int.from_bytes(digest[:8], "big")
-    return unsigned & _BIGINT_MAX  # clears the sign bit â†’ always positive and â‰¤ BIGINT_MAX
+    return unsigned & _BIGINT_MAX  # clears the sign bit → always positive and ≤ BIGINT_MAX
 
 
 class GenerateView(APIView):
@@ -276,11 +276,11 @@ class GenerateView(APIView):
             for q in questions_list
         ]
 
-        # ---- resolve branding once (Test â†’ Org fallback) -----------------
+        # ---- resolve branding once (Test → Org fallback) -----------------
         # Resolution order per S4/Phase-3b spec:
         #   1. Test.sheet_heading / Test.logo (explicit test-level branding)
-        #   2. If brand_inherit_org=True â†’ Org.default_sheet_heading / Org.logo
-        #   3. If nothing â†’ no branding (sheet unchanged, descriptor identical)
+        #   2. If brand_inherit_org=True → Org.default_sheet_heading / Org.logo
+        #   3. If nothing → no branding (sheet unchanged, descriptor identical)
         resolved_heading = ""
         resolved_logo_path = ""
         resolved_logo_position = "left"
@@ -354,7 +354,7 @@ class GenerateView(APIView):
                 "roll_label": "Roll No.",
                 "roll_digits": roll_digits,
                 "roll_value": roll_value,
-                # Phase 3b branding (absent â†’ generator skips branding, output unchanged)
+                # Phase 3b branding (absent → generator skips branding, output unchanged)
                 "heading": resolved_heading,
                 "logo_path": resolved_logo_path,
                 "logo_position": resolved_logo_position,
@@ -367,7 +367,7 @@ class GenerateView(APIView):
             # NOT 500 on the deterministic sheet_code's unique constraint. The
             # seed is derived purely from (test, student), so a regenerated
             # sheet is logically identical (same answer_key / shuffle / code);
-            # update the existing row in place â€” this preserves its pk, so any
+            # update the existing row in place — this preserves its pk, so any
             # ScanJobs / StudentResults that reference it stay valid.
             omr_sheet, _created = OmrSheet.objects.update_or_create(
                 test=test,
@@ -423,7 +423,7 @@ class GenerateView(APIView):
         )
 
         # Per-student question papers are saved + authenticated above. The BATCH
-        # is a multi-student PII document â€” do NOT write it to /media/ (which is
+        # is a multi-student PII document — do NOT write it to /media/ (which is
         # served unauthenticated). Expose it ONLY via the authenticated,
         # scope-checked batch endpoint, which merges the papers on demand.
         batch_paper_url = None
@@ -506,9 +506,9 @@ class ScanUploadView(APIView):
 
     Validates that the test belongs to request.user.
     Creates a ScanBatch; for each file:
-        - If PDF â†’ split into per-page PNG images via fitz.
-        - Else â†’ treat as a single image.
-    For each image page â†’ creates a ScanJob, saves the image bytes,
+        - If PDF → split into per-page PNG images via fitz.
+        - Else → treat as a single image.
+    For each image page → creates a ScanJob, saves the image bytes,
     then EAGERLY calls process_scan_job (synchronous in dev).
     Updates batch total/processed; sets batch status=done.
     Returns 201 {batch_id, total, processed}.
@@ -545,7 +545,7 @@ class ScanUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ---- scan gate (org-aware) â€” RESERVE before processing ------------
+        # ---- scan gate (org-aware) — RESERVE before processing ------------
         # Serialize concurrent same-org uploads with a per-org row lock,
         # re-check the monthly cap under the lock, and record the ScanEvent
         # (reserve the slot) BEFORE the expensive pipeline work, so two
@@ -597,7 +597,7 @@ class ScanUploadView(APIView):
                 try:
                     per_page = _pdf_to_images(file_bytes)
                 except Exception as e:
-                    # PDF parse failure â€” skip this file gracefully
+                    # PDF parse failure — skip this file gracefully
                     continue
                 for i, png_bytes in enumerate(per_page):
                     page_counter += 1
@@ -621,7 +621,7 @@ class ScanUploadView(APIView):
         # Enqueue one task per page image.
         # Under CELERY_TASK_ALWAYS_EAGER=True (dev / tests) .delay() runs
         # the task synchronously inline, so all processing is complete before
-        # the loop returns â€” identical behaviour to the old direct call.
+        # the loop returns — identical behaviour to the old direct call.
         # In production (CELERY_TASK_ALWAYS_EAGER=False) the tasks run async
         # on a worker and the batch status is updated by the task itself.
         from omr.tasks import process_scan_job_task
@@ -633,7 +633,7 @@ class ScanUploadView(APIView):
 
         # Under eager mode the tasks have already run; refresh to get the
         # final counters set by the tasks.  In async mode this reflects
-        # whatever has been processed so far (usually 0 â€” the client polls
+        # whatever has been processed so far (usually 0 — the client polls
         # /scan-batches/<id>/ for progress).
         batch.refresh_from_db()
 
@@ -678,7 +678,7 @@ class OmrSheetQuestionPaperView(APIView):
     """
     GET /api/v1/omr/sheets/<pk>/question-paper/
 
-    Authenticated, scoped endpoint â€” streams the per-student question paper PDF.
+    Authenticated, scoped endpoint — streams the per-student question paper PDF.
 
     Security (S1):
     - Requires authentication (IsAuthenticated).
@@ -729,7 +729,7 @@ class OmrTestQuestionPapersBatchView(APIView):
     """
     GET /api/v1/omr/tests/<pk>/question-papers/
 
-    Authenticated, scoped â€” merges ALL of the test's per-student question papers
+    Authenticated, scoped — merges ALL of the test's per-student question papers
     into one PDF and streams it. This is a multi-student PII document, so it is
     served ONLY here (auth + owner/org scope), never via /media/ or AllowAny.
 
@@ -799,23 +799,74 @@ class ScanBatchSheetsView(APIView):
         except ScanBatch.DoesNotExist:
             raise Http404
 
-        jobs = ScanJob.objects.filter(batch=batch).order_by("page_no", "id")
+        from results.models import StudentResult
+
+        jobs = list(
+            ScanJob.objects.filter(batch=batch)
+            .select_related("omr_sheet", "omr_sheet__student")
+            .order_by("page_no", "id")
+        )
+        sheet_ids = [j.omr_sheet_id for j in jobs if j.omr_sheet_id]
+        results_by_sheet = {
+            r.omr_sheet_id: r
+            for r in StudentResult.objects.filter(omr_sheet_id__in=sheet_ids)
+        }
+
         data = []
         for job in jobs:
-            warped_url = None
-            if job.warped_file:
-                warped_url = request.build_absolute_uri(
-                    f"/api/v1/omr/scan-jobs/{job.id}/warped/"
-                )
+            sheet = job.omr_sheet
+            warped_url = (
+                request.build_absolute_uri(f"/api/v1/omr/scan-jobs/{job.id}/warped/")
+                if job.warped_file else None
+            )
+
+            student = None
+            answer_key = None
+            bubble_geometry = []
+            sheet_code = None
+            if sheet is not None:
+                sheet_code = sheet.sheet_code
+                answer_key = sheet.answer_key
+                if sheet.student_id:
+                    st = sheet.student  # full_name decrypts on access
+                    student = {"id": st.id, "name": st.full_name or "", "roll": st.roll_number}
+                # Flatten answer-bubble geometry -> [{q_pos, label, cx, cy, r}]
+                for entry in (sheet.template_descriptor or {}).get("answer_bubbles", []):
+                    qp = entry.get("q_pos")
+                    for opt in entry.get("options", []):
+                        bubble_geometry.append({
+                            "q_pos": qp, "label": opt.get("label"),
+                            "cx": opt.get("cx"), "cy": opt.get("cy"), "r": opt.get("r"),
+                        })
+
+            sr = results_by_sheet.get(job.omr_sheet_id)
+            student_result = None
+            if sr is not None:
+                student_result = {
+                    "id": sr.id, "score": float(sr.score), "max_score": float(sr.max_score),
+                    "correct_count": sr.correct_count, "wrong_count": sr.wrong_count,
+                    "blank_count": sr.blank_count, "needs_review": sr.needs_review,
+                }
+
+            reads = job.reads or {}
             data.append({
                 "id": job.id,
+                "scan_job_id": job.id,
                 "page_no": job.page_no,
                 "status": job.status,
                 "confidence": job.confidence,
                 "error_reason": job.error_reason,
-                "reads": job.reads,
+                "flags": reads.get("flags", []),
+                "detected": reads,
+                "reads": reads,
                 "omr_sheet_id": job.omr_sheet_id,
+                "sheet_code": sheet_code,
+                "student": student,
+                "student_result": student_result,
+                "answer_key": answer_key,
+                "bubble_geometry": bubble_geometry,
                 "warped_image_url": warped_url,
+                "warped_url": warped_url,
             })
         return Response(data, status=status.HTTP_200_OK)
 

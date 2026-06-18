@@ -24,6 +24,42 @@ export function getBatch(id) {
 }
 
 /**
+ * Get per-sheet correction objects for a batch.
+ * @param {number|string} id  batch_id
+ * @returns {Promise<Array>}  array of sheet objects
+ */
+export function getBatchSheets(id) {
+  return api.get(`/omr/scan-batches/${id}/sheets/`).then((r) => r.data)
+}
+
+/**
+ * Regrade a sheet with corrected answers.
+ * @param {number|string} omrSheetId
+ * @param {Object} answers  {q_pos: [labels]}
+ * @param {string|null} roll  optional corrected roll
+ * @param {number|null} studentId  optional corrected student_id
+ * @returns {Promise<Object>}  updated student_result
+ */
+export function regradeSheet(omrSheetId, answers, roll = null, studentId = null) {
+  const body = { answers }
+  if (roll != null) body.roll = roll
+  if (studentId != null) body.student_id = studentId
+  return api.post(`/omr/sheets/${omrSheetId}/regrade/`, body).then((r) => r.data)
+}
+
+/**
+ * Fetch the warped sheet PNG as an authenticated blob URL.
+ * @param {number|string} scanJobId
+ * @returns {Promise<string>}  object URL (caller must revoke when done)
+ */
+export async function getWarpedImageUrl(scanJobId) {
+  const resp = await api.get(`/omr/scan-jobs/${scanJobId}/warped/`, {
+    responseType: "blob",
+  })
+  return URL.createObjectURL(resp.data)
+}
+
+/**
  * List StudentResults for a test.
  * @param {number|string} testId
  * @returns {Promise<object>}  paginated or array
