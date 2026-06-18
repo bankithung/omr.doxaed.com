@@ -3,6 +3,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from common.logo_validators import validate_logo_image
+
 
 class Organization(models.Model):
     """Phase 0 skeleton. Membership, invitations, roles, audit log arrive in Phase 6.
@@ -16,6 +18,13 @@ class Organization(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # --- Phase 3b branding fields (additive, optional) ---
+    logo = models.ImageField(
+        upload_to="branding/org_logos/", null=True, blank=True,
+        validators=[validate_logo_image],
+    )
+    default_sheet_heading = models.CharField(max_length=255, blank=True, default="")
 
     def __str__(self):
         return self.name

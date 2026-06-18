@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from common.models import OwnerScopedModel
+from common.logo_validators import validate_logo_image
 
 
 class ClassGroup(OwnerScopedModel):
@@ -42,6 +43,26 @@ class Test(OwnerScopedModel):
     mode = models.CharField(max_length=32, choices=MODE_CHOICES, default=MODE_STANDARD)
     template_spec = models.JSONField(default=dict, blank=True)
     default_options = models.PositiveSmallIntegerField(default=4)
+
+    # --- Phase 3b branding fields (additive, optional) ---
+    LOGO_POSITION_LEFT = "left"
+    LOGO_POSITION_CENTER = "center"
+    LOGO_POSITION_RIGHT = "right"
+    LOGO_POSITION_CHOICES = [
+        (LOGO_POSITION_LEFT, "Left"),
+        (LOGO_POSITION_CENTER, "Center"),
+        (LOGO_POSITION_RIGHT, "Right"),
+    ]
+
+    sheet_heading = models.CharField(max_length=255, blank=True, default="")
+    logo = models.ImageField(
+        upload_to="branding/logos/", null=True, blank=True,
+        validators=[validate_logo_image],
+    )
+    logo_position = models.CharField(
+        max_length=8, choices=LOGO_POSITION_CHOICES, default=LOGO_POSITION_LEFT
+    )
+    brand_inherit_org = models.BooleanField(default=True)
 
     class Meta(OwnerScopedModel.Meta):
         ordering = ["-created_at", "id"]
