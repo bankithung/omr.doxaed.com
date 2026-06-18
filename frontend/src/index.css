@@ -155,3 +155,73 @@
     @apply font-sans;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   CINEMATIC LANDING — scoped to the `.landing-cinematic` wrapper ONLY.
+   Gradients/glow/marquee live here exclusively; the rest of the app stays flat
+   and uses the light theme tokens above. Nothing here leaks outside this class.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* infinite marquee tracks (duplicated, translateX -50% via -100% of a clone pair) */
+@keyframes landing-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+@keyframes landing-marquee-rev {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+.landing-cinematic .marquee {
+  animation: landing-marquee 38s linear infinite;
+}
+.landing-cinematic .marquee-rev {
+  animation: landing-marquee-rev 38s linear infinite;
+}
+.landing-cinematic .marquee:hover,
+.landing-cinematic .marquee-rev:hover {
+  animation-play-state: paused;
+}
+
+/* conic border beam for the CTA (Variant A accent) */
+@property --landing-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes landing-spin {
+  to { --landing-angle: 360deg; }
+}
+.landing-cinematic .landing-beam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--landing-angle),
+    rgba(99, 102, 241, 0) 0%,
+    #6366f1 18%,
+    #2dd4bf 32%,
+    rgba(99, 102, 241, 0) 50%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  animation: landing-spin 4s linear infinite;
+  pointer-events: none;
+}
+
+/* reduced-motion backstop: kill the scroll-jack + all landing motion */
+@media (prefers-reduced-motion: reduce) {
+  .landing-cinematic [data-scrolljack] {
+    position: static !important;
+    height: auto !important;
+    transform: none !important;
+  }
+  .landing-cinematic .marquee,
+  .landing-cinematic .marquee-rev,
+  .landing-cinematic .landing-beam::before {
+    animation: none !important;
+  }
+}
