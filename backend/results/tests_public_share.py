@@ -392,8 +392,9 @@ class ShowNamesMaskingTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         name = resp.data["name"]
         self.assertNotEqual(name, "Alice Smith")
-        self.assertTrue(name.startswith("A"))
-        self.assertIn("*", name)
+        # Fully opaque — must NOT leak the first initial (re-identification risk).
+        self.assertEqual(name, "***")
+        self.assertNotIn("A", name)
 
 
 # ---------------------------------------------------------------------------
@@ -653,3 +654,48 @@ class ThrottleConfigTest(TestCase):
         # Should be a non-empty string like "30/min"
         self.assertIsInstance(rate, str)
         self.assertGreater(len(rate), 0)
+
+
+# ---------------------------------------------------------------------------
+# Security-review hardening (input validation, masking, throttle enforcement)
+# ---------------------------------------------------------------------------
+
+class SecurityHardeningTest(TestCase):
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # reset per-IP throttle counters between tests
+        self.teacher = _make_user("teach_sec@example.com")
+        self.test = _make_test(self.teacher)
+        self.student = _make_student(self.teacher, roll="R001", name="Alice Smith")
+        self.sheet = _make_sheet(self.test, sheet_code="SHEET-S1")
+        self.result = _make_result(self.test, self.student, self.sheet, score=75, max_score=100)
+        self.client = APIClient()
+
+    def test_roll_number_list_is_rejected_not_500(self):
+        """A JSON list/dict for roll_number must be a clean 400, never a 500/ORM error."""
+        share = _make_share(self.test, is_published=True)
+        url = f"/api/v1/public/r/{share.slug}/lookup/"
+        resp = self.client.post(url, {"roll_number": ["R001", "R002"]}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        resp2 = self.client.post(url, {"roll_number": {"x": 1}}, format="json")
+        self.assertEqual(resp2.status_code, 400)
+
+    def test_masked_name_does_not_leak_initial(self):
+        """With show_names=False the name is fully opaque ('***'), not 'A***'."""
+        share = _make_share(self.test, is_published=True, show_names=False)
+        url = f"/api/v1/public/r/{share.slug}/lookup/"
+        resp = self.client.post(url, {"roll_number": "R001"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["name"], "***")
+
+    def test_lookup_is_throttled_after_limit(self):
+        """The public_lookup throttle (30/min) blocks the 31st request from one IP."""
+        from django.core.cache import cache
+        cache.clear()
+        share = _make_share(self.test, is_published=True)
+        url = f"/api/v1/public/r/{share.slug}/lookup/"
+        last = None
+        for _ in range(31):
+            last = self.client.post(url, {"roll_number": "NOPE"}, format="json")
+        self.assertEqual(last.status_code, 429)

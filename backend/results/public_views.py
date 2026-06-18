@@ -24,7 +24,7 @@ from django.contrib.auth.hashers import check_password
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.throttling import SimpleRateThrottle
 
 from analytics.models import StudentProfile
 from results.models import PublicResultShare, StudentResult
@@ -46,10 +46,9 @@ def _get_published_share(slug: str):
 
 
 def _mask_name(full_name: str) -> str:
-    """Return a masked version: first letter + *** e.g. 'A***'."""
-    if not full_name:
-        return "***"
-    return full_name[0] + "***"
+    """Fully opaque mask. Do NOT leak the first initial: combined with rank/score
+    on a leaderboard it enables re-identification in small cohorts."""
+    return "***"
 
 
 def _student_name(share: PublicResultShare, student) -> str:
@@ -72,11 +71,32 @@ def _org_name(share: PublicResultShare) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Shared throttle — every public portal endpoint shares one strict per-IP bucket
+# so neither lookup, meta, nor leaderboard can be hammered to scrape the cohort.
+# ---------------------------------------------------------------------------
+
+class PublicLookupThrottle(SimpleRateThrottle):
+    """Per-IP throttle for ALL public portal endpoints (rate from the
+    'public_lookup' scope in settings). MUST subclass SimpleRateThrottle, not
+    ScopedRateThrottle: the latter reads `throttle_scope` off the view, which a
+    function-based view doesn't have, so it would silently no-op and leave the
+    endpoint unthrottled."""
+    scope = "public_lookup"
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Portal meta
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([PublicLookupThrottle])
 def portal_meta(request, slug: str):
     """
     GET /api/v1/public/r/<slug>/
@@ -94,14 +114,6 @@ def portal_meta(request, slug: str):
         "access_mode": share.access_mode,
         "show_leaderboard": share.show_leaderboard,
     })
-
-
-# ---------------------------------------------------------------------------
-# Lookup throttle — custom class so the scope is set per-request
-# ---------------------------------------------------------------------------
-
-class PublicLookupThrottle(ScopedRateThrottle):
-    scope = "public_lookup"
 
 
 # ---------------------------------------------------------------------------
@@ -132,13 +144,20 @@ def portal_lookup(request, slug: str):
     if share is None:
         return Response({"detail": "Not found."}, status=404)
 
+    # Type-validate before any ORM use: a JSON list/dict for roll_number would
+    # otherwise reach the ORM (TypeError/500, or a 500 traceback under DEBUG).
     roll_number = request.data.get("roll_number", "")
+    if not isinstance(roll_number, str):
+        return Response({"detail": "roll_number must be a string."}, status=400)
+    roll_number = roll_number.strip()
     if not roll_number:
         return Response({"detail": "roll_number is required."}, status=400)
 
     # Access-code check BEFORE any roll lookup to prevent oracle attacks.
     if share.access_mode == PublicResultShare.ACCESS_CODE:
-        provided_code = request.data.get("access_code", "") or ""
+        provided_code = request.data.get("access_code", "")
+        if not isinstance(provided_code, str):
+            provided_code = ""
         # check_password is constant-time even when provided_code is empty.
         code_ok = bool(share.access_code_hash) and check_password(
             provided_code, share.access_code_hash
@@ -186,6 +205,7 @@ def portal_lookup(request, slug: str):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([PublicLookupThrottle])
 def portal_leaderboard(request, slug: str):
     """
     GET /api/v1/public/r/<slug>/leaderboard/
