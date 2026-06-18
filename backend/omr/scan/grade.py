@@ -57,6 +57,7 @@ def _scheme_tuple(
     partial_marking: bool,
     multiple_correct_allowed: bool,
     qualify_pct,
+    multi_mark_policy: str = "review",
 ) -> tuple:
     return (
         Decimal(str(marks_per_correct)),
@@ -65,6 +66,7 @@ def _scheme_tuple(
         bool(partial_marking),
         bool(multiple_correct_allowed),
         Decimal(str(qualify_pct)) if qualify_pct is not None else None,
+        multi_mark_policy or "review",
     )
 
 
@@ -75,9 +77,10 @@ def _resolve_default_scheme(omr_sheet) -> tuple:
         return _scheme_tuple(
             ms.marks_per_correct, ms.negative_marks_per_wrong,
             "flat", ms.partial_marking, ms.multiple_correct_allowed, None,
+            getattr(ms, "multi_mark_policy", "review"),
         )
     except Exception:
-        return _scheme_tuple(Decimal("1"), Decimal("0"), "flat", False, False, None)
+        return _scheme_tuple(Decimal("1"), Decimal("0"), "flat", False, False, None, "review")
 
 
 def _build_section_cache(question_order: list) -> dict:
@@ -118,6 +121,7 @@ def _scheme_for_qpos(
         sms.marks_per_correct, sms.negative_marks_per_wrong,
         sms.negative_kind, sms.partial_marking,
         sms.multiple_correct_allowed, sms.qualify_pct,
+        getattr(sms, "multi_mark_policy", "review"),
     )
 
 
@@ -183,22 +187,32 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
 
     def _tentative_score(q_pos: int, scheme: tuple) -> Decimal:
         """Pre-grade a q_pos for choose-k ranking (does NOT affect counts)."""
-        marks_pc, neg_marks, neg_kind, partial, multiple, _ = scheme
+        marks_pc, neg_marks, neg_kind, partial, multiple, _, mm_policy = scheme
         correct_labels = set(answer_key.get(str(q_pos), []))
         marked = set(aggregated_reads.get(q_pos, []))
         if not marked:
             return Decimal("0")
         if marked == correct_labels:
             return marks_pc
+
+        def _wrong():
+            return -(marks_pc * neg_marks) if neg_kind == "fractional" else -neg_marks
+
+        # Overmark policies mirror the main loop so best-K ranking is consistent.
+        is_overmark = len(marked) > len(correct_labels)
+        if is_overmark and mm_policy == "disqualify":
+            return Decimal("0")
+        if is_overmark and mm_policy == "correct_if_all":
+            return marks_pc if (correct_labels and correct_labels <= marked) else _wrong()
+        if is_overmark and mm_policy == "wrong":
+            return _wrong()
+        # "review" policy or non-overmark: legacy scoring
         if partial and multiple and correct_labels:
             inter = len(marked & correct_labels)
             over = len(marked - correct_labels)
             raw = (Decimal(inter) - Decimal(over)) / Decimal(len(correct_labels)) * marks_pc
             return max(Decimal("0"), raw)
-        # Wrong
-        if neg_kind == "fractional":
-            return -(marks_pc * neg_marks)
-        return -neg_marks
+        return _wrong()
 
     # Determine ignored q_pos (surplus attempted beyond K)
     ignored_qpos: set[int] = set()
@@ -221,6 +235,7 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
                     sms.marks_per_correct, sms.negative_marks_per_wrong,
                     sms.negative_kind, sms.partial_marking,
                     sms.multiple_correct_allowed, sms.qualify_pct,
+                    getattr(sms, "multi_mark_policy", "review"),
                 )
 
             attempted = [qp for qp in qpos_list if aggregated_reads.get(qp)]
@@ -248,6 +263,7 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
     correct_count = 0
     wrong_count = 0
     blank_count = 0
+    disqualified_count = 0
     per_question = []
 
     sec_subtotal: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
@@ -289,13 +305,24 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
 
         # ---- Resolve scheme ----
         section, scheme = _scheme_for_qpos(q_pos, question_order, default_scheme, section_cache)
-        marks_per_correct, neg_marks, neg_kind, partial, multiple, qualify_pct = scheme
+        marks_per_correct, neg_marks, neg_kind, partial, multiple, qualify_pct, multi_mark_policy = scheme
 
         if section is not None:
             section_key = section.key
 
         # qualifying-only section: score goes into sec_subtotal only, not aggregate
         is_qualifying_only = (qualify_pct is not None)
+
+        # ---- Multiple-mark (overmark) detection ----
+        # The student filled MORE bubbles than there are correct answers (the
+        # "2/3/4 coloured dots" case). The teacher's multi_mark_policy decides
+        # the outcome. Under "review" we keep legacy scoring but flag the
+        # question for manual review; other policies score it directly.
+        is_overmark = bool(marked) and len(marked) > len(correct)
+        mm_review = is_overmark and multi_mark_policy == "review"
+
+        def _wrong_penalty():
+            return (marks_per_correct * neg_marks) if neg_kind == "fractional" else neg_marks
 
         # ---- Grade this question ----
         if not marked:
@@ -311,6 +338,26 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
             status = "correct"
             if section is not None:
                 sec_correct[section.id] += 1
+        elif is_overmark and multi_mark_policy == "disqualify":
+            # Voided: zero, no penalty, counted separately (not correct/wrong).
+            disqualified_count += 1
+            question_score = Decimal("0")
+            status = "disqualified"
+        elif is_overmark and multi_mark_policy == "correct_if_all" and correct and correct <= marked:
+            # Lenient: all correct options are present (extras ignored) → full marks.
+            is_correct = True
+            correct_count += 1
+            question_score = marks_per_correct
+            status = "correct"
+            if section is not None:
+                sec_correct[section.id] += 1
+        elif is_overmark and multi_mark_policy in ("wrong", "correct_if_all"):
+            # "wrong" policy, or "correct_if_all" that failed the include test.
+            wrong_count += 1
+            question_score = -_wrong_penalty()
+            status = "wrong"
+            if section is not None:
+                sec_wrong[section.id] += 1
         elif partial and multiple and correct:
             inter = len(marked & correct)
             over = len(marked - correct)
@@ -330,11 +377,7 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
                     sec_wrong[section.id] += 1
         else:
             wrong_count += 1
-            if neg_kind == "fractional":
-                penalty = marks_per_correct * neg_marks
-            else:
-                penalty = neg_marks
-            question_score = -penalty
+            question_score = -_wrong_penalty()
             status = "wrong"
             if section is not None:
                 sec_wrong[section.id] += 1
@@ -358,7 +401,8 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
             "q_pos": q_pos,
             "marked": list(marked),
             "is_correct": is_correct,
-            "flagged": flagged,
+            "flagged": mm_review or flagged,
+            "needs_review": mm_review,
             "section": section_key,
             "score": question_score,
             "status": status,
@@ -451,6 +495,7 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
         "correct_count": correct_count,
         "wrong_count": wrong_count,
         "blank_count": blank_count,
+        "disqualified_count": disqualified_count,
         "per_question": per_question,
         "sections": sections_out,
         "qualified_all": qualified_all,

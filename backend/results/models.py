@@ -88,6 +88,7 @@ class StudentResult(models.Model):
     correct_count = models.IntegerField(default=0)
     wrong_count = models.IntegerField(default=0)
     blank_count = models.IntegerField(default=0)
+    disqualified_count = models.IntegerField(default=0)
     needs_review = models.BooleanField(default=False)
     section_breakdown = models.JSONField(default=dict, blank=True)
     qualified_all = models.BooleanField(default=True)

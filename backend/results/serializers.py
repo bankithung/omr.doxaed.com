@@ -31,6 +31,7 @@ class StudentResultSerializer(serializers.ModelSerializer):
             "correct_count",
             "wrong_count",
             "blank_count",
+            "disqualified_count",
             "needs_review",
             "graded_at",
             "responses",

@@ -71,12 +71,30 @@ class Test(OwnerScopedModel):
         return self.title
 
 
+# --- Configurable multiple-mark (overmark) handling --------------------------
+# Applied when a student fills MORE bubbles than there are correct answers on a
+# question (the "2/3/4 coloured dots" case). The teacher chooses the outcome.
+MULTI_MARK_REVIEW = "review"            # flag for manual review (default, safe)
+MULTI_MARK_DISQUALIFY = "disqualify"    # void: score 0, no penalty, no review
+MULTI_MARK_WRONG = "wrong"              # count wrong, apply negative marking
+MULTI_MARK_CORRECT_IF_ALL = "correct_if_all"  # lenient: correct if all keys marked
+MULTI_MARK_POLICY_CHOICES = [
+    (MULTI_MARK_REVIEW, "Flag for manual review"),
+    (MULTI_MARK_DISQUALIFY, "Disqualify (zero, no penalty)"),
+    (MULTI_MARK_WRONG, "Mark wrong (apply negative)"),
+    (MULTI_MARK_CORRECT_IF_ALL, "Correct if all correct options marked"),
+]
+
+
 class MarkingScheme(models.Model):
     test = models.OneToOneField(Test, on_delete=models.CASCADE, related_name="marking_scheme")
     marks_per_correct = models.DecimalField(max_digits=6, decimal_places=2, default=1)
     negative_marks_per_wrong = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     partial_marking = models.BooleanField(default=False)
     multiple_correct_allowed = models.BooleanField(default=False)
+    multi_mark_policy = models.CharField(
+        max_length=16, choices=MULTI_MARK_POLICY_CHOICES, default=MULTI_MARK_REVIEW
+    )
 
 
 class Section(models.Model):
@@ -142,6 +160,9 @@ class SectionMarkingScheme(models.Model):
     partial_marking = models.BooleanField(default=False)
     multiple_correct_allowed = models.BooleanField(default=False)
     qualify_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    multi_mark_policy = models.CharField(
+        max_length=16, choices=MULTI_MARK_POLICY_CHOICES, default=MULTI_MARK_REVIEW
+    )
 
     def __str__(self):
         return f"SectionMarkingScheme section={self.section_id}"

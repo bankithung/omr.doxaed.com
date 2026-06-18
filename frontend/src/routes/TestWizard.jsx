@@ -225,6 +225,51 @@ function LogoPositionPicker({ value, onChange }) {
   )
 }
 
+// ─── MultiMarkPolicyPicker — custom radio-card group (NO native select) ───────
+// Decides what happens when a student fills MORE bubbles than there are correct
+// answers (the "2/3/4 coloured dots" case).
+function MultiMarkPolicyPicker({ value, onChange }) {
+  const OPTIONS = [
+    { value: "review", label: "Flag for review", hint: "Send overmarked questions to the review queue to resolve manually." },
+    { value: "disqualify", label: "Disqualify", hint: "Void the question — zero marks, no negative penalty." },
+    { value: "wrong", label: "Mark wrong", hint: "Count as incorrect and apply negative marking." },
+    { value: "correct_if_all", label: "Correct if key marked", hint: "Accept if every correct option is marked (extras ignored)." },
+  ]
+  return (
+    <div className="space-y-2">
+      {OPTIONS.map((opt) => {
+        const active = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={active}
+            className={[
+              "w-full text-left rounded-lg border p-3 transition-colors min-h-[40px]",
+              active
+                ? "border-primary ring-1 ring-primary bg-background"
+                : "border-border bg-background hover:bg-muted",
+            ].join(" ")}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">{opt.label}</span>
+              <span
+                className={[
+                  "h-4 w-4 shrink-0 rounded-full border",
+                  active ? "border-primary bg-primary" : "border-muted-foreground/40",
+                ].join(" ")}
+                aria-hidden="true"
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{opt.hint}</p>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Step 1 – Details ─────────────────────────────────────────────────────────
 function StepDetails({ classId, onNext }) {
   const [title, setTitle] = useState("")
@@ -234,6 +279,7 @@ function StepDetails({ classId, onNext }) {
   const [negativeMarks, setNegativeMarks] = useState("0")
   const [partialMarking, setPartialMarking] = useState(false)
   const [multipleCorrectAllowed, setMultipleCorrectAllowed] = useState(false)
+  const [multiMarkPolicy, setMultiMarkPolicy] = useState("review")
   const [saving, setSaving] = useState(false)
 
   // Phase 3c: branding
@@ -264,6 +310,7 @@ function StepDetails({ classId, onNext }) {
           negative_marks_per_wrong: parseFloat(negativeMarks) || 0,
           partial_marking: partialMarking,
           multiple_correct_allowed: multipleCorrectAllowed,
+          multi_mark_policy: multiMarkPolicy,
         }))
         fd.append("sheet_heading", sheetHeading.trim())
         fd.append("logo", logoFile)
@@ -281,6 +328,7 @@ function StepDetails({ classId, onNext }) {
             negative_marks_per_wrong: parseFloat(negativeMarks) || 0,
             partial_marking: partialMarking,
             multiple_correct_allowed: multipleCorrectAllowed,
+            multi_mark_policy: multiMarkPolicy,
           },
           sheet_heading: sheetHeading.trim(),
           logo_position: logoPosition,
@@ -405,6 +453,11 @@ function StepDetails({ classId, onNext }) {
           <Label htmlFor="multiple-correct" className="cursor-pointer">
             Multiple correct answers allowed
           </Label>
+        </div>
+
+        <div className="space-y-1.5 pt-1">
+          <Label>If a student marks too many bubbles</Label>
+          <MultiMarkPolicyPicker value={multiMarkPolicy} onChange={setMultiMarkPolicy} />
         </div>
       </div>
 

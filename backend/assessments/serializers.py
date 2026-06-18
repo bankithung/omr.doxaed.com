@@ -23,6 +23,7 @@ class MarkingSchemeSerializer(serializers.ModelSerializer):
             "negative_marks_per_wrong",
             "partial_marking",
             "multiple_correct_allowed",
+            "multi_mark_policy",
         )
 
 
@@ -36,6 +37,7 @@ class SectionMarkingSchemeSerializer(serializers.ModelSerializer):
             "partial_marking",
             "multiple_correct_allowed",
             "qualify_pct",
+            "multi_mark_policy",
         )
 
 

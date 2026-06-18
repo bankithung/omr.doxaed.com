@@ -418,6 +418,7 @@ def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
             "correct_count": grading["correct_count"],
             "wrong_count": grading["wrong_count"],
             "blank_count": grading["blank_count"],
+            "disqualified_count": grading.get("disqualified_count", 0),
             "needs_review": False,
             "section_breakdown": section_breakdown,
             "qualified_all": grading.get("qualified_all", True),
@@ -427,23 +428,19 @@ def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
     # Wipe existing responses and recreate
     result.responses.all().delete()
 
-    # Track whether any question flags triggered review
-    needs_review = False
-    has_double_mark = False
+    # The multi-mark (overmark) review decision is owned by grading and is
+    # policy-aware: a question routes to review ONLY when the teacher's
+    # multi_mark_policy is "review". Other policies (disqualify / wrong /
+    # correct_if_all) resolve the question automatically — no review item.
+    multi_mark_review = False
 
     for pq in grading["per_question"]:
         q_pos = pq["q_pos"]
         marked = pq["marked"]
         is_correct = pq["is_correct"]
-        flagged = pq["flagged"]
-
-        # Check if this q_pos had a flag in ANY job's reads
-        for job in done_jobs:
-            answers = job.reads.get("answers", {})
-            entry = answers.get(str(q_pos), {})
-            if entry.get("flag") == "double_mark":
-                flagged = True
-                has_double_mark = True
+        flagged = bool(pq.get("flagged"))
+        if pq.get("needs_review"):
+            multi_mark_review = True
 
         # Resolve the underlying Question FK from the sheet's question_order.
         # question_order[q_pos] is the Question id in the original (underlying) order.
@@ -461,14 +458,17 @@ def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
             section_id=qpos_to_section_id.get(q_pos),
         )
 
-    # Set needs_review when a double-mark was detected. The ReviewItem itself is
-    # already created per-flag in process_scan_job, so we do NOT create another
-    # here (avoids duplicate double_mark ReviewItems).
-    if has_double_mark:
-        needs_review = True
+    # Create exactly one open double_mark ReviewItem for the sheet when the
+    # policy routes overmark(s) to review. Idempotent across regrades.
+    if multi_mark_review:
+        ReviewItem.objects.get_or_create(
+            omr_sheet=omr_sheet,
+            reason=ReviewItem.REASON_DOUBLE_MARK,
+            resolved=False,
+        )
 
-    # Update needs_review
-    result.needs_review = needs_review
+    # Update needs_review (policy-driven)
+    result.needs_review = multi_mark_review
     result.save(update_fields=["needs_review"])
 
     # Mark sheet as complete
@@ -503,7 +503,9 @@ def _flag_to_reason(flag: str) -> str | None:
         "no_qr": "no_qr",
         "alignment": "alignment",
         "roll_unreadable": "roll_unreadable",
-        "double_mark": "double_mark",
+        # "double_mark" is intentionally NOT mapped: the multi-mark review
+        # decision is policy-aware and owned by _persist_grading_result, which
+        # creates the ReviewItem only when multi_mark_policy == "review".
         "faint": "faint",
         "missing_page": "missing_page",
         # Phase 1B

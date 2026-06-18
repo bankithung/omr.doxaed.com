@@ -1131,11 +1131,13 @@ class GradeSheetUnitTests(TestCase):
     """
 
     class _MockMarkingScheme:
-        def __init__(self, marks_per_correct=1, negative=0, partial=False, multi=False):
+        def __init__(self, marks_per_correct=1, negative=0, partial=False, multi=False,
+                     multi_mark_policy="review"):
             self.marks_per_correct = marks_per_correct
             self.negative_marks_per_wrong = negative
             self.partial_marking = partial
             self.multiple_correct_allowed = multi
+            self.multi_mark_policy = multi_mark_policy
 
     class _MockTest:
         def __init__(self, ms):
@@ -1146,8 +1148,9 @@ class GradeSheetUnitTests(TestCase):
             self.answer_key = answer_key
             self.test = GradeSheetUnitTests._MockTest(ms)
 
-    def _sheet(self, answer_key, marks=1, negative=0, partial=False, multi=False):
-        ms = self._MockMarkingScheme(marks, negative, partial, multi)
+    def _sheet(self, answer_key, marks=1, negative=0, partial=False, multi=False,
+               multi_mark_policy="review"):
+        ms = self._MockMarkingScheme(marks, negative, partial, multi, multi_mark_policy)
         return self._MockSheet(answer_key, ms)
 
     def test_all_correct(self):
@@ -1238,6 +1241,91 @@ class GradeSheetUnitTests(TestCase):
         result = grade_sheet(sheet, {0: ["B"]})
         pq = result["per_question"][0]
         self.assertFalse(pq["is_correct"])
+
+    # ---- Multi-mark (overmark) policy tests (#87) ----------------------------
+
+    def test_multimark_default_review_flags_and_scores_wrong(self):
+        """Default 'review' policy: overmark keeps legacy wrong scoring AND flags
+        the question for review (needs_review=True)."""
+        from omr.scan.grade import grade_sheet
+        from decimal import Decimal
+        answer_key = {"0": ["A"], "1": ["B"]}
+        sheet = self._sheet(answer_key, marks=1, negative=1)  # default review
+        result = grade_sheet(sheet, {0: ["A", "C"], 1: ["B"]})  # q0 overmark
+        pq0 = next(p for p in result["per_question"] if p["q_pos"] == 0)
+        self.assertEqual(pq0["status"], "wrong")
+        self.assertTrue(pq0["needs_review"])
+        self.assertTrue(pq0["flagged"])
+        self.assertEqual(result["wrong_count"], 1)
+        self.assertEqual(result["disqualified_count"], 0)
+        # q1 correct (1) minus q0 penalty (1) → floored 0
+        self.assertEqual(result["score"], Decimal("0"))
+
+    def test_multimark_disqualify_zeroes_without_penalty(self):
+        """'disqualify' policy: overmark → score 0, no penalty, not flagged,
+        counted in disqualified_count (not wrong_count)."""
+        from omr.scan.grade import grade_sheet
+        from decimal import Decimal
+        answer_key = {"0": ["A"], "1": ["B"]}
+        sheet = self._sheet(answer_key, marks=1, negative=1, multi_mark_policy="disqualify")
+        result = grade_sheet(sheet, {0: ["A", "C"], 1: ["B"]})  # q0 overmark, q1 correct
+        pq0 = next(p for p in result["per_question"] if p["q_pos"] == 0)
+        self.assertEqual(pq0["status"], "disqualified")
+        self.assertFalse(pq0["is_correct"])
+        self.assertFalse(pq0["needs_review"])
+        self.assertEqual(result["disqualified_count"], 1)
+        self.assertEqual(result["wrong_count"], 0)
+        # No penalty applied: q1 correct = 1 (q0 contributes 0)
+        self.assertEqual(result["score"], Decimal("1"))
+
+    def test_multimark_wrong_applies_negative_without_review(self):
+        """'wrong' policy: overmark scored wrong with negative marking, no review."""
+        from omr.scan.grade import grade_sheet
+        from decimal import Decimal
+        answer_key = {"0": ["A"], "1": ["B"]}
+        sheet = self._sheet(answer_key, marks=2, negative=1, multi_mark_policy="wrong")
+        result = grade_sheet(sheet, {0: ["A", "C"], 1: ["B"]})
+        pq0 = next(p for p in result["per_question"] if p["q_pos"] == 0)
+        self.assertEqual(pq0["status"], "wrong")
+        self.assertFalse(pq0["needs_review"])
+        self.assertEqual(result["wrong_count"], 1)
+        self.assertEqual(result["disqualified_count"], 0)
+        # q1 correct (2) minus q0 penalty (1) = 1
+        self.assertEqual(result["score"], Decimal("1"))
+
+    def test_multimark_correct_if_all_includes_key(self):
+        """'correct_if_all': overmark that contains every correct option → full marks."""
+        from omr.scan.grade import grade_sheet
+        from decimal import Decimal
+        answer_key = {"0": ["A"]}
+        sheet = self._sheet(answer_key, marks=1, multi_mark_policy="correct_if_all")
+        result = grade_sheet(sheet, {0: ["A", "B"]})  # marked the key + an extra
+        pq0 = result["per_question"][0]
+        self.assertEqual(pq0["status"], "correct")
+        self.assertTrue(pq0["is_correct"])
+        self.assertEqual(result["correct_count"], 1)
+        self.assertEqual(result["score"], Decimal("1"))
+
+    def test_multimark_correct_if_all_missing_key_is_wrong(self):
+        """'correct_if_all': overmark that omits a correct option → wrong."""
+        from omr.scan.grade import grade_sheet
+        answer_key = {"0": ["A"]}
+        sheet = self._sheet(answer_key, marks=1, negative=1, multi_mark_policy="correct_if_all")
+        result = grade_sheet(sheet, {0: ["B", "C"]})  # two marks, neither is the key
+        pq0 = result["per_question"][0]
+        self.assertEqual(pq0["status"], "wrong")
+        self.assertFalse(pq0["is_correct"])
+        self.assertEqual(result["wrong_count"], 1)
+
+    def test_multimark_single_wrong_answer_is_not_overmark(self):
+        """A single (wrong) mark is NOT an overmark — policy does not apply."""
+        from omr.scan.grade import grade_sheet
+        answer_key = {"0": ["A"]}
+        sheet = self._sheet(answer_key, marks=1, multi_mark_policy="disqualify")
+        result = grade_sheet(sheet, {0: ["B"]})  # one mark, wrong
+        pq0 = result["per_question"][0]
+        self.assertEqual(pq0["status"], "wrong")
+        self.assertEqual(result["disqualified_count"], 0)
 
 
 # ===========================================================================
@@ -1777,6 +1865,57 @@ class EndToEndDoubleMarkTest(TestCase):
         self.assertEqual(
             dm_items.count(), 1,
             f"Expected exactly 1 double_mark ReviewItem, got {dm_items.count()}",
+        )
+
+    def test_disqualify_policy_suppresses_review_and_voids_question(self):
+        """
+        With multi_mark_policy='disqualify', a double-marked question is auto-voided:
+        NO double_mark ReviewItem, StudentResult.needs_review=False,
+        disqualified_count=1, and no negative penalty.
+        """
+        import cv2
+        from django.core.files.base import ContentFile
+        from omr.scan.pipeline import simulate_correct_marks, process_scan_job
+        from omr.models import ScanBatch, ScanJob
+        from omr.simulate import simulate_scan
+        from results.models import StudentResult, ReviewItem
+
+        # Flip the test's policy to disqualify
+        ms = self.test.marking_scheme
+        ms.multi_mark_policy = "disqualify"
+        ms.save(update_fields=["multi_mark_policy"])
+
+        correct_marks = simulate_correct_marks(self.omr_sheet)
+        dm_marks = dict(correct_marks)
+        dm_marks[0] = ["A", "B"]  # overmark q_pos=0
+
+        img = simulate_scan(
+            self.descriptor, self.sheet_meta,
+            marked=dm_marks, roll="009",
+            page=0, scale=self.SCALE,
+        )
+        ok, buf = cv2.imencode(".png", img)
+        img_bytes = buf.tobytes()
+
+        batch = ScanBatch.objects.create(test=self.test, created_by=self.user, total=1)
+        job = ScanJob(batch=batch, page_no=1)
+        job.image_file.save("dq_scan.png", ContentFile(img_bytes), save=True)
+
+        process_scan_job(job)
+
+        sr = StudentResult.objects.get(omr_sheet=self.omr_sheet)
+        self.assertFalse(sr.needs_review,
+                         "disqualify policy must NOT route overmark to review")
+        self.assertEqual(sr.disqualified_count, 1)
+
+        dm_items = ReviewItem.objects.filter(
+            omr_sheet=self.omr_sheet,
+            reason=ReviewItem.REASON_DOUBLE_MARK,
+            resolved=False,
+        )
+        self.assertEqual(
+            dm_items.count(), 0,
+            "disqualify policy must NOT create a double_mark ReviewItem",
         )
 
 
