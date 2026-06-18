@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
+import { CheckCircle2, Loader2, XCircle } from "lucide-react"
 import { acceptInvite } from "@/api/orgs"
 import { useOrg } from "@/org/OrgContext"
 import { Button } from "@/components/ui/button"
+import AuthLayout from "@/components/auth/AuthLayout"
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams()
@@ -39,37 +41,64 @@ export default function AcceptInvite() {
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (status === "loading") {
-    return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
-        <p className="text-muted-foreground">Accepting your invitation…</p>
-      </div>
-    )
-  }
-
-  if (status === "error") {
-    return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center space-y-4">
-        <h1 className="text-2xl font-bold text-destructive">Invitation failed</h1>
-        <p className="text-sm text-muted-foreground">{errorMsg}</p>
-        <Button asChild variant="outline">
-          <Link to="/organizations">Go to Organizations</Link>
-        </Button>
-      </div>
-    )
-  }
+  const subtitle =
+    status === "loading"
+      ? "Confirming your invitation."
+      : status === "success"
+        ? "Welcome to the team."
+        : "We couldn't accept this invitation."
 
   return (
-    <div className="mx-auto max-w-md px-4 py-20 text-center space-y-4">
-      <h1 className="text-2xl font-bold">You're in!</h1>
-      <p className="text-sm text-muted-foreground">
-        {orgName
-          ? `You've joined ${orgName}.`
-          : "You've successfully joined the organization."}
-      </p>
-      <Button asChild>
-        <Link to="/organizations">View Organizations</Link>
-      </Button>
-    </div>
+    <AuthLayout title="Accept invitation" subtitle={subtitle}>
+      {status === "loading" && (
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+          <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Accepting…</h2>
+            <p className="text-sm text-muted-foreground">
+              Hang tight while we add you to the organization.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {status === "success" && (
+        <div className="space-y-4">
+          <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--color-success)_14%,transparent)]">
+              <CheckCircle2 className="size-7 text-[var(--color-success)]" aria-hidden="true" />
+            </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold">You're in!</h2>
+              <p className="text-sm text-muted-foreground">
+                {orgName
+                  ? `You've joined ${orgName}.`
+                  : "You've successfully joined the organization."}
+              </p>
+            </div>
+          </div>
+          <Button asChild className="h-11 w-full">
+            <Link to="/organizations">View Organizations</Link>
+          </Button>
+        </div>
+      )}
+
+      {status === "error" && (
+        <div className="space-y-4">
+          <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10">
+              <XCircle className="size-7 text-destructive" aria-hidden="true" />
+            </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold">Invitation failed</h2>
+              <p className="text-sm text-muted-foreground">{errorMsg}</p>
+            </div>
+          </div>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link to="/organizations">Go to Organizations</Link>
+          </Button>
+        </div>
+      )}
+    </AuthLayout>
   )
 }
