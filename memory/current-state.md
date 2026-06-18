@@ -1,5 +1,19 @@
 # Current State
 
+- 2026-06-18: **Real front door + idempotent generation fix** (branch `feat/landing-home` → `main`).
+  Manual user testing exposed two issues the automated loop missed. (1) The root route `/` rendered a
+  dev **API-health stub** and the nav exposed the internal Style Guide — replaced with a real
+  **Landing** page (logged-out marketing: hero, feature grid, how-it-works, CTAs) + a **Dashboard**
+  home (logged-in: greeting, quick actions, stat cards, recent classes/rosters via existing APIs).
+  `auth/RootRoute.jsx` gates `/` on `useAuth().loading` (Dashboard if `user`, else Landing — no flash);
+  post-login now goes to `/dashboard`; nav brand → `/`, Style-Guide link removed (route kept for devs).
+  Built via a 6-agent Workflow (understand→design→build→review, verdict APPROVE); fixed a StatCard
+  email-overflow + added skeleton loaders. (2) **`fix(omr)`: re-generating sheets for a test that
+  already had them 500'd** (duplicate deterministic `sheet_code`) — switched the per-student
+  `create()` to `update_or_create((test, student))`, so regeneration is idempotent and preserves the
+  row pk (results stay valid); added a regression test. Re-verified the WHOLE loop + the new front
+  door across **Chromium/Chrome/Edge — 15/15 steps each** (E2E now also asserts the landing page +
+  the "Welcome back" dashboard). Demo login for the running app: `teacher@omrflow.test` / `Teacher@12345`.
 - 2026-06-18: **✅ PRODUCTION-READY — gaps closed + full cross-browser E2E PASSED** (branch
   `gap-closure` → merged to `main`). A roadmap-vs-code gap audit found the core loop fully wired;
   closed the real gaps: removed a non-existent "viewer" role (silent-failure), added a real

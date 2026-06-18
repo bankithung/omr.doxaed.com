@@ -44,3 +44,11 @@
   loop unmocked (synthetic scans of real sheets via the simulator; email verify-token regenerated) —
   **PASSED 14/14 in Chromium + Chrome + Edge.** E2E caught + fixed 2 real runtime bugs (Results.jsx
   flat-vs-nested serializer fields; avg-score NaN from Decimal-as-string). 540 tests green.
+- 2026-06-18 — Front door + generation fix (branch `feat/landing-home` → `main`). User manual-testing
+  found: (a) `/` was a dev API-health stub + Style Guide in the nav → built a real Landing (logged-out)
+  + Dashboard (logged-in) + auth-aware RootRoute; post-login → /dashboard; nav cleaned (dev routes
+  kept). Done via a 6-agent Workflow (understand→design→build→review = APPROVE); fixed a dashboard
+  email-overflow. (b) Re-generating sheets 500'd on duplicate deterministic sheet_code → made
+  generation idempotent (update_or_create on (test,student), pk preserved) + regression test.
+  Re-verified full loop + new front door across Chromium/Chrome/Edge (15/15). Demo acct
+  teacher@omrflow.test / Teacher@12345.
