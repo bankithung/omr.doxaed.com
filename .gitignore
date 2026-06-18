@@ -23,3 +23,4 @@ e2e/screenshots/
 e2e/scans/
 e2e/downloads/
 e2e/last-run.json
+.worktrees/
