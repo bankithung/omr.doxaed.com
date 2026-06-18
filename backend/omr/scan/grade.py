@@ -372,14 +372,7 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
     else:
         # Sum sec_max (already capped for choose_k) for non-qualifying sections
         # plus max_score_sum which holds unsectioned question contributions.
-        sectioned_max = Decimal("0")
-        for sec in section_cache.values():
-            if sec is not None:
-                sms = getattr(sec, "marking_scheme", None)
-                qualify_pct_val = sms.qualify_pct if sms is not None else None
-                if qualify_pct_val is None:  # non-qualifying only
-                    sectioned_max += sec_max.get(sec.id, Decimal("0"))
-        # Deduplicate sections (section_cache may have duplicates per q_id)
+        # Deduplicate sections (section_cache may have duplicates per q_id).
         seen_sec_ids: set[int] = set()
         sectioned_max = Decimal("0")
         for sec in section_cache.values():
