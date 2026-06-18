@@ -104,6 +104,19 @@
   throttle at machine speed → made user/anon rates env-overridable (1310a4d; prod defaults intact, local
   .env relaxes). NO backend mojibake existed (repo scan = 0). 917 backend tests; E2E Chromium/Chrome/Edge
   16/16 + modeB 17/17; check clean. **Product v2 (Phases 0–6) DONE end-to-end.**
+- 2026-06-18 — CINEMATIC LANDING rebuild → `main` (f69169d). Owner found the first (flat reveal-on-scroll)
+  landing "lame/AI-slop"; wanted agency-grade "wow" + scroll-up animations + asked to study other sites.
+  Ran a 6-agent research workflow (best-in-class landing motion techniques) → build-ready storyboard.
+  Owner decisions: gradients/glow ALLOWED **on the landing route only** (app stays flat, CLAUDE.md rule
+  intact elsewhere); north-star = **Apple cinematic pinned scrollytelling**. Built `frontend/src/routes/
+  landing/*` (motion/tokens.js, Hero, Centerpiece, Bento, Marquee, CTA, Footer, Micro, LandingNav) +
+  rewrote Landing.jsx as a self-contained DARK canvas (`.landing-cinematic`, explicit colors, no theme
+  bleed). Centerpiece = ONE pinned `h-[450vh]` section, sticky stage, one useSpring-smoothed scrollYProgress,
+  4 crossfaded acts (assemble → deal out 8 unique shuffled sheets → scan-wipe → analytics), bidirectional.
+  Added **framer-motion 12** (lazy in Landing chunk; +`.npmrc` legacy-peer-deps for eslint10). **Critical fix:**
+  wrapper `overflow-x-hidden`→`overflow-x-clip` (hidden forced overflow-y:auto → scroll container → broke
+  position:sticky → blank centerpiece). Screenshot-verified all acts at scroll depths; E2E 16/16+17 (hero h1
+  keeps "Grade a stack of bubble sheets"). Iterating on refinement next.
 - 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
   + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
   distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).
