@@ -19,6 +19,16 @@ urlpatterns = [
         name="analytics-student-detail",
     ),
     path(
+        "analytics/test/<int:test_id>/student/<int:student_id>/report-card/",
+        views.student_report_card_view,
+        name="analytics-student-report-card",
+    ),
+    path(
+        "analytics/test/<int:test_id>/report-cards/",
+        views.bulk_report_cards_view,
+        name="analytics-bulk-report-cards",
+    ),
+    path(
         "analytics/test/<int:test_id>/improvement/",
         views.improvement_view,
         name="analytics-improvement",

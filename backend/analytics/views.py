@@ -114,6 +114,68 @@ def test_profile_view(request, test_id: int):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+def student_report_card_view(request, test_id: int, student_id: int):
+    """
+    GET /api/v1/analytics/test/{test_id}/student/{student_id}/report-card/
+
+    Return a two-page A4 PDF report card for a single student.
+    Scoped: the test must belong to the current scope — 404 otherwise.
+    A StudentResult for (test, student) must exist — 404 otherwise.
+    """
+    from analytics.report_card import student_report_card
+
+    test = get_object_or_404(
+        Test.objects.select_related("organization", "user").filter(scope_filter(request)),
+        id=test_id,
+    )
+    result = get_object_or_404(
+        StudentResult.objects.select_related("student", "omr_sheet")
+        .prefetch_related("responses__question"),
+        test=test,
+        student_id=student_id,
+    )
+
+    pdf_bytes = student_report_card(test, result)
+
+    student = result.student
+    name = (student.full_name or "student") if student else "student"
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+    safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in test.title)
+    filename = f"report_card_{safe_title}_{safe_name}.pdf"
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bulk_report_cards_view(request, test_id: int):
+    """
+    GET /api/v1/analytics/test/{test_id}/report-cards/
+
+    Return one combined PDF of all graded students for the test (2 pages each).
+    Scoped: the test must belong to the current scope — 404 otherwise.
+    """
+    from analytics.report_card import bulk_report_cards
+
+    test = get_object_or_404(
+        Test.objects.select_related("organization", "user").filter(scope_filter(request)),
+        id=test_id,
+    )
+
+    pdf_bytes = bulk_report_cards(test)
+
+    safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in test.title)
+    filename = f"report_cards_{safe_title}.pdf"
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def export_view(request, test_id: int):
     """
     GET /api/v1/analytics/test/{test_id}/export/?output_format=csv|xlsx|pdf
