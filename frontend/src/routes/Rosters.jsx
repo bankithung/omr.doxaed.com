@@ -13,15 +13,9 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
+import { DataList } from "@/components/ui/data-list"
+import { PageHeader } from "@/components/ui/page-header"
 
 function CreateRosterDialog({ onCreated }) {
   const [open, setOpen] = useState(false)
@@ -77,6 +71,41 @@ function CreateRosterDialog({ onCreated }) {
   )
 }
 
+const COLUMNS = [
+  {
+    key: "name",
+    header: "Name",
+    cell: (roster) => (
+      <Link
+        to={`/rosters/${roster.id}`}
+        className="font-medium hover:text-primary hover:underline"
+      >
+        {roster.name}
+      </Link>
+    ),
+  },
+  {
+    key: "students",
+    header: "Students",
+    cell: (roster) => (
+      <span className="text-muted-foreground">
+        {roster.student_count ?? roster.students_count ?? "—"}
+      </span>
+    ),
+  },
+  {
+    key: "actions",
+    header: "",
+    mobileLabel: "",
+    cell: (roster) => (
+      <Button variant="outline" size="sm" asChild className="min-h-[40px]">
+        <Link to={`/rosters/${roster.id}`}>View</Link>
+      </Button>
+    ),
+    className: "w-28 text-right",
+  },
+]
+
 export default function Rosters() {
   const [rosters, setRosters] = useState([])
   const [loading, setLoading] = useState(true)
@@ -106,15 +135,12 @@ export default function Rosters() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Rosters</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage student rosters for OMR sheet generation.
-          </p>
-        </div>
-        <CreateRosterDialog onCreated={fetchRosters} />
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Rosters"
+        description="Manage student rosters for OMR sheet generation."
+        actions={<CreateRosterDialog onCreated={fetchRosters} />}
+      />
 
       {rosters.length === 0 ? (
         <EmptyState
@@ -123,39 +149,11 @@ export default function Rosters() {
           action={<CreateRosterDialog onCreated={fetchRosters} />}
         />
       ) : (
-        <div className="rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Students</TableHead>
-                <TableHead className="w-28 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rosters.map((roster) => (
-                <TableRow key={roster.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      to={`/rosters/${roster.id}`}
-                      className="hover:text-primary hover:underline"
-                    >
-                      {roster.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {roster.student_count ?? roster.students_count ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/rosters/${roster.id}`}>View</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataList
+          columns={COLUMNS}
+          rows={rosters}
+          getRowKey={(r) => r.id}
+        />
       )}
     </div>
   )

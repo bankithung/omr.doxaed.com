@@ -1,6 +1,13 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { toast } from "sonner"
+import {
+  ScanLine,
+  BarChart2,
+  ClipboardList,
+  RefreshCw,
+  CheckCircle,
+} from "lucide-react"
 import { getClass, listTests, retest } from "@/api/assessments"
 import { listRosters, generateSheets, mediaUrl } from "@/api/omr"
 import { Button } from "@/components/ui/button"
@@ -20,15 +27,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
+import { DataList } from "@/components/ui/data-list"
+import { ActionMenu } from "@/components/ui/action-menu"
+import { Badge } from "@/components/ui/badge"
+import { PageHeader } from "@/components/ui/page-header"
+
+// ─── Status badge ─────────────────────────────────
+
+const STATUS_VARIANT = {
+  draft: "warning",
+  ready: "success",
+  closed: "neutral",
+}
 
 const STATUS_LABELS = {
   draft: "Draft",
@@ -36,23 +47,15 @@ const STATUS_LABELS = {
   closed: "Closed",
 }
 
-const STATUS_CLASSES = {
-  draft: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  ready: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  closed: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-}
-
 function StatusBadge({ status }) {
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        STATUS_CLASSES[status] ?? STATUS_CLASSES.draft
-      }`}
-    >
+    <Badge variant={STATUS_VARIANT[status] ?? "neutral"}>
       {STATUS_LABELS[status] ?? status}
-    </span>
+    </Badge>
   )
 }
+
+// ─── Generate Sheets Dialog ────────────────────────
 
 function GenerateSheetsDialog({ test, open, onOpenChange }) {
   const [rosters, setRosters] = useState([])
@@ -188,6 +191,64 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
   )
 }
 
+// ─── Test row actions ──────────────────────────────
+//
+// E2E SAFETY: "Generate sheets" stays a DIRECT visible Button (not in a menu)
+// for tests that haven't been generated yet (status = draft/ready with no sheets).
+// Scan / Results / Review / Analytics / Retest go into the ActionMenu overflow.
+
+function TestActions({ test, onGenerate, onRetest, retestingId }) {
+  const navigate = useNavigate()
+
+  const menuItems = [
+    {
+      label: "Scan",
+      icon: <ScanLine className="size-4" />,
+      onSelect: () => navigate(`/tests/${test.id}/scan`),
+    },
+    {
+      label: "Results",
+      icon: <ClipboardList className="size-4" />,
+      onSelect: () => navigate(`/tests/${test.id}/results`),
+    },
+    {
+      label: "Review",
+      icon: <CheckCircle className="size-4" />,
+      onSelect: () => navigate(`/tests/${test.id}/review`),
+    },
+    {
+      label: "Analytics",
+      icon: <BarChart2 className="size-4" />,
+      onSelect: () => navigate(`/tests/${test.id}/analytics`),
+    },
+    {
+      label: retestingId === test.id ? "Creating…" : "Retest",
+      icon: <RefreshCw className="size-4" />,
+      onSelect: () => onRetest(test.id),
+      disabled: retestingId === test.id,
+      separator: true,
+    },
+  ]
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {/* Generate sheets — direct button, always visible */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="min-h-[40px]"
+        onClick={() => onGenerate(test)}
+      >
+        Generate sheets
+      </Button>
+      {/* Overflow menu — Scan / Results / Review / Analytics / Retest */}
+      <ActionMenu items={menuItems} triggerLabel="More test actions" />
+    </div>
+  )
+}
+
+// ─── Main TestList screen ──────────────────────────
+
 export default function TestList() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -226,6 +287,50 @@ export default function TestList() {
     }
   }
 
+  const columns = [
+    {
+      key: "title",
+      header: "Title",
+      cell: (test) => <span className="font-medium">{test.title}</span>,
+    },
+    {
+      key: "subject",
+      header: "Subject",
+      cell: (test) =>
+        test.subject ? (
+          <span className="text-muted-foreground">{test.subject}</span>
+        ) : (
+          <span className="italic text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (test) => <StatusBadge status={test.status} />,
+    },
+    {
+      key: "attempt",
+      header: "Attempt",
+      cell: (test) => (
+        <span className="text-muted-foreground">#{test.attempt_number}</span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      mobileLabel: "",
+      cell: (test) => (
+        <TestActions
+          test={test}
+          onGenerate={setGenerateTest}
+          onRetest={handleRetest}
+          retestingId={retestingId}
+        />
+      ),
+      className: "text-right",
+    },
+  ]
+
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
@@ -236,6 +341,7 @@ export default function TestList() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
+      {/* Breadcrumb */}
       <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
         <Link to="/classes" className="hover:text-foreground hover:underline">
           Classes
@@ -244,17 +350,16 @@ export default function TestList() {
         <span>{classGroup?.name ?? "Class"}</span>
       </div>
 
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{classGroup?.name ?? "Class"}</h1>
-          {classGroup?.description && (
-            <p className="text-sm text-muted-foreground">{classGroup.description}</p>
-          )}
-        </div>
-        <Button onClick={() => navigate(`/classes/${id}/tests/new`)}>
-          Create test
-        </Button>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title={classGroup?.name ?? "Class"}
+        description={classGroup?.description}
+        actions={
+          <Button onClick={() => navigate(`/classes/${id}/tests/new`)}>
+            Create test
+          </Button>
+        }
+      />
 
       {tests.length === 0 ? (
         <EmptyState
@@ -267,66 +372,11 @@ export default function TestList() {
           }
         />
       ) : (
-        <div className="rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Attempt</TableHead>
-                <TableHead className="w-72 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tests.map((test) => (
-                <TableRow key={test.id}>
-                  <TableCell className="font-medium">{test.title}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {test.subject || <span className="italic">—</span>}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={test.status} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    #{test.attempt_number}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setGenerateTest(test)}
-                      >
-                        Generate sheets
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/tests/${test.id}/scan`}>Scan</Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/tests/${test.id}/results`}>Results</Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/tests/${test.id}/review`}>Review</Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/tests/${test.id}/analytics`}>Analytics</Link>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={retestingId === test.id}
-                        onClick={() => handleRetest(test.id)}
-                      >
-                        {retestingId === test.id ? "Creating…" : "Retest"}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataList
+          columns={columns}
+          rows={tests}
+          getRowKey={(test) => test.id}
+        />
       )}
 
       {/* Generate sheets dialog */}

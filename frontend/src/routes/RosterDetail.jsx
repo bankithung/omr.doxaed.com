@@ -13,15 +13,9 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
+import { DataList } from "@/components/ui/data-list"
+import { PageHeader } from "@/components/ui/page-header"
 
 function AddStudentDialog({ rosterId, onAdded }) {
   const [open, setOpen] = useState(false)
@@ -58,7 +52,7 @@ function AddStudentDialog({ rosterId, onAdded }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="min-h-[40px]">
           Add student
         </Button>
       </DialogTrigger>
@@ -125,7 +119,7 @@ function AddBlankSheetsDialog({ rosterId, onAdded }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="min-h-[40px]">
           Add blank sheets
         </Button>
       </DialogTrigger>
@@ -164,6 +158,35 @@ function AddBlankSheetsDialog({ rosterId, onAdded }) {
     </Dialog>
   )
 }
+
+const STUDENT_COLUMNS = [
+  {
+    key: "roll",
+    header: "Roll #",
+    cell: (s) => (
+      <span className="font-mono font-medium">{s.roll_number}</span>
+    ),
+  },
+  {
+    key: "name",
+    header: "Full name",
+    cell: (s) =>
+      s.full_name ? (
+        s.full_name
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "ref",
+    header: "Ref",
+    cell: (s) => (
+      <span className="text-muted-foreground">
+        {s.external_ref || <span className="italic">—</span>}
+      </span>
+    ),
+  },
+]
 
 export default function RosterDetail() {
   const { id } = useParams()
@@ -209,21 +232,18 @@ export default function RosterDetail() {
         <span>{roster?.name ?? "Roster"}</span>
       </div>
 
-      {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{roster?.name ?? "Roster"}</h1>
-          <p className="text-sm text-muted-foreground">
-            {students.length} student{students.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <AddStudentDialog rosterId={Number(id)} onAdded={fetchData} />
-          <AddBlankSheetsDialog rosterId={Number(id)} onAdded={fetchData} />
-        </div>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title={roster?.name ?? "Roster"}
+        description={`${students.length} student${students.length !== 1 ? "s" : ""}`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <AddStudentDialog rosterId={Number(id)} onAdded={fetchData} />
+            <AddBlankSheetsDialog rosterId={Number(id)} onAdded={fetchData} />
+          </div>
+        }
+      />
 
-      {/* Students table */}
       {students.length === 0 ? (
         <EmptyState
           title="No students yet"
@@ -236,34 +256,11 @@ export default function RosterDetail() {
           }
         />
       ) : (
-        <div className="rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Roll #</TableHead>
-                <TableHead>Full name</TableHead>
-                <TableHead>Ref</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-mono font-medium">{s.roll_number}</TableCell>
-                  <TableCell>
-                    {s.full_name ? (
-                      s.full_name
-                    ) : (
-                      <span className="italic text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {s.external_ref || <span className="italic">—</span>}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataList
+          columns={STUDENT_COLUMNS}
+          rows={students}
+          getRowKey={(s) => s.id}
+        />
       )}
     </div>
   )

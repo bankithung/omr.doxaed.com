@@ -13,15 +13,45 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
+import { DataList } from "@/components/ui/data-list"
+import { PageHeader } from "@/components/ui/page-header"
+
+const COLUMNS = [
+  {
+    key: "name",
+    header: "Name",
+    cell: (cls) => (
+      <Link
+        to={`/classes/${cls.id}`}
+        className="font-medium hover:text-primary hover:underline"
+      >
+        {cls.name}
+      </Link>
+    ),
+  },
+  {
+    key: "description",
+    header: "Description",
+    cell: (cls) =>
+      cls.description ? (
+        <span className="text-muted-foreground">{cls.description}</span>
+      ) : (
+        <span className="italic text-muted-foreground">No description</span>
+      ),
+  },
+  {
+    key: "actions",
+    header: "",
+    mobileLabel: "",
+    cell: (cls) => (
+      <Button asChild variant="outline" size="sm" className="min-h-[40px]">
+        <Link to={`/classes/${cls.id}`}>View</Link>
+      </Button>
+    ),
+    className: "w-24 text-right",
+  },
+]
 
 export default function Classes() {
   const [classes, setClasses] = useState([])
@@ -73,13 +103,12 @@ export default function Classes() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Classes</h1>
-          <p className="text-sm text-muted-foreground">Manage your class groups</p>
-        </div>
-        <Button onClick={openDialog}>Create class</Button>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Classes"
+        description="Manage your class groups"
+        actions={<Button onClick={openDialog}>Create class</Button>}
+      />
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -90,39 +119,11 @@ export default function Classes() {
           action={<Button onClick={openDialog}>Create class</Button>}
         />
       ) : (
-        <div className="rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="w-24 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {classes.map((cls) => (
-                <TableRow key={cls.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      to={`/classes/${cls.id}`}
-                      className="hover:text-primary hover:underline"
-                    >
-                      {cls.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {cls.description || <span className="italic">No description</span>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm">
-                      <Link to={`/classes/${cls.id}`}>View</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataList
+          columns={COLUMNS}
+          rows={classes}
+          getRowKey={(cls) => cls.id}
+        />
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
