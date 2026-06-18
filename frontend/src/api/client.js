@@ -43,6 +43,7 @@ export const authApi = {
   register: (d) => api.post("/auth/register/", d),
   verifyEmail: (d) => api.post("/auth/verify-email/", d),
   login: (d) => api.post("/auth/login/", d),
+  googleLogin: (idToken) => api.post("/auth/google/", { id_token: idToken }),
   logout: (refresh) => api.post("/auth/logout/", { refresh }),
   passwordReset: (email) => api.post("/auth/password-reset/", { email }),
   passwordResetConfirm: (d) => api.post("/auth/password-reset-confirm/", d),

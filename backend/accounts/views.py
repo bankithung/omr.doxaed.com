@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -11,6 +12,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 
 from .emails import (
     send_account_exists_email,
@@ -142,3 +145,80 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class GoogleLoginView(APIView):
+    """Sign in (or sign up) with a Google ID token.
+
+    Body: ``{"id_token": "<GIS credential JWT>"}``.
+
+    Env-gated: when ``GOOGLE_CLIENT_ID`` is empty the feature is considered
+    unconfigured and we return 503 — the frontend hides its button in that case,
+    so this is a defensive backstop, never a user-facing path in normal use.
+
+    On success the SAME ``{access, refresh, user}`` payload as the email login
+    view is returned, so the frontend can reuse its token-storage logic.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+
+    def post(self, request):
+        client_id = settings.GOOGLE_CLIENT_ID
+        if not client_id:
+            return Response(
+                {"detail": "Google sign-in is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        token = request.data.get("id_token", "")
+        if not token:
+            return Response(
+                {"detail": "Missing id_token."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify the ID token's signature, audience (our client_id), issuer and
+        # expiry against Google's public keys. Any failure → 400 (never 500).
+        try:
+            idinfo = google_id_token.verify_oauth2_token(
+                token, google_requests.Request(), client_id
+            )
+        except Exception:
+            return Response(
+                {"detail": "Invalid Google token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        email = (idinfo.get("email") or "").strip().lower()
+        if not email or not idinfo.get("email_verified"):
+            return Response(
+                {"detail": "Google account email is not verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        full_name = (idinfo.get("name") or "").strip()
+
+        # Link by case-insensitive email. New users get an unusable password
+        # (they can only sign in via Google or reset to set one) and are marked
+        # email-verified because Google already verified the address.
+        user = User.objects.filter(email__iexact=email).first()
+        if user is None:
+            user = User(email=email, full_name=full_name, is_email_verified=True)
+            user.set_unusable_password()
+            user.save()
+        elif not user.is_email_verified:
+            # Existing local user signing in via Google for the first time:
+            # Google has now verified the address, so trust it.
+            user.is_email_verified = True
+            user.save(update_fields=["is_email_verified"])
+
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": MeSerializer(user).data,
+            },
+            status=status.HTTP_200_OK,
+        )

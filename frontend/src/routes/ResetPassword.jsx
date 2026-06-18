@@ -1,25 +1,34 @@
 import { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { authApi } from "@/api/client"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import AuthLayout from "@/components/auth/AuthLayout"
+import {
+  FormBanner,
+  PasswordField,
+  PasswordStrength,
+} from "@/components/auth/fields"
 
 export default function ResetPassword() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [newPassword, setNewPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [fieldError, setFieldError] = useState("")
 
   const uid = searchParams.get("uid")
   const token = searchParams.get("token")
 
   async function handleSubmit(e) {
     e.preventDefault()
+    setError("")
+    setFieldError("")
 
     if (!uid || !token) {
-      toast.error("Invalid or expired reset link.")
+      setError("Invalid or expired reset link.")
       return
     }
 
@@ -30,11 +39,11 @@ export default function ResetPassword() {
       navigate("/login")
     } catch (err) {
       const data = err?.response?.data
-      if (data) {
-        const messages = Object.values(data).flat()
-        toast.error(messages[0] ?? "Reset failed — the link may have expired")
+      const pwErr = data?.new_password
+      if (pwErr) {
+        setFieldError(Array.isArray(pwErr) ? pwErr[0] : String(pwErr))
       } else {
-        toast.error("Reset failed — the link may have expired")
+        setError(data?.detail ?? "Reset failed — the link may have expired.")
       }
     } finally {
       setLoading(false)
@@ -43,56 +52,53 @@ export default function ResetPassword() {
 
   if (!uid || !token) {
     return (
-      <div className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm space-y-4 text-center">
-          <h1 className="text-2xl font-bold text-destructive">Invalid link</h1>
-          <p className="text-sm text-muted-foreground">
-            This password reset link is invalid or has expired.
-          </p>
-          <Link
-            to="/forgot-password"
-            className="inline-block text-sm text-primary underline-offset-4 hover:underline"
-          >
-            Request a new link
-          </Link>
-        </div>
-      </div>
+      <AuthLayout
+        title="Invalid link"
+        subtitle="This password reset link is invalid or has expired."
+      >
+        <Link
+          to="/forgot-password"
+          className="inline-block text-sm text-primary underline-offset-4 hover:underline"
+        >
+          Request a new link
+        </Link>
+      </AuthLayout>
     )
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Set new password</h1>
-          <p className="text-sm text-muted-foreground">Choose a strong password for your account.</p>
+    <AuthLayout
+      title="Set new password"
+      subtitle="Choose a strong password for your account."
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FormBanner>{error}</FormBanner>
+
+        <div className="space-y-2">
+          <PasswordField
+            id="new_password"
+            label="New password"
+            autoComplete="new-password"
+            placeholder="••••••••"
+            required
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            error={fieldError}
+          />
+          <PasswordStrength password={newPassword} />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="new_password">New password</Label>
-            <Input
-              id="new_password"
-              type="password"
-              autoComplete="new-password"
-              placeholder="••••••••"
-              required
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-          </div>
+        <Button type="submit" className="h-11 w-full" disabled={loading}>
+          {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+          {loading ? "Saving…" : "Set password"}
+        </Button>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Saving…" : "Set password"}
-          </Button>
-        </form>
-
-        <p className="text-sm text-center">
+        <p className="text-center text-sm">
           <Link to="/login" className="text-primary underline-offset-4 hover:underline">
             Back to sign in
           </Link>
         </p>
-      </div>
-    </div>
+      </form>
+    </AuthLayout>
   )
 }

@@ -148,6 +148,15 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="OMRFlow <no-reply@omrflo
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
 # ---------------------------------------------------------------------------
+# Google Sign-In (OAuth ID-token verification)
+# ---------------------------------------------------------------------------
+# The Web Client ID from the Google Cloud OAuth consent screen. Only the Client
+# ID is needed to verify ID tokens — the client SECRET is NOT required. When
+# empty, the /auth/google/ endpoint returns 503 and the frontend button hides,
+# so the feature is fully disabled until the owner configures this.
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+
+# ---------------------------------------------------------------------------
 # Razorpay
 # ---------------------------------------------------------------------------
 RAZORPAY_KEY_ID = env("RAZORPAY_KEY_ID", default="rzp_test_PLACEHOLDER")

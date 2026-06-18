@@ -3,6 +3,10 @@ from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
+from unittest import mock
+
+from django.test import override_settings
+
 from accounts.tokens import make_uid_token
 
 User = get_user_model()
@@ -250,3 +254,77 @@ class MeTests(NoThrottleTestCase):
     def test_me_requires_auth(self):
         self.client.credentials()
         self.assertEqual(self.client.get("/api/v1/auth/me/").status_code, 401)
+
+
+@override_settings(GOOGLE_CLIENT_ID="test-client-id.apps.googleusercontent.com")
+class GoogleLoginTests(NoThrottleTestCase):
+    """Sign in with Google — verify_oauth2_token is mocked so no network call."""
+
+    URL = "/api/v1/auth/google/"
+    PATCH = "accounts.views.google_id_token.verify_oauth2_token"
+
+    def _idinfo(self, **over):
+        info = {
+            "email": "guser@example.com",
+            "email_verified": True,
+            "name": "Google User",
+            "aud": "test-client-id.apps.googleusercontent.com",
+            "iss": "accounts.google.com",
+        }
+        info.update(over)
+        return info
+
+    @override_settings(GOOGLE_CLIENT_ID="")
+    def test_unconfigured_returns_503(self):
+        resp = self.client.post(self.URL, {"id_token": "anything"}, format="json")
+        self.assertEqual(resp.status_code, 503)
+        self.assertIn("not configured", resp.data["detail"])
+
+    def test_new_user_is_created_verified_and_gets_tokens(self):
+        with mock.patch(self.PATCH, return_value=self._idinfo()):
+            resp = self.client.post(self.URL, {"id_token": "valid"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+        self.assertEqual(resp.data["user"]["email"], "guser@example.com")
+        user = User.objects.get(email="guser@example.com")
+        self.assertTrue(user.is_email_verified)
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(user.full_name, "Google User")
+
+    def test_existing_user_is_linked_not_duplicated(self):
+        existing = User.objects.create_user(
+            email="guser@example.com", password="Str0ng!pass", full_name="Local Name"
+        )
+        with mock.patch(self.PATCH, return_value=self._idinfo()):
+            resp = self.client.post(self.URL, {"id_token": "valid"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["user"]["email"], "guser@example.com")
+        # No duplicate user, and the original password still works (link, not reset).
+        self.assertEqual(User.objects.filter(email__iexact="guser@example.com").count(), 1)
+        existing.refresh_from_db()
+        self.assertTrue(existing.check_password("Str0ng!pass"))
+        self.assertTrue(existing.is_email_verified)
+
+    def test_existing_user_matched_case_insensitively(self):
+        User.objects.create_user(email="MixedCase@Example.com", password="Str0ng!pass")
+        with mock.patch(self.PATCH, return_value=self._idinfo(email="mixedcase@example.com")):
+            resp = self.client.post(self.URL, {"id_token": "valid"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.filter(email__iexact="mixedcase@example.com").count(), 1)
+
+    def test_invalid_token_returns_400(self):
+        with mock.patch(self.PATCH, side_effect=ValueError("bad token")):
+            resp = self.client.post(self.URL, {"id_token": "bogus"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(User.objects.count(), 0)
+
+    def test_unverified_google_email_returns_400(self):
+        with mock.patch(self.PATCH, return_value=self._idinfo(email_verified=False)):
+            resp = self.client.post(self.URL, {"id_token": "valid"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(User.objects.count(), 0)
+
+    def test_missing_id_token_returns_400(self):
+        resp = self.client.post(self.URL, {}, format="json")
+        self.assertEqual(resp.status_code, 400)
