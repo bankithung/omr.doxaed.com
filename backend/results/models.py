@@ -87,6 +87,9 @@ class ReviewItem(models.Model):
     REASON_DOUBLE_MARK = "double_mark"
     REASON_FAINT = "faint"
     REASON_MISSING_PAGE = "missing_page"
+    # Phase 1B — scan identity + verify-only roll reconciliation
+    REASON_TEST_MISMATCH = "test_mismatch"
+    REASON_ROLL_MISMATCH = "roll_mismatch"
     REASON_CHOICES = [
         (REASON_NO_QR, "No QR Code"),
         (REASON_ALIGNMENT, "Alignment Failed"),
@@ -94,6 +97,8 @@ class ReviewItem(models.Model):
         (REASON_DOUBLE_MARK, "Double Mark"),
         (REASON_FAINT, "Faint / Ambiguous"),
         (REASON_MISSING_PAGE, "Missing Page"),
+        (REASON_TEST_MISMATCH, "Test Mismatch"),
+        (REASON_ROLL_MISMATCH, "Roll Mismatch"),
     ]
 
     scan_job = models.ForeignKey(
@@ -117,7 +122,7 @@ class ReviewItem(models.Model):
         on_delete=models.SET_NULL,
         related_name="review_items",
     )
-    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    reason = models.CharField(max_length=32, choices=REASON_CHOICES)
     resolved = models.BooleanField(default=False)
     resolved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

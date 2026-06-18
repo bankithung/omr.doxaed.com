@@ -146,6 +146,20 @@ def process_scan_job(job) -> None:
     sheet_code, page_1based, total = qr_result
     page = page_1based - 1
 
+    # ---- Test-identity guard (Phase 1B) ----
+    # The sheet_code format is "{test_id:06d}-{token}".  Parse the test_id from
+    # the code and verify it matches the batch's test BEFORE resolving any sheet.
+    # A mismatch means a sheet from a different test was uploaded into this batch —
+    # flag it and stop (do NOT grade against the wrong key).
+    parsed_test_id = _parse_test_id_from_sheet_code(sheet_code)
+    if parsed_test_id is not None and parsed_test_id != job.batch.test_id:
+        job.status = job.STATUS_NEEDS_REVIEW
+        job.error_reason = "test_mismatch"
+        job.reads = {}
+        job.save(update_fields=["status", "error_reason", "reads"])
+        _create_review_item(job=job, omr_sheet=None, reason="test_mismatch")
+        return
+
     # Look up the OmrSheet — must belong to the same test as the batch
     try:
         omr_sheet = OmrSheet.objects.get(
@@ -163,16 +177,30 @@ def process_scan_job(job) -> None:
     # Run full pipeline
     result = process_image(image, descriptor)
 
+    # ---- Verify-only roll reconciliation (Phase 1B, Mode B / prebubbled only) ----
+    # Identity still comes from the QR; this is tamper-evidence only.
+    # A mismatch never changes which student is graded — it only raises a flag.
+    flags = list(result.get("flags", []))
+    if omr_sheet.roll_kind == OmrSheet.ROLL_KIND_PREBUBBLED and page == 0:
+        roll_read = result.get("roll")
+        # Only compare when the roll was read without the roll_unreadable flag
+        if roll_read and "roll_unreadable" not in flags:
+            student_roll = omr_sheet.student.roll_number if omr_sheet.student else ""
+            roll_digits = descriptor.get("roll_grid", {}).get("cols", len(student_roll))
+            normalized_read = _normalize_roll(roll_read, roll_digits)
+            normalized_stored = _normalize_roll(student_roll, roll_digits)
+            if normalized_read and normalized_stored and normalized_read != normalized_stored:
+                flags.append("roll_mismatch")
+
     # Persist reads + status
     job.omr_sheet = omr_sheet
     job.page_no = page + 1  # store 1-based for consistency with existing field
     job.reads = {
         "answers": {str(k): v for k, v in result["reads"].items()},
         "roll": result.get("roll"),
-        "flags": result.get("flags", []),
+        "flags": flags,
     }
 
-    flags = result.get("flags", [])
     if flags:
         job.status = job.STATUS_NEEDS_REVIEW
         job.error_reason = ",".join(flags)
@@ -364,8 +392,50 @@ def _flag_to_reason(flag: str) -> str | None:
         "double_mark": "double_mark",
         "faint": "faint",
         "missing_page": "missing_page",
+        # Phase 1B
+        "test_mismatch": "test_mismatch",
+        "roll_mismatch": "roll_mismatch",
     }
     return mapping.get(flag)
+
+
+def _parse_test_id_from_sheet_code(sheet_code: str) -> int | None:
+    """
+    Parse the test_id from a sheet_code of the form "{test_id:06d}-{token}".
+
+    Returns the integer test_id if the format is recognised, or None if the
+    code is not in a parseable format (legacy tolerance: never crash).
+
+    The format is defined by omr.codes.make_sheet_code:
+        sheet_code = f"{test_id:06d}-{token}"
+
+    The leading zero-padded 6-digit decimal before the first '-' is the test_id.
+    """
+    try:
+        prefix = sheet_code.split("-")[0]
+        return int(prefix)
+    except (ValueError, IndexError, AttributeError):
+        return None
+
+
+def _normalize_roll(roll: str, width: int) -> str:
+    """
+    Normalize a roll number for comparison.
+
+    Rules:
+    - Strip to digits only (digits-only charset; alphanumeric deferred per spec note).
+    - Left-pad (or truncate) to ``width`` digits.
+    - A fully-blank or empty string returns "" (sentinel for unreadable).
+
+    This ensures that a student whose roll_number is "42" and whose sheet was
+    printed with roll_digits=3 (stored as "042") compares equal to the scanner
+    reading "042" — neither triggers a false roll_mismatch.
+    """
+    digits_only = "".join(c for c in roll if c.isdigit())
+    if not digits_only:
+        return ""  # blank / unreadable
+    # Left-pad to width so "42" == "042" when width=3
+    return digits_only.zfill(width)
 
 
 def _create_review_item(*, job=None, omr_sheet=None, reason: str) -> None:
