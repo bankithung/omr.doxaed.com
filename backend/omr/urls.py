@@ -10,6 +10,11 @@ urlpatterns = [
         views.OmrSheetQuestionPaperView.as_view(),
         name="omr-sheet-question-paper",
     ),
+    path(
+        "omr/tests/<int:pk>/question-papers/",
+        views.OmrTestQuestionPapersBatchView.as_view(),
+        name="omr-test-question-papers-batch",
+    ),
     path("omr/scan/", views.ScanUploadView.as_view(), name="omr-scan-upload"),
     path("omr/scan-batches/<int:pk>/", views.ScanBatchDetailView.as_view(), name="omr-scan-batch-detail"),
 ]

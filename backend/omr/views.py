@@ -377,26 +377,14 @@ class GenerateView(APIView):
             f"/media/{batch_path.replace(chr(92), '/')}"
         )
 
-        # Merge and save batch question paper PDF (when papers were generated)
+        # Per-student question papers are saved + authenticated above. The BATCH
+        # is a multi-student PII document — do NOT write it to /media/ (which is
+        # served unauthenticated). Expose it ONLY via the authenticated,
+        # scope-checked batch endpoint, which merges the papers on demand.
         batch_paper_url = None
         if per_student_papers:
-            paper_doc = fitz.open()
-            for paper_bytes in per_student_papers:
-                src = fitz.open(stream=paper_bytes, filetype="pdf")
-                paper_doc.insert_pdf(src)
-                src.close()
-            batch_paper_bytes = paper_doc.tobytes()
-            paper_doc.close()
-
-            paper_batch_filename = f"omr_papers/batch-{test.id}-{uuid.uuid4().hex}.pdf"
-            paper_batch_content = ContentFile(batch_paper_bytes)
-            paper_batch_path = default_storage.save(paper_batch_filename, paper_batch_content)
-            # Transient URL pointing to the authenticated batch paper endpoint.
-            # NOTE: batch papers are served via /media/ for now (transient download link
-            # after generation). Individual per-student papers use the authenticated
-            # /api/v1/omr/sheets/<id>/question-paper/ endpoint.
             batch_paper_url = request.build_absolute_uri(
-                f"/media/{paper_batch_path.replace(chr(92), '/')}"
+                f"/api/v1/omr/tests/{test.id}/question-papers/"
             )
 
         # ---- record GenerationEvent (solo only) -------------------------
@@ -688,5 +676,56 @@ class OmrSheetQuestionPaperView(APIView):
         )
         response["Content-Disposition"] = (
             f'inline; filename="{sheet_code}-paper.pdf"'
+        )
+        return response
+
+
+class OmrTestQuestionPapersBatchView(APIView):
+    """
+    GET /api/v1/omr/tests/<pk>/question-papers/
+
+    Authenticated, scoped — merges ALL of the test's per-student question papers
+    into one PDF and streams it. This is a multi-student PII document, so it is
+    served ONLY here (auth + owner/org scope), never via /media/ or AllowAny.
+
+    TODO Phase 5: add visibility_q(folder_prefix="class_group__folder__") to the
+    Test queryset when folder-level sharing is introduced.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            test = Test.objects.filter(scope_filter(request), pk=pk).get()
+        except Test.DoesNotExist:
+            raise Http404
+
+        sheets = (
+            OmrSheet.objects.filter(test=test)
+            .exclude(question_paper_file="")
+            .order_by("id")
+        )
+        merged = fitz.open()
+        found = False
+        for sheet in sheets:
+            try:
+                data = sheet.question_paper_file.open("rb").read()
+            except (FileNotFoundError, OSError, ValueError):
+                continue
+            src = fitz.open(stream=data, filetype="pdf")
+            merged.insert_pdf(src)
+            src.close()
+            found = True
+        if not found:
+            merged.close()
+            raise Http404
+
+        out = merged.tobytes()
+        merged.close()
+        response = FileResponse(
+            io.BytesIO(out),
+            content_type="application/pdf",
+            as_attachment=True,
+            filename=f"question-papers-test-{test.id}.pdf",
         )
         return response

@@ -544,3 +544,36 @@ class OmrSheetModelFieldTests(TestCase):
     def test_question_paper_file_upload_to(self):
         field = OmrSheet._meta.get_field("question_paper_file")
         self.assertEqual(field.upload_to, "omr_papers/")
+
+
+class BatchQuestionPaperSecurityTests(TestCase):
+    """The BATCH question-paper endpoint (multi-student PII) must be auth-scoped,
+    never served via /media/. anon -> 4xx, wrong user -> 404, owner -> 200 PDF."""
+
+    def setUp(self):
+        self.owner = _make_user("batchowner")
+        self.other = _make_user("batchother")
+        self.test_obj, self.roster, self.students = _make_test_with_questions(self.owner)
+        resp = self.client.post(
+            GENERATE_URL,
+            {"test": self.test_obj.id, "roster": self.roster.id,
+             "shuffle_questions": True, "shuffle_options": True},
+            content_type="application/json", **_auth_header(self.owner),
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        # The generate response must point batch_paper_url at the AUTH endpoint, not /media/.
+        self.batch_url = f"/api/v1/omr/tests/{self.test_obj.id}/question-papers/"
+        self.assertNotIn("/media/", resp.json().get("batch_paper_url", ""))
+
+    def test_anonymous_get_returns_4xx(self):
+        resp = self.client.get(self.batch_url)
+        self.assertIn(resp.status_code, [401, 403, 404])
+
+    def test_different_user_gets_404(self):
+        resp = self.client.get(self.batch_url, **_auth_header(self.other))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_owner_gets_200_pdf(self):
+        resp = self.client.get(self.batch_url, **_auth_header(self.owner))
+        self.assertEqual(resp.status_code, 200, resp.content if hasattr(resp, "content") else resp)
+        self.assertIn("application/pdf", resp.get("Content-Type", ""))
