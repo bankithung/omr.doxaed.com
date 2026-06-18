@@ -1,8 +1,15 @@
 import { useEffect, useState, useRef } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
-import { getMembers, invite, setMemberRole, removeMember, getOrgBranding, updateOrgBranding } from "@/api/orgs"
+import {
+  getMembers,
+  invite,
+  setMemberRole,
+  removeMember,
+  getOrgBranding,
+  updateOrgBranding,
+} from "@/api/orgs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,23 +26,25 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { DataTable } from "@/components/ui/DataTable"
+import { Badge } from "@/components/ui/badge"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { TableSkeleton } from "@/components/ui/list-skeletons"
-import { ChevronDownIcon, UserPlusIcon, CreditCardIcon, ClipboardListIcon, UsersIcon } from "lucide-react"
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
+import { ChevronDownIcon, UserPlusIcon } from "lucide-react"
 
 const ROLES = ["admin", "member"]
 const ROLE_LABELS = { admin: "Admin", member: "Member" }
 
-// ─── OrgBrandingCard — admin-only section ─────────────────────────────────────
+// ─── OrgBrandingCard — admin-only settings section ───────────────────────────
 
 function OrgBrandingCard({ orgId }) {
   const [heading, setHeading] = useState("")
@@ -82,85 +91,103 @@ function OrgBrandingCard({ orgId }) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border p-4">
-        <p className="text-sm text-muted-foreground">Loading branding settings…</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Organisation branding</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-12 w-32" />
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <form onSubmit={handleSave} className="rounded-xl border p-4 space-y-4">
-      <p className="text-sm font-semibold">Organisation branding</p>
-      <p className="text-xs text-muted-foreground">
-        Applied to all sheets generated under this organisation (unless overridden per test).
-      </p>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="org-heading">Default sheet heading</Label>
-        <Input
-          id="org-heading"
-          placeholder="e.g. Springfield School District"
-          value={heading}
-          onChange={(e) => setHeading(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Organisation logo</Label>
-        {currentLogoUrl && (
-          <div className="rounded-lg border p-2 inline-block">
-            <img
-              src={currentLogoUrl}
-              alt="Current organisation logo"
-              className="h-12 w-auto object-contain"
+    <Card>
+      <form onSubmit={handleSave}>
+        <CardHeader className="flex-col items-start gap-1">
+          <CardTitle>Organisation branding</CardTitle>
+          <CardDescription>
+            Applied to all sheets generated under this organisation (unless
+            overridden per test).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="org-heading">Default sheet heading</Label>
+            <Input
+              id="org-heading"
+              placeholder="e.g. Springfield School District"
+              value={heading}
+              onChange={(e) => setHeading(e.target.value)}
             />
           </div>
-        )}
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="min-h-[40px]"
-            onClick={() => logoInputRef.current?.click()}
-          >
-            {logoFile ? "Change logo" : currentLogoUrl ? "Replace logo" : "Upload logo"}
-          </Button>
-          {logoFile && (
-            <span className="text-sm text-muted-foreground truncate max-w-[180px]">
-              {logoFile.name}
-            </span>
-          )}
-          {logoFile && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setLogoFile(null)
-                if (logoInputRef.current) logoInputRef.current.value = ""
-              }}
-            >
-              Remove
-            </Button>
-          )}
-        </div>
-        {/* Hidden native file input — custom trigger button above */}
-        <input
-          ref={logoInputRef}
-          type="file"
-          accept="image/png,image/jpeg"
-          className="sr-only"
-          onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-          aria-label="Upload organisation logo"
-        />
-        <p className="text-xs text-muted-foreground">PNG or JPEG, max 2 MB</p>
-      </div>
 
-      <Button type="submit" size="sm" disabled={saving} className="min-h-[40px]">
-        {saving ? "Saving…" : "Save branding"}
-      </Button>
-    </form>
+          <div className="space-y-2">
+            <Label>Organisation logo</Label>
+            {currentLogoUrl && (
+              <div className="inline-block rounded-lg border border-border p-2">
+                <img
+                  src={currentLogoUrl}
+                  alt="Current organisation logo"
+                  className="h-12 w-auto object-contain"
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-[40px]"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {logoFile
+                  ? "Change logo"
+                  : currentLogoUrl
+                    ? "Replace logo"
+                    : "Upload logo"}
+              </Button>
+              {logoFile && (
+                <span className="max-w-[180px] truncate text-sm text-muted-foreground">
+                  {logoFile.name}
+                </span>
+              )}
+              {logoFile && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setLogoFile(null)
+                    if (logoInputRef.current) logoInputRef.current.value = ""
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+            {/* Hidden native file input — custom trigger button above */}
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg"
+              className="sr-only"
+              onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+              aria-label="Upload organisation logo"
+            />
+            <p className="text-xs text-muted-foreground">PNG or JPEG, max 2 MB</p>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" size="sm" disabled={saving} className="min-h-[40px]">
+            {saving ? "Saving…" : "Save branding"}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   )
 }
 
@@ -253,7 +280,9 @@ export default function OrgMembers() {
       const msg =
         err?.response?.data?.detail ||
         (err?.response?.status === 400 ? "Cannot remove the last admin" : null) ||
-        (err?.response?.status === 403 ? "Not authorized to remove this member" : null) ||
+        (err?.response?.status === 403
+          ? "Not authorized to remove this member"
+          : null) ||
         "Failed to remove member"
       toast.error(msg)
     } finally {
@@ -261,31 +290,83 @@ export default function OrgMembers() {
     }
   }
 
+  // Columns are derived per-render so they capture isAdmin + handlers.
+  const columns = [
+    {
+      key: "email",
+      header: "Email",
+      cell: (m) => <span className="font-medium">{m.email}</span>,
+    },
+    {
+      key: "role",
+      header: "Role",
+      cell: (m) =>
+        isAdmin ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="min-h-[40px]">
+                {ROLE_LABELS[m.role] ?? m.role}
+                <ChevronDownIcon className="ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {ROLES.map((r) => (
+                <DropdownMenuItem
+                  key={r}
+                  disabled={r === m.role}
+                  onSelect={() => handleRoleChange(m, r)}
+                >
+                  {ROLE_LABELS[r]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Badge variant={m.role === "admin" ? "info" : "neutral"}>
+            {ROLE_LABELS[m.role] ?? m.role}
+          </Badge>
+        ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (m) => (
+        <span className="text-sm capitalize text-muted-foreground">
+          {m.status ?? "active"}
+        </span>
+      ),
+    },
+    ...(isAdmin
+      ? [
+          {
+            key: "actions",
+            header: "",
+            mobileLabel: "",
+            cell: (m) => (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="min-h-[40px]"
+                onClick={() => setRemoveTarget(m)}
+              >
+                Remove
+              </Button>
+            ),
+            className: "w-24 text-right",
+          },
+        ]
+      : []),
+  ]
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{org?.name ?? "Organization"} — Members</h1>
-          <p className="text-sm text-muted-foreground">
-            {members.length} member{members.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link to={`/organizations/${orgId}/billing`}>
-              <CreditCardIcon className="mr-1.5" />
-              Billing
-            </Link>
-          </Button>
-          {isAdmin && (
-            <Button variant="outline" asChild>
-              <Link to={`/organizations/${orgId}/audit`}>
-                <ClipboardListIcon className="mr-1.5" />
-                Audit log
-              </Link>
-            </Button>
-          )}
-          {isAdmin && (
+    <PageShell>
+      <PageHeader
+        title="Members"
+        description={`${org?.name ?? "Organization"} · ${members.length} member${
+          members.length !== 1 ? "s" : ""
+        }`}
+        actions={
+          isAdmin ? (
             <Button
               onClick={() => {
                 setInviteEmail("")
@@ -296,98 +377,29 @@ export default function OrgMembers() {
               <UserPlusIcon className="mr-1.5" />
               Invite member
             </Button>
-          )}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
-      {loading ? (
-        <TableSkeleton rows={5} />
-      ) : error ? (
-        <ErrorState
-          title="Couldn't load members"
-          description="Something went wrong while loading this organization's members."
-          onRetry={fetchMembers}
-        />
-      ) : members.length === 0 ? (
-        <EmptyState
-          icon={UsersIcon}
-          title="No members yet"
-          description="Invite people to join this organization."
-          action={
-            isAdmin ? (
-              <Button onClick={() => setInviteOpen(true)}>Invite member</Button>
-            ) : null
-          }
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                {isAdmin && <TableHead className="w-24 text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((m) => (
-                <TableRow key={m.user_id ?? m.id ?? m.email}>
-                  <TableCell className="font-medium">{m.email}</TableCell>
-                  <TableCell>
-                    {isAdmin ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            {ROLE_LABELS[m.role] ?? m.role}
-                            <ChevronDownIcon className="ml-1" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          {ROLES.map((r) => (
-                            <DropdownMenuItem
-                              key={r}
-                              disabled={r === m.role}
-                              onSelect={() => handleRoleChange(m, r)}
-                            >
-                              {ROLE_LABELS[r]}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        {ROLE_LABELS[m.role] ?? m.role}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground capitalize">
-                    {m.status ?? "active"}
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setRemoveTarget(m)}
-                      >
-                        Remove
-                      </Button>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={members}
+        getRowKey={(m) => m.user_id ?? m.id ?? m.email}
+        loading={loading}
+        error={error}
+        onRetry={fetchMembers}
+        empty={{
+          icon: UserPlusIcon,
+          title: "No members yet",
+          description: "Invite people to join this organization.",
+          action: isAdmin ? (
+            <Button onClick={() => setInviteOpen(true)}>Invite member</Button>
+          ) : null,
+        }}
+      />
 
       {/* Branding settings — admin only (Phase 3c) */}
-      {isAdmin && (
-        <div className="mt-8">
-          <OrgBrandingCard orgId={orgId} />
-        </div>
-      )}
+      {isAdmin && <OrgBrandingCard orgId={orgId} />}
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -416,7 +428,7 @@ export default function OrgMembers() {
                     type="button"
                     onClick={() => setInviteRole(r)}
                     className={[
-                      "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
+                      "min-h-[40px] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
                       inviteRole === r
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background text-foreground hover:bg-muted",
@@ -437,22 +449,30 @@ export default function OrgMembers() {
       </Dialog>
 
       {/* Remove confirm dialog */}
-      <Dialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+      <Dialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove member</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Remove <strong>{removeTarget?.email}</strong> from this organization? This cannot be
-            undone.
+            Remove <strong>{removeTarget?.email}</strong> from this organization?
+            This cannot be undone.
           </p>
           <DialogFooter showCloseButton>
-            <Button variant="destructive" onClick={handleRemove} disabled={removing}>
+            <Button
+              variant="destructive"
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={handleRemove}
+              disabled={removing}
+            >
               {removing ? "Removing…" : "Remove"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }

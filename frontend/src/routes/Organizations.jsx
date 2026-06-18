@@ -14,22 +14,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { ListSkeleton } from "@/components/ui/list-skeletons"
-import { DataList } from "@/components/ui/data-list"
+import { DataTable } from "@/components/ui/DataTable"
 import { Badge } from "@/components/ui/badge"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
 
 const ROLE_LABELS = { admin: "Admin", member: "Member", viewer: "Viewer" }
-
 const ROLE_VARIANT = { admin: "info", member: "neutral", viewer: "neutral" }
 
 const COLUMNS = [
   {
     key: "name",
     header: "Name",
-    cell: (org) => <span className="font-medium">{org.name}</span>,
+    cell: (org) => (
+      <Link
+        to={`/organizations/${org.id}/members`}
+        className="font-medium hover:text-primary hover:underline"
+      >
+        {org.name}
+      </Link>
+    ),
   },
   {
     key: "role",
@@ -102,36 +106,36 @@ export default function Organizations() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <PageShell>
       <PageHeader
-        className="mb-6"
         title="Organizations"
         description="Manage your organizations and teams"
         actions={<Button onClick={openDialog}>Create organization</Button>}
       />
 
-      {loading ? (
-        <ListSkeleton rows={4} />
-      ) : error ? (
-        <ErrorState
-          title="Couldn't load organizations"
-          description="Something went wrong while loading your organizations."
-          onRetry={loadOrgs}
-        />
-      ) : orgs.length === 0 ? (
-        <EmptyState
-          icon={BuildingIcon}
-          title="No organizations yet"
-          description="Create an organization to collaborate with your team."
-          action={<Button onClick={openDialog}>Create organization</Button>}
-        />
-      ) : (
-        <DataList
-          columns={COLUMNS}
-          rows={orgs}
-          getRowKey={(org) => org.id}
-        />
+      {!loading && !error && orgs.length > 0 && (
+        <div className="-mb-4">
+          <Badge variant="neutral" className="tabular">
+            {orgs.length}{" "}
+            {orgs.length === 1 ? "organization" : "organizations"}
+          </Badge>
+        </div>
       )}
+
+      <DataTable
+        columns={COLUMNS}
+        rows={orgs}
+        getRowKey={(org) => org.id}
+        loading={loading}
+        error={error}
+        onRetry={loadOrgs}
+        empty={{
+          icon: BuildingIcon,
+          title: "No organizations yet",
+          description: "Create an organization to collaborate with your team.",
+          action: <Button onClick={openDialog}>Create organization</Button>,
+        }}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -157,6 +161,6 @@ export default function Organizations() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }
