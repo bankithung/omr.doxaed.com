@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
+import { CheckCircle2, Loader2, XCircle } from "lucide-react"
 import { authApi } from "@/api/client"
+import AuthLayout from "@/components/auth/AuthLayout"
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
@@ -21,46 +23,70 @@ export default function VerifyEmail() {
       .catch(() => setStatus("error"))
   }, [searchParams])
 
+  const subtitle =
+    status === "pending"
+      ? "Confirming your email address."
+      : status === "success"
+        ? "Your account is ready to go."
+        : "We couldn't confirm this email."
+
   return (
-    <div className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-4 text-center">
-        {status === "pending" && (
-          <>
-            <h1 className="text-2xl font-bold">Verifying…</h1>
-            <p className="text-sm text-muted-foreground">Please wait while we verify your email.</p>
-          </>
-        )}
-
-        {status === "success" && (
-          <>
-            <h1 className="text-2xl font-bold text-green-600">Email verified</h1>
+    <AuthLayout title="Verify email" subtitle={subtitle}>
+      {status === "pending" && (
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+          <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Verifying…</h2>
             <p className="text-sm text-muted-foreground">
-              Your email has been verified. You can now log in.
+              Please wait while we verify your email.
             </p>
-            <Link
-              to="/login"
-              className="inline-block text-sm text-primary underline-offset-4 hover:underline"
-            >
-              Go to sign in
-            </Link>
-          </>
-        )}
+          </div>
+        </div>
+      )}
 
-        {status === "error" && (
-          <>
-            <h1 className="text-2xl font-bold text-destructive">Link invalid</h1>
-            <p className="text-sm text-muted-foreground">
-              This verification link is invalid or has expired.
-            </p>
-            <Link
-              to="/login"
-              className="inline-block text-sm text-primary underline-offset-4 hover:underline"
-            >
-              Back to sign in
-            </Link>
-          </>
-        )}
-      </div>
-    </div>
+      {status === "success" && (
+        <div className="space-y-4">
+          <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--color-success)_14%,transparent)]">
+              <CheckCircle2 className="size-7 text-[var(--color-success)]" aria-hidden="true" />
+            </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold">Email verified</h2>
+              <p className="text-sm text-muted-foreground">
+                Your email has been verified. You can now log in.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/login"
+            className="block text-center text-sm text-primary underline-offset-4 hover:underline"
+          >
+            Continue to sign in
+          </Link>
+        </div>
+      )}
+
+      {status === "error" && (
+        <div className="space-y-4">
+          <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10">
+              <XCircle className="size-7 text-destructive" aria-hidden="true" />
+            </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold">Link invalid</h2>
+              <p className="text-sm text-muted-foreground">
+                This verification link is invalid or has expired.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/login"
+            className="block text-center text-sm text-primary underline-offset-4 hover:underline"
+          >
+            Back to sign in
+          </Link>
+        </div>
+      )}
+    </AuthLayout>
   )
 }
