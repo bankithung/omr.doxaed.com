@@ -868,12 +868,23 @@ class OmrSheetRegradeView(APIView):
     """
     POST /api/v1/omr/sheets/<id>/regrade/
 
-    Re-runs grading on an already-scanned OmrSheet using its existing ScanJob reads.
-    Does NOT create a new ScanEvent (no double-charge).
-    Does NOT re-process images — only re-aggregates reads and calls grade_sheet.
+    Two modes:
 
-    Returns 200 with the updated StudentResult on success.
-    Returns 400 if the sheet has no usable reads (not yet scanned or all pages failed).
+    1. CORRECTION MODE — body contains ``answers``:
+       Body: {answers: {q_pos: [labels]}, roll?: str, student_id?: int}
+       Treats the supplied answers as the authoritative, corrected reads for
+       the whole sheet.  Persists them back onto the sheet's primary ScanJob
+       (so the correction sticks), re-grades via the shared helper, and
+       auto-resolves all open ReviewItems for the sheet.
+
+    2. RE-GRADE MODE — no body (or body without ``answers``):
+       Re-grades the sheet using its existing ScanJob reads unchanged.
+       Returns 400 when no usable reads exist.
+
+    Both modes:
+    - Do NOT create a new ScanEvent (no double-charge).
+    - Auto-resolve all open ReviewItems and recompute needs_review.
+    - Return 200 with the updated StudentResult.
 
     Scoped to request.user via test__ (404 on cross-tenant access).
 
@@ -896,10 +907,14 @@ class OmrSheetRegradeView(APIView):
         from omr.models import ScanJob as _ScanJob
         from omr.scan.grade import grade_sheet
         from omr.scan.pipeline import _persist_grading_result
-        from results.models import StudentResult
+        from results.models import ReviewItem, StudentResult
         from results.serializers import StudentResultSerializer
+        from rosters.models import Student as _Student
 
-        # Gather usable jobs (same logic as _maybe_grade)
+        body = request.data or {}
+        corrected_answers = body.get("answers")  # None when no body / no key
+
+        # ---- Gather usable jobs (same logic as _maybe_grade) ----
         processable_jobs = list(
             _ScanJob.objects.filter(
                 omr_sheet=omr_sheet,
@@ -911,31 +926,122 @@ class OmrSheetRegradeView(APIView):
             if j.reads and "answers" in j.reads
         ]
 
-        if not done_jobs:
-            return Response(
-                {"detail": "No usable scan reads found for this sheet."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if corrected_answers is None:
+            # RE-GRADE MODE: require existing usable reads
+            if not done_jobs:
+                return Response(
+                    {"detail": "No usable scan reads found for this sheet."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        # Aggregate reads (same logic as _maybe_grade)
-        aggregated_reads: dict[int, list] = {}
-        for job in done_jobs:
-            answers = job.reads.get("answers", {})
-            for q_pos_str, entry in answers.items():
-                q_pos = int(q_pos_str)
-                marked = entry.get("marked", [])
-                if q_pos not in aggregated_reads:
-                    aggregated_reads[q_pos] = list(marked)
-                else:
-                    aggregated_reads[q_pos].extend(
-                        lbl for lbl in marked if lbl not in aggregated_reads[q_pos]
+            # Aggregate reads from existing ScanJob data
+            aggregated_reads: dict[int, list] = {}
+            for job in done_jobs:
+                answers = job.reads.get("answers", {})
+                for q_pos_str, entry in answers.items():
+                    q_pos = int(q_pos_str)
+                    marked = entry.get("marked", [])
+                    if q_pos not in aggregated_reads:
+                        aggregated_reads[q_pos] = list(marked)
+                    else:
+                        aggregated_reads[q_pos].extend(
+                            lbl for lbl in marked if lbl not in aggregated_reads[q_pos]
+                        )
+
+        else:
+            # CORRECTION MODE: use supplied answers as authoritative reads
+            # Validate: answers must be a dict
+            if not isinstance(corrected_answers, dict):
+                return Response(
+                    {"detail": "answers must be an object mapping q_pos to label list."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Build aggregated_reads from corrected_answers
+            aggregated_reads = {
+                int(q_pos_str): list(labels)
+                for q_pos_str, labels in corrected_answers.items()
+            }
+
+            # Persist corrected answers back onto the primary ScanJob so they stick.
+            # If there's an existing usable job, patch its reads.answers with the
+            # corrected values (overriding the scanned reads for each supplied q_pos).
+            # If there are no existing jobs (edge-case: correction before any scan),
+            # synthesize a virtual job record.
+            if done_jobs:
+                primary_job = done_jobs[0]
+                existing_reads = dict(primary_job.reads)
+                existing_answers = dict(existing_reads.get("answers", {}))
+
+                # Override with corrected values
+                for q_pos_str, labels in corrected_answers.items():
+                    existing_answers[str(q_pos_str)] = {
+                        "marked": list(labels),
+                        "flag": None,  # correction is authoritative — clear any flag
+                    }
+
+                existing_reads["answers"] = existing_answers
+                # Clear per-question flags that are now resolved by correction
+                existing_reads["flags"] = []
+
+                primary_job.reads = existing_reads
+                primary_job.status = _ScanJob.STATUS_DONE  # correction resolves review state
+                primary_job.error_reason = ""
+                primary_job.save(update_fields=["reads", "status", "error_reason"])
+
+                # Refresh done_jobs to reflect the update
+                done_jobs = [primary_job] + [j for j in done_jobs if j.pk != primary_job.pk]
+            else:
+                # No existing scan jobs at all — return 400 in correction mode too,
+                # because we have no template/descriptor reference to build from.
+                return Response(
+                    {"detail": "No usable scan reads found for this sheet."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Optional: reattach / update student when roll or student_id supplied
+            new_roll = body.get("roll")
+            new_student_id = body.get("student_id")
+
+            if new_student_id is not None:
+                # Reattach to a specific student (must belong to same test's roster)
+                try:
+                    student = _Student.objects.get(pk=new_student_id)
+                    omr_sheet.student = student
+                    omr_sheet.save(update_fields=["student"])
+                except _Student.DoesNotExist:
+                    return Response(
+                        {"detail": f"Student {new_student_id} not found."},
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
+            elif new_roll is not None:
+                # Try to resolve student by roll number within the test's rosters
+                # (best-effort; no error if ambiguous — the sheet keeps current student)
+                try:
+                    from omr.models import OmrSheet as _OmrSheet
+                    test = omr_sheet.test
+                    # Find a student in any roster owned by the test's owner
+                    student = _Student.objects.filter(
+                        roster__user=test.user,
+                        roll_number=new_roll,
+                    ).first()
+                    if student is not None:
+                        omr_sheet.student = student
+                        omr_sheet.save(update_fields=["student"])
+                except Exception:
+                    pass  # roll reattachment is best-effort
 
-        # Grade and persist (no new ScanEvent)
+        # ---- Auto-resolve all open ReviewItems for this sheet ----
+        ReviewItem.objects.filter(
+            omr_sheet=omr_sheet,
+            resolved=False,
+        ).update(resolved=True, resolved_by=request.user)
+
+        # ---- Grade and persist (no new ScanEvent) ----
         grading = grade_sheet(omr_sheet, aggregated_reads)
         _persist_grading_result(omr_sheet, grading, done_jobs)
 
-        # Return updated StudentResult
+        # ---- Return updated StudentResult ----
         try:
             result = StudentResult.objects.get(omr_sheet=omr_sheet)
         except StudentResult.DoesNotExist:

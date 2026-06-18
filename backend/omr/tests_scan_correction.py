@@ -130,7 +130,10 @@ def _make_scan_job(test, user, omr_sheet, sheet_meta, descriptor, marked, roll="
         status=ScanBatch.STATUS_PROCESSING,
         total=1,
     )
-    img = simulate_scan(descriptor, sheet_meta, marked=marked, roll=roll, page=0)
+    # Use scale=2.0 so pyzbar reliably decodes the QR code regardless of test_id.
+    # At scale=1.0 (827×1169) pyzbar fails for some sheet_code payloads; scale=2.0
+    # (1654×2338) is the recommended resolution (see omr/scan/align.py QR note).
+    img = simulate_scan(descriptor, sheet_meta, marked=marked, roll=roll, page=0, scale=2.0)
     ok, buf = cv2.imencode(".png", img)
     assert ok
     job = ScanJob(batch=batch, page_no=1)
@@ -576,3 +579,163 @@ class PersistGradingResultTests(TestCase):
         _persist_grading_result(self.omr_sheet, grading, [job])
         self.omr_sheet.refresh_from_db()
         self.assertEqual(self.omr_sheet.assembly_status, OmrSheet.ASSEMBLY_COMPLETE)
+
+
+# ---------------------------------------------------------------------------
+# 7. OmrSheetRegradeView — correction path (answers in body)
+# ---------------------------------------------------------------------------
+
+class OmrSheetRegradeViewCorrectionTests(TestCase):
+    """
+    POST /api/v1/omr/sheets/<id>/regrade/  with {answers: {...}} body.
+
+    Verifies that supplying corrected answers:
+    1. Changes the score accordingly (wrong → correct).
+    2. The correction persists (ScanJob.reads updated; subsequent regrade reflects it).
+    3. Resolves all open ReviewItems.
+    4. Does NOT create a new ScanEvent.
+    5. Optionally reattaches a student when student_id is supplied.
+    """
+
+    def setUp(self):
+        from assessments.models import ClassGroup, MarkingScheme, Option, Question, Test
+        from omr.models import OmrSheet, ScanBatch, ScanJob
+        from rosters.models import Roster, Student
+
+        self.user = _make_user("correction@example.com")
+        self.client = APIClient()
+
+        # Build test with 5 questions; A is always correct
+        self.test = _build_test(self.user, n_questions=5)
+        self.omr_sheet, self.sheet_meta, self.descriptor, self.student = \
+            _build_omr_sheet(self.test, self.user, roll_number="005")
+
+        # Scan with WRONG answers (B instead of A) so initial score == 0
+        wrong_marked = {0: ["B"], 1: ["B"], 2: ["B"], 3: ["B"], 4: ["B"]}
+        self.batch, self.job = _make_scan_job(
+            self.test, self.user, self.omr_sheet, self.sheet_meta,
+            self.descriptor, wrong_marked,
+        )
+        self.url = f"/api/v1/omr/sheets/{self.omr_sheet.id}/regrade/"
+
+    def _correct_answers(self):
+        """
+        Return the correct answers dict from the sheet's answer_key.
+        answer_key format: {str(q_pos): [correct_labels]}
+        """
+        return {
+            str(q_pos): labels
+            for q_pos, labels in self.omr_sheet.answer_key.items()
+        }
+
+    def test_correction_with_answers_returns_200(self):
+        """POST with answers body returns 200."""
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(self.url, {"answers": self._correct_answers()}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+
+    def test_correction_improves_score(self):
+        """
+        Posting correct answers after a wrong scan gives score == max_score.
+        Initial scan was all wrong (B), correction supplies all correct (A).
+        """
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(self.url, {"answers": self._correct_answers()}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.data
+        self.assertEqual(
+            float(data["score"]), float(data["max_score"]),
+            f"Expected score==max_score after correction; got {data['score']}/{data['max_score']}"
+        )
+
+    def test_correction_persists_in_scan_job(self):
+        """
+        The corrected answers are written back to the ScanJob.reads so that a
+        subsequent no-body regrade uses the corrected values.
+        """
+        from omr.models import ScanJob
+
+        correct = self._correct_answers()
+        self.client.force_authenticate(user=self.user)
+        # Apply correction
+        self.client.post(self.url, {"answers": correct}, format="json")
+
+        # Re-grade without a body — should still return max_score
+        resp2 = self.client.post(self.url)
+        self.assertEqual(resp2.status_code, 200)
+        data = resp2.data
+        self.assertEqual(
+            float(data["score"]), float(data["max_score"]),
+            "Re-grade after correction should still return max_score"
+        )
+
+        # Verify the ScanJob.reads.answers was patched
+        job = ScanJob.objects.get(pk=self.job.pk)
+        for q_pos_str, correct_labels in correct.items():
+            stored_entry = job.reads.get("answers", {}).get(q_pos_str, {})
+            self.assertEqual(
+                sorted(stored_entry.get("marked", [])),
+                sorted(correct_labels),
+                f"ScanJob.reads.answers[{q_pos_str!r}] not updated with corrected labels",
+            )
+
+    def test_correction_resolves_review_items(self):
+        """All open ReviewItems for the sheet are resolved after a correction."""
+        from results.models import ReviewItem
+
+        # Ensure there are open review items (the wrong scan may have created some)
+        # Create one explicitly to guarantee the test has something to check
+        ReviewItem.objects.create(
+            omr_sheet=self.omr_sheet,
+            reason=ReviewItem.REASON_FAINT,
+        )
+        open_before = ReviewItem.objects.filter(
+            omr_sheet=self.omr_sheet, resolved=False
+        ).count()
+        self.assertGreater(open_before, 0, "setUp should have created at least one ReviewItem")
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post(self.url, {"answers": self._correct_answers()}, format="json")
+
+        open_after = ReviewItem.objects.filter(
+            omr_sheet=self.omr_sheet, resolved=False
+        ).count()
+        self.assertEqual(open_after, 0, "All ReviewItems should be resolved after correction")
+
+    def test_correction_no_new_scan_event(self):
+        """Correction must not create a new ScanEvent."""
+        from omr.models import ScanEvent
+
+        count_before = ScanEvent.objects.filter(test=self.test).count()
+        self.client.force_authenticate(user=self.user)
+        self.client.post(self.url, {"answers": self._correct_answers()}, format="json")
+        count_after = ScanEvent.objects.filter(test=self.test).count()
+        self.assertEqual(count_before, count_after,
+                         "Correction must not create a new ScanEvent")
+
+    def test_correction_with_student_id_reattaches_student(self):
+        """Posting student_id reattaches the sheet to the specified student."""
+        from rosters.models import Roster, Student
+
+        # Create a second student in the same roster
+        roster2 = Roster.objects.create(
+            user=self.user, created_by=self.user, name="R-extra"
+        )
+        new_student = Student.objects.create(
+            roster=roster2, roll_number="099", full_name="New Student"
+        )
+
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            self.url,
+            {"answers": self._correct_answers(), "student_id": new_student.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify reattachment
+        self.omr_sheet.refresh_from_db()
+        self.assertEqual(
+            self.omr_sheet.student_id, new_student.id,
+            "Sheet should be reattached to the new student"
+        )

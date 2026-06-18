@@ -24,7 +24,7 @@ import numpy as np
 from decimal import Decimal
 
 from omr.scan.align import decode_qr, detect_fiducials, warp_to_canonical
-from omr.scan.read import to_binary, read_roll, read_answers
+from omr.scan.read import to_binary, read_roll, read_answers, bubble_fill_ratio
 from omr.scan.grade import grade_sheet
 
 
@@ -110,23 +110,40 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
             flags.append(entry["flag"])
 
     # ---- Stage 7: Derive per-question fill_ratio (confidence proxy) ----
-    # We derive fill_ratio from the classified reads without changing read.py.
-    # Rules:  blank/empty marks -> 0.0
-    #         faint flag        -> 0.35  (low confidence)
-    #         double_mark flag  -> 1.0   (ambiguous but definitely filled)
-    #         otherwise filled  -> 0.9
+    # Measure the actual pixel fill of the most-filled marked option.
+    # Using bubble_fill_ratio on the warped canonical binary image gives an
+    # accurate, scale-independent measurement: a solidly filled bubble reads
+    # near 1.0 regardless of image scale or per-question flag.
+    #
+    # For blank questions (no marked options), the ratio is 0.0.
+    #
+    # Build a lookup: q_pos -> {label -> (cx, cy, r)} for bubbles on this page.
+    _bubble_coords: dict[int, dict[str, tuple]] = {}
+    for _entry in descriptor["answer_bubbles"]:
+        if _entry["page"] != page:
+            continue
+        _q_pos = _entry["q_pos"]
+        _bubble_coords[_q_pos] = {
+            opt["label"]: (opt["cx"], opt["cy"], opt["r"])
+            for opt in _entry["options"]
+        }
+
     fill_ratios: dict[int, float] = {}
     for q_pos, entry in reads.items():
-        flag = entry.get("flag")
         marked = entry.get("marked", [])
         if not marked:
             fill_ratios[q_pos] = 0.0
-        elif flag == "faint":
-            fill_ratios[q_pos] = 0.35
-        elif flag == "double_mark":
-            fill_ratios[q_pos] = 1.0
         else:
-            fill_ratios[q_pos] = 0.9
+            # Take the maximum fill ratio across all marked options.
+            max_ratio = 0.0
+            coords_for_q = _bubble_coords.get(q_pos, {})
+            for label in marked:
+                if label in coords_for_q:
+                    cx, cy, r = coords_for_q[label]
+                    ratio = bubble_fill_ratio(binary, cx, cy, r)
+                    if ratio > max_ratio:
+                        max_ratio = ratio
+            fill_ratios[q_pos] = float(max_ratio)
 
     return {
         "sheet_code": sheet_code,
