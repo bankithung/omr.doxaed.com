@@ -47,7 +47,8 @@ OPTION_PITCH = 22   # px between option bubble centres
 # ---------------------------------------------------------------------------
 
 def build_template(num_questions: int, num_options: int, roll_digits: int,
-                   roll_kind: str = "writein") -> dict:
+                   roll_kind: str = "writein",
+                   sections: list | None = None) -> dict:
     """
     Return a descriptor dict containing canonical pixel-space positions for all
     elements on the OMR sheet.
@@ -60,6 +61,14 @@ def build_template(num_questions: int, num_options: int, roll_digits: int,
     roll_kind     : str   "writein" (default) | "prebubbled" | "none".
                           "prebubbled" sets roll_grid.prefilled = True so the generator
                           knows to draw solid fill discs for the assigned roll value.
+    sections      : list | None
+                          Optional list of section dicts for competitive tests.
+                          Each dict: {key, label, order_index, q_pos_range:[lo, hi],
+                          policy:{type, k}}.
+                          When None/absent → legacy descriptor (no "sections" key).
+                          IMPORTANT (C2): adding sections does NOT change any
+                          answer_bubbles cx/cy/r — section labels are rendered only
+                          in existing header/legend whitespace by the generator.
 
     Returns
     -------
@@ -73,6 +82,8 @@ def build_template(num_questions: int, num_options: int, roll_digits: int,
         answer_bubbles list[{q_pos, page, options:[{label, cx, cy, r}]}]
         page_count     int
         page_map       {page_index: [q_pos, ...]}
+        sections       list[{key, label, order_index, q_pos_range, policy,
+                        page}]  — only present when sections param is provided
     """
     num_options = max(2, min(6, num_options))
     page_count = math.ceil(num_questions / ANSWERS_PER_PAGE)
@@ -82,7 +93,7 @@ def build_template(num_questions: int, num_options: int, roll_digits: int,
     roll_grid = _roll_grid(roll_digits, roll_kind=roll_kind)
     answer_bubbles, page_map = _answer_grid(num_questions, num_options, page_count)
 
-    return {
+    descriptor = {
         "page_px": [W, H],
         "dpi": DPI,
         "fiducials": fiducials,
@@ -92,6 +103,45 @@ def build_template(num_questions: int, num_options: int, roll_digits: int,
         "page_count": page_count,
         "page_map": page_map,
     }
+
+    # --- Optional sections block (additive — never changes cx/cy/r) ----------
+    # Per C2: answer bubble coordinates are rigid and must be byte-identical
+    # with or without a sections block. Sections are pure metadata used only
+    # by the generator's _draw_section_headers pass.
+    if sections:
+        # Build a q_pos → page lookup from the already-computed answer_bubbles
+        q_pos_to_page = {b["q_pos"]: b["page"] for b in answer_bubbles}
+
+        sections_out = []
+        for sec in sections:
+            q_pos_range = sec.get("q_pos_range", [0, num_questions - 1])
+            lo, hi = q_pos_range[0], q_pos_range[1]
+            # Determine page(s) for this section's first q_pos (for header placement)
+            page_no = q_pos_to_page.get(lo, 0)
+            sections_out.append({
+                "key": sec["key"],
+                "label": sec.get("label", sec["key"]),
+                "order_index": sec.get("order_index", 0),
+                "q_pos_range": q_pos_range,
+                "policy": sec.get("policy", {"type": "all"}),
+                "page": page_no,
+            })
+
+        descriptor["sections"] = sections_out
+
+        # Tag each answer_bubble with its section key (additive dict key; no cx/cy change)
+        for bubble in answer_bubbles:
+            qp = bubble["q_pos"]
+            bubble_section = None
+            for sec in sections_out:
+                lo, hi = sec["q_pos_range"][0], sec["q_pos_range"][1]
+                if lo <= qp <= hi:
+                    bubble_section = sec["key"]
+                    break
+            if bubble_section is not None:
+                bubble["section"] = bubble_section
+
+    return descriptor
 
 
 # ---------------------------------------------------------------------------

@@ -194,11 +194,14 @@ class GenerateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # num_options = max options across all questions, clamped [2, 6]
+        # num_options = max(test.default_options, max options across questions),
+        # clamped to [2, 6].  test.default_options (default 4) lets a 5-option
+        # test always lay out 5 columns even if some questions have fewer options.
         max_options = max(
             (q.options.count() for q in questions_list), default=2
         )
-        num_options = max(2, min(6, max_options))
+        test_default_options = getattr(test, "default_options", 4) or 4
+        num_options = max(2, min(6, max(test_default_options, max_options)))
 
         # roll_digits = max(2, digits of largest roll_number)
         roll_numbers = [s.roll_number for s in students if s.roll_number]
@@ -212,11 +215,43 @@ class GenerateView(APIView):
         test_mode = getattr(test, "mode", "standard")
         roll_kind = "prebubbled" if test_mode == "roster_prebubbled" else "writein"
 
+        # Build section metadata for competitive tests (Phase 3B).
+        # Sections are authored in canonical Question.order_index space;
+        # the printed q_pos order matches the shuffled question_order.
+        # For the descriptor we pass canonical-space sections as q_pos_range
+        # references so the generator can draw section headers.
+        # NOTE: the descriptor sections block is purely cosmetic metadata
+        # (C2 invariant: answer bubble cx/cy/r are never moved).
+        sections_for_descriptor = None
+        if test_mode == "competitive":
+            raw_sections = list(
+                test.sections.order_by("order_index", "id")
+                .values("key", "label", "order_index", "q_start", "q_end",
+                        "policy", "choose_k")
+            )
+            if raw_sections:
+                sections_for_descriptor = []
+                for s in raw_sections:
+                    # q_start/q_end are 1-based; convert to 0-based q_pos
+                    lo = s["q_start"] - 1
+                    hi = s["q_end"] - 1
+                    policy_info = {"type": s["policy"]}
+                    if s["policy"] == "choose_k" and s["choose_k"]:
+                        policy_info["k"] = s["choose_k"]
+                    sections_for_descriptor.append({
+                        "key": s["key"],
+                        "label": s["label"],
+                        "order_index": s["order_index"],
+                        "q_pos_range": [lo, hi],
+                        "policy": policy_info,
+                    })
+
         descriptor = build_template(
             num_questions=num_questions,
             num_options=num_options,
             roll_digits=roll_digits,
             roll_kind=roll_kind,
+            sections=sections_for_descriptor,
         )
 
         # Build question dicts for shuffle
