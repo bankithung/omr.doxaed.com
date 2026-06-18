@@ -1,5 +1,29 @@
 # Current State
 
+- 2026-06-18: **Multi-mode OMR — Phase 2 (analytical profiles + report cards + PUBLIC result portal)
+  COMPLETE & E2E-verified** (branch `feat/omr-modes`; not yet merged). Delivers "every test → a
+  proper analytical profile" + the user's public-share-link ask.
+  **2A engine** (`analytics/psychometrics.py` + TestProfile/StudentProfile + Celery `recompute_test_profile`
+  hooked to batch completion): item difficulty (p-value), discrimination (27% rule), point-biserial,
+  KR-20, distractor analysis by tertile, percentile/rank — GOLDEN-NUMBER tests (KR-20 0.6942,
+  point-biserial 0.4704 verified by hand) + MIN_COHORT=10 + zero-variance guards.
+  **2B report card** (`analytics/report_card.py`): 2-page per-student PDF — page 1 parent summary
+  (score/percentile/rank/topic bars/class compare), page 2 teacher diagnostic (per-question
+  shuffle-correct, distractor notes); individual + bulk endpoints; org/owner name in header.
+  **2C surfacing**: Analytics "Item Analysis" tab (difficulty/discrimination/point-biserial/KR-20 +
+  flags + small-cohort banner), percentile/rank + report-card download in StudentDetail, bulk
+  download in Results. (Negative marking already in the wizard.)
+  **2D PUBLIC result portal**: per-test "Publish results" → unguessable `/r/<slug>` (PublicResultShare
+  model); no-auth lookup by roll (+ optional access-code) returns ONE result; optional leaderboard;
+  name-masking; standalone public React page (no app nav). **Adversarial security review** caught +
+  FIXED: a silent-no-op throttle (ScopedRateThrottle→SimpleRateThrottle, now enforces 30/min/IP),
+  roll_number type-validation (list/dict→400 not 500), and a first-initial mask leak (→ fully opaque).
+  Core design verified safe (per-slug isolation, IDOR, constant-time code, unpublish lifecycle).
+  **VERIFIED:** full cross-browser E2E — standard 16/16 (Chromium/Chrome/Edge) + Mode-B 17/17 — now
+  also covering report-card download, item-analysis, and a public-portal lookup in a fresh no-auth
+  context. ~703 backend tests. Demo: `teacher@omrflow.test`/`Teacher@12345`; test 18 is published
+  (a live public-portal demo link). **Next: Phase 3** (Mode C — sections/series/negative-marking;
+  owner to confirm NEET-vs-UPSC fidelity + 4-vs-5 options).
 - 2026-06-18: **Multi-mode OMR — Phase 1 (mode scaffold + Mode B pre-bubbled roll) COMPLETE**
   (branch `feat/omr-modes`). New product direction: multiple test-creation MODES + advanced
   differentiators, designed in `docs/superpowers/specs/2026-06-18-omr-modes-and-advanced-features.md`

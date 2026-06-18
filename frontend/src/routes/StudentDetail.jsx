@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
-import { getStudentDetail } from "@/api/analytics"
+import { getStudentDetail, downloadStudentReportCard } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -110,6 +110,7 @@ export default function StudentDetail() {
   const { testId, studentId } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -118,6 +119,22 @@ export default function StudentDetail() {
       .catch(() => toast.error("Failed to load student detail"))
       .finally(() => setLoading(false))
   }, [testId, studentId])
+
+  async function handleDownloadReportCard() {
+    setDownloading(true)
+    try {
+      await downloadStudentReportCard(testId, studentId)
+      toast.success("Report card downloaded")
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        "Failed to download report card"
+      toast.error(msg)
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -161,9 +178,19 @@ export default function StudentDetail() {
 
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Student Detail</h1>
-        <Button asChild variant="outline" size="sm">
-          <Link to={`/tests/${testId}/results`}>Back to results</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={downloading}
+            onClick={handleDownloadReportCard}
+          >
+            {downloading ? "Downloading…" : "Download report card"}
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/tests/${testId}/results`}>Back to results</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Score summary */}
@@ -194,6 +221,24 @@ export default function StudentDetail() {
               {" / "}
               <span>{data.blank ?? 0}—</span>
             </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Rank / Percentile
+            </span>
+            <span className="text-lg font-bold tabular-nums">
+              {data.rank != null ? `#${data.rank}` : "—"}
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                {data.percentile != null
+                  ? `${Math.round(data.percentile)}th pct.`
+                  : "—"}
+              </span>
+            </span>
+            {data.cohort_size != null && (
+              <span className="text-xs text-muted-foreground">
+                of {data.cohort_size} students
+              </span>
+            )}
           </div>
         </div>
       </div>

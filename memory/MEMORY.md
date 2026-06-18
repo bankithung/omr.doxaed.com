@@ -1,6 +1,6 @@
 # OMRFlow — Memory Index
 
-**Status:** Webapp production-ready (Phases 0–8 on `main`). NOW building **multi-mode OMR** (`feat/omr-modes`): 6 modes + advanced features per `docs/superpowers/specs/2026-06-18-omr-modes-and-advanced-features.md` (7-phase roadmap). **Phase 1 (mode scaffold + Mode B pre-bubbled roll) DONE & E2E-verified, not yet merged.** Next: Phase 2 (analytics core). Mobile app still pending.
+**Status:** Webapp production-ready (Phases 0–8 on `main`). Building **multi-mode OMR** (`feat/omr-modes`): 6 modes + advanced features per `docs/superpowers/specs/2026-06-18-omr-modes-and-advanced-features.md` (7-phase roadmap). **Phases 1 (Mode B pre-bubbled roll) + 2 (analytical profiles + report cards + PUBLIC result portal) DONE & E2E-verified; not yet merged to main.** ~703 backend tests; full E2E Chromium/Chrome/Edge. Next: Phase 3 (Mode C — sections/series/negative-marking). Mobile app still pending.
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
 **Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–8 + gap-closure. **540 tests**, lint clean. Cross-browser E2E suite in `e2e/` (`node run.mjs`).
 ⚠️ Before launch: real Razorpay keys + payments review; TLS + prod env; Redis+Celery worker; audits/backups/monitoring. See `docs/DEPLOYMENT.md` + `docs/SECURITY-CHECKLIST.md`.

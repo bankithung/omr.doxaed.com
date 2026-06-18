@@ -12,7 +12,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts"
-import { getTestAnalytics, getImprovement, exportResults } from "@/api/analytics"
+import { getTestAnalytics, getImprovement, exportResults, getTestProfile } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -362,6 +362,245 @@ function ImprovementTab({ testId }) {
 }
 
 // ────────────────────────────────────────────────
+// Item Analysis tab
+// ────────────────────────────────────────────────
+
+function ItemFlag({ flags }) {
+  if (!flags?.length) return null
+  const labels = {
+    too_easy: { text: "Too easy", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
+    too_hard: { text: "Too hard", cls: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
+    negative_discrimination: { text: "Neg. discrimination", cls: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {flags.map((f) => {
+        const meta = labels[f]
+        return meta ? (
+          <span key={f} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>
+            {meta.text}
+          </span>
+        ) : null
+      })}
+    </div>
+  )
+}
+
+function fmtMetric(val) {
+  if (val == null) return "—"
+  if (typeof val === "object" && val.status === "insufficient_sample") return "—"
+  if (typeof val === "number") return val.toFixed(3)
+  return "—"
+}
+
+function DistractorSummary({ items }) {
+  // Only show if at least one item has distractor data
+  const itemsWithDistractor = items.filter(
+    (it) => it.distractor && Array.isArray(it.distractor.options) && it.distractor.options.length > 0,
+  )
+  if (!itemsWithDistractor.length) return null
+
+  const allFlags = itemsWithDistractor.flatMap((it) => it.distractor.flags ?? [])
+  const nfdFlags = allFlags.filter((f) => f.startsWith("non_functioning_distractor:"))
+  const miskeyFlags = allFlags.filter((f) => f.startsWith("miskey_suspect:"))
+
+  if (!allFlags.length) {
+    return (
+      <p className="text-sm text-muted-foreground">No distractor flags detected.</p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      {nfdFlags.length > 0 && (
+        <div>
+          <span className="font-medium text-amber-700 dark:text-amber-400">Non-functioning distractors </span>
+          <span className="text-muted-foreground">(selected by &lt;5% of students):</span>
+          <span className="ml-1">
+            {nfdFlags.map((f) => f.replace("non_functioning_distractor:", "")).join(", ")}
+          </span>
+        </div>
+      )}
+      {miskeyFlags.length > 0 && (
+        <div>
+          <span className="font-medium text-red-700 dark:text-red-400">Possible miskey suspects </span>
+          <span className="text-muted-foreground">(high scorers chose distractor more than key):</span>
+          <span className="ml-1">
+            {miskeyFlags.map((f) => f.replace("miskey_suspect:", "")).join(", ")}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ItemAnalysisTab({ testId }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    getTestProfile(testId)
+      .then(setData)
+      .catch((err) => {
+        const msg =
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to load item analysis"
+        setError(msg)
+      })
+      .finally(() => setLoading(false))
+  }, [testId])
+
+  if (loading) {
+    return <p className="py-8 text-sm text-muted-foreground">Loading item analysis…</p>
+  }
+
+  if (error) {
+    return <EmptyState title="Item analysis unavailable" description={error} />
+  }
+
+  const profile = data?.profile ?? {}
+  const cohortSize = data?.cohort_size ?? 0
+  const items = profile.items ?? []
+  const kr20Value = profile.kr20
+
+  // Small-cohort: show note but still render what we can
+  const smallCohort = cohortSize < 10
+
+  // KR-20 display
+  const kr20Display = (() => {
+    if (kr20Value == null) return null
+    if (typeof kr20Value === "object" && kr20Value.status === "insufficient_sample") return null
+    if (typeof kr20Value === "number") return kr20Value.toFixed(3)
+    return null
+  })()
+
+  const kr20Label = (() => {
+    if (kr20Display == null) return null
+    const v = parseFloat(kr20Display)
+    if (v >= 0.8) return "Good reliability"
+    if (v >= 0.6) return "Acceptable reliability"
+    if (v >= 0.4) return "Questionable reliability"
+    return "Poor reliability"
+  })()
+
+  if (!items.length && !smallCohort) {
+    return (
+      <EmptyState
+        title="No item data"
+        description="Item analysis will appear once the test has been graded."
+      />
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* Small-cohort notice */}
+      {smallCohort && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
+          <strong>Needs at least 10 graded students for full item analysis.</strong>
+          {" "}Currently {cohortSize} student{cohortSize !== 1 ? "s" : ""} graded.
+          Difficulty (p-value) is shown; discrimination, point-biserial, and KR-20 require a larger cohort.
+        </div>
+      )}
+
+      {/* KR-20 reliability */}
+      {kr20Display != null && (
+        <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm">
+          <div>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Reliability (KR-20)
+            </span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-2xl font-bold tabular-nums">{kr20Display}</span>
+              <span className="text-sm text-muted-foreground">{kr20Label}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              KR-20 measures internal consistency (0 = none, 1 = perfect). 0.7+ is acceptable for classroom assessments.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Per-item table */}
+      {items.length > 0 && (
+        <div>
+          <h3 className="mb-3 text-sm font-semibold">Per-item psychometrics</h3>
+          <div className="rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Q#</TableHead>
+                  <TableHead className="w-28">Difficulty (p)</TableHead>
+                  <TableHead className="w-28">Discrimination</TableHead>
+                  <TableHead className="w-32">Point-biserial</TableHead>
+                  <TableHead>Flags</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item, idx) => {
+                  const pVal = typeof item.difficulty === "number" ? item.difficulty : null
+                  const pDisplay = pVal != null ? pVal.toFixed(3) : "—"
+                  const pColour =
+                    pVal == null
+                      ? ""
+                      : pVal > 0.9
+                      ? "text-blue-600"
+                      : pVal < 0.2
+                      ? "text-red-500"
+                      : "text-foreground"
+                  return (
+                    <TableRow key={item.q_pos ?? idx}>
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        {(item.q_pos ?? idx) + 1}
+                      </TableCell>
+                      <TableCell className={`tabular-nums font-medium ${pColour}`}>
+                        {pDisplay}
+                      </TableCell>
+                      <TableCell className="tabular-nums text-sm">
+                        {smallCohort ? (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        ) : (
+                          fmtMetric(item.discrimination)
+                        )}
+                      </TableCell>
+                      <TableCell className="tabular-nums text-sm">
+                        {smallCohort ? (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        ) : (
+                          fmtMetric(item.point_biserial)
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <ItemFlag flags={item.flags} />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            p-value: proportion correct (higher = easier). Discrimination: top 27% − bottom 27% correct rate. Point-biserial: item–total correlation.
+          </p>
+        </div>
+      )}
+
+      {/* Distractor summary */}
+      {items.length > 0 && !smallCohort && (
+        <div>
+          <h3 className="mb-3 text-sm font-semibold">Distractor summary</h3>
+          <DistractorSummary items={items} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────
 // Export buttons
 // ────────────────────────────────────────────────
 
@@ -500,6 +739,7 @@ export default function Analytics() {
         <TabsList className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="questions">Questions</TabsTrigger>
+          <TabsTrigger value="item-analysis">Item Analysis</TabsTrigger>
           <TabsTrigger value="improvement">Improvement</TabsTrigger>
         </TabsList>
 
@@ -572,6 +812,11 @@ export default function Analytics() {
               <OptionDistributionSection optionDistribution={summary.option_distribution} />
             </div>
           </div>
+        </TabsContent>
+
+        {/* ── Item Analysis tab ── */}
+        <TabsContent value="item-analysis">
+          <ItemAnalysisTab testId={testId} />
         </TabsContent>
 
         {/* ── Improvement tab ── */}

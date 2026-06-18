@@ -290,6 +290,37 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
       await shot(page, browserName, "11-exported")
     })
 
+    // 11b. Phase 2 surfaces: bulk report-card PDF + item-analysis tab + public portal
+    await step("reports-and-portal", async () => {
+      // (a) bulk report-card PDF download from the results page
+      await page.goto(`${FRONTEND}/tests/${testId}/results`)
+      const [dl] = await Promise.all([
+        page.waitForEvent("download", { timeout: 30000 }),
+        page.getByRole("button", { name: /Download all report cards/i }).click(),
+      ])
+      const rcPath = path.join(DOWNLOADS, `${browserName}-${RUN_ID}-reportcards.pdf`)
+      await dl.saveAs(rcPath)
+      if (fs.statSync(rcPath).size <= 0) throw new Error("report-cards PDF was empty")
+      log(`report cards → ${fs.statSync(rcPath).size} bytes`)
+
+      // (b) item-analysis tab renders (small cohort → guidance banner)
+      await page.goto(`${FRONTEND}/tests/${testId}/analytics`)
+      await page.getByRole("tab", { name: /Item Analysis/i }).click()
+      await page.getByText(/reliability|graded students/i).first().waitFor({ timeout: 15000 })
+
+      // (c) public portal: publish, then look up a roll in a FRESH no-auth context
+      const pub = py("publish", String(testId))
+      const pctx = await browser.newContext()
+      const pp = await pctx.newPage()
+      await pp.goto(`${FRONTEND}/r/${pub.slug}`)
+      await pp.locator("#roll_number").fill(STUDENTS[0])
+      await pp.getByRole("button", { name: "Get result" }).click()
+      await pp.getByText(`Roll: ${STUDENTS[0]}`, { exact: false }).waitFor({ timeout: 15000 })
+      await pp.screenshot({ path: path.join(SHOTS, browserName, "11c-public-portal.png"), fullPage: true })
+      await pctx.close()
+      log(`public portal: roll ${STUDENTS[0]} resolved on /r/${pub.slug}`)
+    })
+
     // 12. Mode B only — tamper detection: upload a scan whose roll is altered to a
     // DIFFERENT valid roll; the QR still identifies the sheet (so it grades) but
     // the pre-bubbled-roll cross-check must flag roll_mismatch in the review queue.

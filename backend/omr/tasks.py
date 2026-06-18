@@ -40,3 +40,8 @@ def process_scan_job_task(job_id: int) -> None:
     if batch.processed >= batch.total:
         batch.status = ScanBatch.STATUS_DONE
         batch.save(update_fields=["status"])
+
+        # Phase 2A: enqueue psychometric profile computation for this test.
+        # CELERY_TASK_ALWAYS_EAGER=True in dev so this runs inline.
+        from analytics.tasks import recompute_test_profile
+        recompute_test_profile.delay(batch.test_id)
