@@ -320,6 +320,24 @@ class ScanBatchSheetsViewTests(TestCase):
                       "reads", "omr_sheet_id", "warped_image_url"):
             self.assertIn(field, job_data, f"Missing field: {field}")
 
+    def test_response_is_enriched_for_correction_ui(self):
+        """The Scan & Verify board needs student, score, answer_key, bubble geometry."""
+        self.client.force_authenticate(user=self.user)
+        sheet = self.client.get(self.url).data[0]
+        for field in ("student", "student_result", "answer_key",
+                      "bubble_geometry", "detected", "flags", "sheet_code"):
+            self.assertIn(field, sheet, f"Missing enriched field: {field}")
+        # student name/roll + score must be populated for a graded sheet
+        self.assertIsNotNone(sheet["student"])
+        self.assertIn("name", sheet["student"])
+        self.assertIn("roll", sheet["student"])
+        self.assertIsNotNone(sheet["student_result"])
+        self.assertIn("score", sheet["student_result"])
+        # bubble geometry has the per-option coords the overlay needs
+        self.assertGreater(len(sheet["bubble_geometry"]), 0)
+        for k in ("q_pos", "label", "cx", "cy", "r"):
+            self.assertIn(k, sheet["bubble_geometry"][0])
+
     def test_anonymous_gets_401(self):
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 401)
