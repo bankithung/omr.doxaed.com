@@ -1,7 +1,12 @@
 import { api } from "@/api/client"
 
-export const listClasses = () =>
-  api.get("/classes/").then((r) => r.data)
+/**
+ * List classes. Optionally filter by folder: listClasses({ folder: <id> }).
+ * Called with no args (or {}) it returns all visible classes — preserving the
+ * existing call sites byte-for-byte.
+ */
+export const listClasses = (params = {}) =>
+  api.get("/classes/", { params }).then((r) => r.data)
 
 export const getClass = (id) =>
   api.get(`/classes/${id}/`).then((r) => r.data)

@@ -33,6 +33,7 @@ import {
   LogOutIcon,
   HomeIcon,
   FileTextIcon,
+  FolderIcon,
 } from "lucide-react"
 
 // ─── Nav item definitions ─────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ import {
 const WORKSPACE_NAV = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboardIcon },
   { label: "Classes", to: "/classes", icon: FileTextIcon },
+  { label: "Folders", to: "/folders", icon: FolderIcon },
   { label: "Rosters", to: "/rosters", icon: UsersIcon },
 ]
 
