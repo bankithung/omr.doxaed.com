@@ -58,7 +58,16 @@
   Design workflow caught 3 issues pre-build (choose-k fairness, header geometry, retest). 756 tests.
   Competitive CREATION UI deferred into Product v2. Then owner re-scoped → PRODUCT V2 (folders/sharing/
   admin-visibility, shuffled question paper, sheet branding/logo, inline scan correction, UX/onboarding/
-  mobile overhaul) — design workflow running.
+  mobile overhaul) — design workflow (NEEDS_REVISION, security corrections folded in).
+- 2026-06-18 — PRODUCT V2 Phases 0–4b merged to `main`: P0 design-system + theme; P1 responsive shell
+  (sidebar/drawer/bottom-tabs, reload-free org switch); P2 mobile list cards (DataList) + TestList
+  ActionMenu; P3a per-student shuffled question paper PDF (auth-served + batch); P3b sheet branding
+  (heading+logo, header re-layout clears roll-grid, logo DoS guard, coord-invariant); P4a inline-scan
+  backend (per-sheet reads, whole-sheet regrade applying corrections, warped persist, fill-ratio,
+  scoped reattach); P4b Scan & Verify UI (board + warped-overlay corrector, whole-sheet, camera). Owner
+  UI rules locked in CLAUDE.md. Auto commit-review caught+fixed batch-paper /media exposure + regrade
+  IDOR. Parallel-agent branch tangle recovered (now sequential). Each phase E2E-verified across 3
+  browsers. Next: 3c UIs · #87 multi-mark rules · Phase 5 folders/sharing · Phase 6 polish.
 - 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
   + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
   distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).

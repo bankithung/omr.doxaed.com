@@ -1,5 +1,27 @@
 # Current State
 
+- 2026-06-18: **PRODUCT V2 in progress — Phases 0–4b merged to `main`** (plan +
+  authoritative SECURITY corrections in `docs/superpowers/plans/2026-06-18-productv2-folders-papers-ux.md`).
+  Owner UI rules now MANDATORY (in CLAUDE.md): no alert/native-select/default-styles/gradients;
+  fully mobile-responsive; custom modals only.
+  **Done + E2E-verified (Chromium/Chrome/Edge 16/16 + Mode-B 17/17):** P0 design-system primitives +
+  theme; P1 responsive app shell (desktop sidebar / mobile drawer + bottom-tabs, reload-free org
+  switch); P2 all list screens → DataList cards on mobile + TestList ActionMenu; **P3a per-student
+  SHUFFLED QUESTION PAPER** PDF (auth-served, incl. batch endpoint — both behind auth, no /media PII);
+  **P3b sheet BRANDING** (heading + logo, header re-layout that clears the roll-grid, logo DoS
+  hardening, coord-invariant); **P4a inline-scan-correction backend** (per-sheet reads, whole-sheet
+  regrade APPLYING corrections via shared `_persist_grading_result`, no double-charge, warped-scan
+  persist, fill-ratio; student-reattach scoped — IDOR fixed); **P4b Scan & Verify UI** (whole-sheet
+  results board + inline corrector: warped sheet + detected-mark overlay + whole-sheet toggle grid →
+  one re-grade; drag-drop + mobile camera; enriched sheets endpoint). Auto commit-review caught +
+  fixed 3 security issues this run (batch-paper /media exposure, regrade IDOR, +earlier).
+  **Owner reqs captured:** scanning is already whole-page/mark-all-at-once (confirmed); configurable
+  MULTIPLE-MARK rules (2/3/4 dots → disqualify/wrong/review/as-marked, teacher-set) = task #87.
+  **NEXT (sequential, one agent at a time — parallel branch work caused a tangle, recovered):** 3c
+  (question-paper download + branding settings + competitive section-builder UIs) · #87 multi-mark
+  rules · **Phase 5 folders/sharing + admin-sees-all + subjects + onboarding** (biggest, security-
+  sensitive: auth file-serving for existing pdf_file + visibility_q across ~8 views) · Phase 6 polish.
+  Demo login teacher@omrflow.test / Teacher@12345. **~440+ backend tests.**
 - 2026-06-18: **Mode C engine (Phase 3A+3B) merged to `main`** (`6944e24`). Competitive (NEET/UPSC):
   Section/SectionMarkingScheme models, Question.section, Test.MODE_COMPETITIVE + default_options;
   section grading — **best-K-of-attempted choose-k (shuffle-invariant)**, flat/fractional negatives
