@@ -1,19 +1,40 @@
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from common.scope import scope_filter, scope_kwargs
+from common.scope import can_edit_class, scope_filter, scope_kwargs, visibility_q
 from common.viewsets import ScopedModelViewSet
 
 from .models import ClassGroup, MarkingScheme, Option, Question, Section, SectionMarkingScheme, Test
 from .serializers import ClassGroupSerializer, QuestionSerializer, SectionSerializer, TestSerializer
+
+_EDIT_DENIED = "You have view-only access to this folder; editing is not permitted."
 
 
 class ClassGroupViewSet(ScopedModelViewSet):
     queryset = ClassGroup.objects.all()
     serializer_class = ClassGroupSerializer
     owner_extra_fields = ("created_by",)
+
+    def get_queryset(self):
+        qs = super().get_queryset().filter(
+            visibility_q(self.request, "", "created_by")
+        ).distinct()
+        folder = self.request.query_params.get("folder")
+        return qs.filter(folder_id=folder) if folder else qs
+
+    def perform_update(self, serializer):
+        # EDIT-rights gate: the class is itself the governing class.
+        if not can_edit_class(self.request, serializer.instance):
+            raise PermissionDenied(_EDIT_DENIED)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_edit_class(self.request, instance):
+            raise PermissionDenied(_EDIT_DENIED)
+        instance.delete()
 
 
 class TestViewSet(ScopedModelViewSet):
@@ -22,13 +43,34 @@ class TestViewSet(ScopedModelViewSet):
     owner_extra_fields = ("created_by",)
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(
+            visibility_q(self.request, "class_group__", "created_by")
+        ).distinct()
         cg = self.request.query_params.get("class_group")
         return qs.filter(class_group_id=cg) if cg else qs
+
+    def perform_create(self, serializer):
+        # Creating a test under a class requires EDIT rights on that class.
+        cg = serializer.validated_data.get("class_group")
+        if not can_edit_class(self.request, cg):
+            raise PermissionDenied(_EDIT_DENIED)
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        if not can_edit_class(self.request, serializer.instance.class_group):
+            raise PermissionDenied(_EDIT_DENIED)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_edit_class(self.request, instance.class_group):
+            raise PermissionDenied(_EDIT_DENIED)
+        instance.delete()
 
     @action(detail=True, methods=["post"])
     def retest(self, request, pk=None):
         original = self.get_object()
+        if not can_edit_class(request, original.class_group):
+            raise PermissionDenied(_EDIT_DENIED)
         clone = Test.objects.create(
             **scope_kwargs(request),
             created_by=request.user,
@@ -97,9 +139,29 @@ class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
 
     def get_queryset(self):
-        qs = Question.objects.filter(scope_filter(self.request, "test__"))
+        qs = Question.objects.filter(
+            scope_filter(self.request, "test__")
+            & visibility_q(self.request, "test__class_group__", "test__created_by")
+        ).distinct()
         test_id = self.request.query_params.get("test")
         return qs.filter(test_id=test_id) if test_id else qs
+
+    def _gate_edit(self, test):
+        if not can_edit_class(self.request, test.class_group):
+            raise PermissionDenied(_EDIT_DENIED)
+
+    def perform_create(self, serializer):
+        # Question.test is validated for scope by the serializer; gate EDIT here.
+        self._gate_edit(serializer.validated_data["test"])
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._gate_edit(serializer.instance.test)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._gate_edit(instance.test)
+        instance.delete()
 
 
 class SectionViewSet(viewsets.ModelViewSet):
@@ -109,6 +171,23 @@ class SectionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Section.objects.filter(
             scope_filter(self.request, "test__")
-        ).select_related("marking_scheme")
+            & visibility_q(self.request, "test__class_group__", "test__created_by")
+        ).select_related("marking_scheme").distinct()
         test_id = self.request.query_params.get("test")
         return qs.filter(test_id=test_id) if test_id else qs
+
+    def _gate_edit(self, test):
+        if not can_edit_class(self.request, test.class_group):
+            raise PermissionDenied(_EDIT_DENIED)
+
+    def perform_create(self, serializer):
+        self._gate_edit(serializer.validated_data["test"])
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._gate_edit(serializer.instance.test)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._gate_edit(instance.test)
+        instance.delete()

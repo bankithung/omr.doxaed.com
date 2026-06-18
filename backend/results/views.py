@@ -16,7 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from common.scope import scope_filter
+from common.scope import can_edit_class, scope_filter, visibility_q
 from results.models import QuestionResponse, ReviewItem, StudentResult
 from results.serializers import (
     ResolveReviewSerializer,
@@ -39,7 +39,8 @@ class StudentResultListView(generics.ListAPIView):
     def get_queryset(self):
         qs = StudentResult.objects.filter(
             scope_filter(self.request, "test__")
-        ).prefetch_related("responses")
+            & visibility_q(self.request, "test__class_group__", "test__created_by")
+        ).prefetch_related("responses").distinct()
         test_id = self.request.query_params.get("test")
         if test_id:
             qs = qs.filter(test_id=test_id)
@@ -64,8 +65,17 @@ class ReviewItemListView(generics.ListAPIView):
         # Filter open items scoped to the current scope (solo or org). Include both:
         #   - items tied to an OmrSheet (most flags), via omr_sheet__test__
         #   - orphaned items with no OmrSheet (e.g. no_qr), via scan_job__batch__test__
-        sf_omr = scope_filter(self.request, "omr_sheet__test__")
-        sf_scan = scope_filter(self.request, "scan_job__batch__test__")
+        # Phase 5B: AND folder visibility onto EACH path so a member without a
+        # visibility grant on the governing class never sees that test's review
+        # items via either path.
+        sf_omr = scope_filter(self.request, "omr_sheet__test__") & visibility_q(
+            self.request, "omr_sheet__test__class_group__", "omr_sheet__test__created_by"
+        )
+        sf_scan = scope_filter(self.request, "scan_job__batch__test__") & visibility_q(
+            self.request,
+            "scan_job__batch__test__class_group__",
+            "scan_job__batch__test__created_by",
+        )
         qs = ReviewItem.objects.filter(
             sf_omr | sf_scan,
             resolved=False,
@@ -93,13 +103,33 @@ class ResolveReviewItemView(APIView):
     def post(self, request, pk):
         # Scope check: must belong to the current scope (solo or org) via either
         # the omr_sheet's test OR (for orphaned items like no_qr) the scan_job's batch's test.
-        sf_omr = scope_filter(request, "omr_sheet__test__")
-        sf_scan = scope_filter(request, "scan_job__batch__test__")
+        # Phase 5B: AND folder visibility onto each path (read gate).
+        sf_omr = scope_filter(request, "omr_sheet__test__") & visibility_q(
+            request, "omr_sheet__test__class_group__", "omr_sheet__test__created_by"
+        )
+        sf_scan = scope_filter(request, "scan_job__batch__test__") & visibility_q(
+            request,
+            "scan_job__batch__test__class_group__",
+            "scan_job__batch__test__created_by",
+        )
         review_item = get_object_or_404(
-            ReviewItem.objects.filter(sf_omr | sf_scan),
+            ReviewItem.objects.filter(sf_omr | sf_scan).distinct(),
             pk=pk,
             resolved=False,
         )
+
+        # WRITE gate: resolving a review item mutates grading — require EDIT rights
+        # on the governing class (VIEW-only → 403).
+        gov_test = None
+        if review_item.omr_sheet_id is not None:
+            gov_test = review_item.omr_sheet.test
+        elif review_item.scan_job_id is not None and review_item.scan_job.batch_id is not None:
+            gov_test = review_item.scan_job.batch.test
+        if gov_test is not None and not can_edit_class(request, gov_test.class_group):
+            return Response(
+                {"detail": "You have view-only access to this folder; editing is not permitted."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         serializer = ResolveReviewSerializer(data=request.data)
         if not serializer.is_valid():

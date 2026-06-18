@@ -41,7 +41,13 @@ from rest_framework.views import APIView
 
 import billing.limits as billing_limits
 from assessments.models import Test
-from common.scope import get_active_org, parent_in_scope, scope_filter
+from common.scope import (
+    can_edit_class,
+    get_active_org,
+    parent_in_scope,
+    scope_filter,
+    visibility_q,
+)
 from omr.codes import make_sheet_code
 from omr.geometry import build_template
 from omr.generator import render_sheet_pdf
@@ -122,6 +128,15 @@ class GenerateView(APIView):
             return Response(
                 {"roster": "Roster not found in your account."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ---- folder visibility / EDIT gate (Phase 5B) --------------------
+        # Generating sheets is a WRITE on the test's class: require EDIT rights
+        # (folder creator / EDIT share / active-org admin). VIEW-only → 403.
+        if not can_edit_class(request, test.class_group):
+            return Response(
+                {"detail": "You have view-only access to this folder; editing is not permitted."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # ---- generation gates (org-aware) --------------------------------
@@ -468,7 +483,10 @@ class OmrSheetListView(generics.ListAPIView):
     serializer_class = OmrSheetSerializer
 
     def get_queryset(self):
-        qs = OmrSheet.objects.filter(scope_filter(self.request, "test__"))
+        qs = OmrSheet.objects.filter(
+            scope_filter(self.request, "test__")
+            & visibility_q(self.request, "test__class_group__", "test__created_by")
+        ).distinct()
         test_id = self.request.query_params.get("test")
         if test_id:
             qs = qs.filter(test_id=test_id)
@@ -536,6 +554,14 @@ class ScanUploadView(APIView):
             return Response(
                 {"test": "Test not found in your account."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ---- folder visibility / EDIT gate (Phase 5B) --------------------
+        # Uploading scans is a WRITE on the test's class: require EDIT rights.
+        if not can_edit_class(request, test.class_group):
+            return Response(
+                {"detail": "You have view-only access to this folder; editing is not permitted."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         uploaded_files = request.FILES.getlist("files")
@@ -671,7 +697,10 @@ class ScanBatchDetailView(generics.RetrieveAPIView):
     serializer_class = ScanBatchSerializer
 
     def get_queryset(self):
-        return ScanBatch.objects.filter(scope_filter(self.request, "test__"))
+        return ScanBatch.objects.filter(
+            scope_filter(self.request, "test__")
+            & visibility_q(self.request, "test__class_group__", "test__created_by")
+        ).distinct()
 
 
 class OmrSheetQuestionPaperView(APIView):
@@ -688,18 +717,19 @@ class OmrSheetQuestionPaperView(APIView):
       avoid leaking whether the sheet id exists.
     - Returns 404 when question_paper_file is not set (no paper generated yet).
 
-    TODO Phase 5: add visibility_q(request, folder_prefix="test__class_group__folder__")
-    to the queryset filter when folder-level sharing is introduced.
+    Phase 5B: visibility_q (folder sharing) is ANDed into the scope filter, so a
+    member without a visibility grant on the test's class gets 404 (no IDOR).
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        # Scope-filter through the test owner chain
+        # Scope-filter through the test owner chain + folder visibility
         qs = OmrSheet.objects.filter(
-            scope_filter(request, "test__"),
+            scope_filter(request, "test__")
+            & visibility_q(request, "test__class_group__", "test__created_by"),
             pk=pk,
-        )
+        ).distinct()
         try:
             omr_sheet = qs.get()
         except OmrSheet.DoesNotExist:
@@ -733,15 +763,18 @@ class OmrTestQuestionPapersBatchView(APIView):
     into one PDF and streams it. This is a multi-student PII document, so it is
     served ONLY here (auth + owner/org scope), never via /media/ or AllowAny.
 
-    TODO Phase 5: add visibility_q(folder_prefix="class_group__folder__") to the
-    Test queryset when folder-level sharing is introduced.
+    Phase 5B: visibility_q (folder sharing) is ANDed into the Test scope filter.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         try:
-            test = Test.objects.filter(scope_filter(request), pk=pk).get()
+            test = Test.objects.filter(
+                scope_filter(request)
+                & visibility_q(request, "class_group__", "created_by"),
+                pk=pk,
+            ).distinct().get()
         except Test.DoesNotExist:
             raise Http404
 
@@ -786,14 +819,17 @@ class ScanBatchSheetsView(APIView):
 
     Scoped to request.user via test__ (404 on cross-tenant access).
 
-    TODO Phase 5: add visibility_q(folder_prefix="test__class_group__folder__")
+    Phase 5B: visibility_q (folder sharing) is ANDed into the scope filter.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        # Scope batch to owner
-        batch_qs = ScanBatch.objects.filter(scope_filter(request, "test__"))
+        # Scope batch to owner + folder visibility
+        batch_qs = ScanBatch.objects.filter(
+            scope_filter(request, "test__")
+            & visibility_q(request, "test__class_group__", "test__created_by")
+        ).distinct()
         try:
             batch = batch_qs.get(pk=pk)
         except ScanBatch.DoesNotExist:
@@ -882,17 +918,20 @@ class ScanJobWarpedView(APIView):
     - Enforces owner/org scope via test__ chain; 404 (not 403) on cross-tenant.
     - Returns 404 when warped_file is not set (not yet processed or alignment failed).
 
-    TODO Phase 5: add visibility_q(folder_prefix="test__class_group__folder__")
+    Phase 5B: visibility_q (folder sharing) is ANDed into the scope filter.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        # Scope: ScanJob -> batch -> test -> user/org
+        # Scope: ScanJob -> batch -> test -> user/org + folder visibility
         job_qs = ScanJob.objects.filter(
-            scope_filter(request, "batch__test__"),
+            scope_filter(request, "batch__test__")
+            & visibility_q(
+                request, "batch__test__class_group__", "batch__test__created_by"
+            ),
             pk=pk,
-        )
+        ).distinct()
         try:
             job = job_qs.get()
         except ScanJob.DoesNotExist:
@@ -939,21 +978,30 @@ class OmrSheetRegradeView(APIView):
 
     Scoped to request.user via test__ (404 on cross-tenant access).
 
-    TODO Phase 5: add visibility_q(folder_prefix="test__class_group__folder__")
+    Phase 5B: visibility_q (folder sharing) is ANDed into the scope filter for the
+    read; the regrade WRITE additionally requires EDIT rights on the governing
+    class (folder creator / EDIT share / active-org admin) — VIEW-only → 403.
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        # Scope-filter through the test owner chain
+        # Scope-filter through the test owner chain + folder visibility
         qs = OmrSheet.objects.filter(
-            scope_filter(request, "test__"),
+            scope_filter(request, "test__")
+            & visibility_q(request, "test__class_group__", "test__created_by"),
             pk=pk,
-        )
+        ).distinct()
         try:
             omr_sheet = qs.get()
         except OmrSheet.DoesNotExist:
             raise Http404
+
+        if not can_edit_class(request, omr_sheet.test.class_group):
+            return Response(
+                {"detail": "You have view-only access to this folder; editing is not permitted."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         from omr.models import ScanJob as _ScanJob
         from omr.scan.grade import grade_sheet

@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/v1/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/v1/auth/", include("accounts.urls")),
     path("api/v1/", include("assessments.urls")),
+    path("api/v1/", include("folders.urls")),
     path("api/v1/", include("rosters.urls")),
     path("api/v1/", include("omr.urls")),
     path("api/v1/", include("results.urls")),

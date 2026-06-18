@@ -5,14 +5,67 @@ from rest_framework import serializers
 from common.logo_validators import validate_logo_image
 from common.scope import parent_in_scope
 
-from .models import ClassGroup, MarkingScheme, Option, Question, Section, SectionMarkingScheme, Test
+from folders.models import Folder
+
+from .models import (
+    ClassGroup,
+    MarkingScheme,
+    Option,
+    Question,
+    Section,
+    SectionMarkingScheme,
+    Subject,
+    Test,
+)
 
 
 class ClassGroupSerializer(serializers.ModelSerializer):
+    folder = serializers.PrimaryKeyRelatedField(
+        queryset=Folder.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = ClassGroup
-        fields = ("id", "name", "description", "created_at", "updated_at")
+        fields = ("id", "name", "description", "folder", "created_at", "updated_at")
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_folder(self, value):
+        if value is None:
+            return value
+        request = self.context["request"]
+        # Folder must belong to the requester's active scope (solo or org).
+        if not parent_in_scope(value, request):
+            raise serializers.ValidationError("Folder not found in your account.")
+        return value
+
+    def _run_scope_match_clean(self, instance):
+        """Enforce ClassGroup.clean() (folder ↔ class scope-match) on API writes.
+        DRF does not call model.full_clean(); invoke the model's clean() so a
+        folder/class scope mismatch is rejected (defence-in-depth on top of
+        validate_folder + scope stamping)."""
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        try:
+            instance.clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(
+                exc.message_dict if hasattr(exc, "message_dict") else exc.messages
+            )
+
+    def create(self, validated_data):
+        instance = ClassGroup(**validated_data)
+        self._run_scope_match_clean(instance)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        self._run_scope_match_clean(instance)
+        instance.save()
+        return instance
 
 
 class MarkingSchemeSerializer(serializers.ModelSerializer):
@@ -246,3 +299,16 @@ class QuestionSerializer(serializers.ModelSerializer):
             for o in options:
                 Option.objects.create(question=instance, **o)
         return instance
+
+
+class SubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = ("id", "class_group", "name", "order_index", "created_at")
+        read_only_fields = ("id", "created_at")
+
+    def validate_class_group(self, value):
+        request = self.context["request"]
+        if not parent_in_scope(value, request):
+            raise serializers.ValidationError("Class not found in your account.")
+        return value
