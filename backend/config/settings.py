@@ -120,8 +120,12 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "30/min",
-        "user": "120/min",
+        # General request throttles are env-overridable so non-prod environments
+        # (and the superhuman-paced E2E suite) can relax them. Production keeps
+        # the protective defaults. Security-sensitive throttles (login/register/
+        # password_reset/verify_email) are NOT env-overridable.
+        "anon": env("THROTTLE_ANON", default="30/min"),
+        "user": env("THROTTLE_USER", default="120/min"),
         "login": "5/min",
         "register": "5/min",
         "password_reset": "5/min",
