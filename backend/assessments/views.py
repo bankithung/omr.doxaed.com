@@ -156,7 +156,12 @@ class QuestionViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_update(self, serializer):
+        # Gate BOTH the source parent (existing) AND the destination parent: a
+        # writable `test` FK would otherwise let a member with EDIT on the source
+        # test re-parent this row into a test they can only VIEW (or cannot see).
         self._gate_edit(serializer.instance.test)
+        new_test = serializer.validated_data.get("test", serializer.instance.test)
+        self._gate_edit(new_test)
         serializer.save()
 
     def perform_destroy(self, instance):
@@ -185,7 +190,12 @@ class SectionViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_update(self, serializer):
+        # Gate BOTH the source parent (existing) AND the destination parent: a
+        # writable `test` FK would otherwise let a member with EDIT on the source
+        # test re-parent this row into a test they can only VIEW (or cannot see).
         self._gate_edit(serializer.instance.test)
+        new_test = serializer.validated_data.get("test", serializer.instance.test)
+        self._gate_edit(new_test)
         serializer.save()
 
     def perform_destroy(self, instance):

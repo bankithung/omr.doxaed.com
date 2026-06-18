@@ -105,7 +105,12 @@ class StudentViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_update(self, serializer):
+        # Gate BOTH source and destination roster: a writable `roster` FK would
+        # otherwise let a member move a (PII-bearing) student into a roster they
+        # can only VIEW or cannot see.
         self._gate_edit(serializer.instance.roster)
+        new_roster = serializer.validated_data.get("roster", serializer.instance.roster)
+        self._gate_edit(new_roster)
         serializer.save()
 
     def perform_destroy(self, instance):

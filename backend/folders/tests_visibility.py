@@ -489,3 +489,68 @@ class SubjectEndpointTests(_VisBase):
         r = self.client.get(f"/api/v1/subjects/?class_group={c.id}", **self._h())
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(r.data["results"]), 0)
+
+
+# ---------------------------------------------------------------------------
+# (Audit fix) Parent-FK reassignment must gate the DESTINATION's EDIT rights
+# ---------------------------------------------------------------------------
+
+class ParentReassignmentEditGateTests(_VisBase):
+    """A member with EDIT on a source test/roster must NOT be able to re-parent a
+    child (question/student) into a test/roster they can only VIEW. The destination
+    parent's EDIT rights are gated, not just the source's."""
+
+    def test_question_cannot_be_reparented_into_view_only_test(self):
+        from assessments.models import Question
+        # m1 owns TA (m1 created the folder → m1 has EDIT on TA's class)
+        fa = self._folder(self.m1, name="m1-edit")
+        ca = self._class(self.m1, folder=fa, name="m1class")
+        ta = self._test(self.m1, ca, title="TA")
+        # m2 owns TB in an ORG-WIDE VIEW-shared folder → m1 can SEE TB but only VIEW
+        fb = self._folder(self.m2, name="m2-orgview")
+        cb = self._class(self.m2, folder=fb, name="m2class")
+        tb = self._test(self.m2, cb, title="TB")
+        self._share(fb, None, perm="view", scope="org")
+
+        self._login(self.m1)
+        r = self.client.post(
+            "/api/v1/questions/",
+            {"test": ta.id, "order_index": 0, "text": "q",
+             "options": [{"label": "A", "text": "x", "is_correct": True}]},
+            format="json", **self._h(),
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        qid = r.data["id"]
+
+        # Attempt to re-parent the question into the VIEW-only test TB → 403
+        r2 = self.client.patch(
+            f"/api/v1/questions/{qid}/",
+            {"test": tb.id, "order_index": 0, "text": "injected",
+             "options": [{"label": "A", "text": "x", "is_correct": True}]},
+            format="json", **self._h(),
+        )
+        self.assertEqual(r2.status_code, 403, getattr(r2, "data", r2))
+        self.assertFalse(Question.objects.filter(id=qid, test=tb).exists())
+        # Source unchanged
+        self.assertTrue(Question.objects.filter(id=qid, test=ta).exists())
+
+    def test_student_cannot_be_reparented_into_view_only_roster(self):
+        from rosters.models import Student
+        fa = self._folder(self.m1, name="m1-edit-r")
+        ca = self._class(self.m1, folder=fa, name="m1class-r")
+        ra = self._roster(self.m1, cg=ca, name="RA")
+        fb = self._folder(self.m2, name="m2-orgview-r")
+        cb = self._class(self.m2, folder=fb, name="m2class-r")
+        rb = self._roster(self.m2, cg=cb, name="RB")
+        self._share(fb, None, perm="view", scope="org")
+
+        student = Student.objects.create(roster=ra, roll_number="1", full_name="S")
+
+        self._login(self.m1)
+        r2 = self.client.patch(
+            f"/api/v1/students/{student.id}/",
+            {"roster": rb.id}, format="json", **self._h(),
+        )
+        self.assertEqual(r2.status_code, 403, getattr(r2, "data", r2))
+        self.assertFalse(Student.objects.filter(id=student.id, roster=rb).exists())
+        self.assertTrue(Student.objects.filter(id=student.id, roster=ra).exists())
