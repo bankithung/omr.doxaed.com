@@ -739,3 +739,29 @@ class OmrSheetRegradeViewCorrectionTests(TestCase):
             self.omr_sheet.student_id, new_student.id,
             "Sheet should be reattached to the new student"
         )
+
+    def test_correction_cross_tenant_student_id_rejected(self):
+        """IDOR guard: reattaching to ANOTHER tenant's student by id must 404 and NOT reattach."""
+        from rosters.models import Roster, Student
+
+        other_user = _make_user("regrade_idor_other@example.com")
+        other_roster = Roster.objects.create(
+            user=other_user, created_by=other_user, name="OtherTenantRoster"
+        )
+        other_student = Student.objects.create(
+            roster=other_roster, roll_number="500", full_name="Other Tenant Student"
+        )
+        original_student_id = self.omr_sheet.student_id
+
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            self.url,
+            {"answers": self._correct_answers(), "student_id": other_student.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 404)
+        self.omr_sheet.refresh_from_db()
+        self.assertEqual(
+            self.omr_sheet.student_id, original_student_id,
+            "Sheet must NOT be reattached to another tenant's student",
+        )

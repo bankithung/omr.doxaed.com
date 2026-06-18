@@ -1004,25 +1004,27 @@ class OmrSheetRegradeView(APIView):
             new_student_id = body.get("student_id")
 
             if new_student_id is not None:
-                # Reattach to a specific student (must belong to same test's roster)
+                # Reattach to a specific student — SCOPED to the requester's own
+                # rosters (solo or active org) to prevent cross-tenant IDOR.
+                # 404 (not 400) so we don't leak which student ids exist globally.
                 try:
-                    student = _Student.objects.get(pk=new_student_id)
+                    student = _Student.objects.get(
+                        scope_filter(request, "roster__"),
+                        pk=new_student_id,
+                    )
                     omr_sheet.student = student
                     omr_sheet.save(update_fields=["student"])
                 except _Student.DoesNotExist:
                     return Response(
                         {"detail": f"Student {new_student_id} not found."},
-                        status=status.HTTP_400_BAD_REQUEST,
+                        status=status.HTTP_404_NOT_FOUND,
                     )
             elif new_roll is not None:
-                # Try to resolve student by roll number within the test's rosters
-                # (best-effort; no error if ambiguous — the sheet keeps current student)
+                # Resolve by roll number within the requester's scope only
+                # (best-effort; no error if ambiguous — the sheet keeps its student).
                 try:
-                    from omr.models import OmrSheet as _OmrSheet
-                    test = omr_sheet.test
-                    # Find a student in any roster owned by the test's owner
                     student = _Student.objects.filter(
-                        roster__user=test.user,
+                        scope_filter(request, "roster__"),
                         roll_number=new_roll,
                     ).first()
                     if student is not None:
