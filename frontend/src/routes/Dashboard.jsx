@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, Navigate } from "react-router-dom"
 import { toast } from "sonner"
-import { FileText, Users, ScanLine, BuildingIcon } from "lucide-react"
+import { FileText, Users, ScanLine, BuildingIcon, X } from "lucide-react"
 import { useAuth } from "@/auth/AuthContext"
 import { listClasses } from "@/api/assessments"
 import { listRosters } from "@/api/omr"
@@ -9,6 +9,9 @@ import { listOrgs } from "@/api/orgs"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StatCard } from "@/components/ui/stat-card"
+
+const ONBOARDED_KEY = "omrflow_onboarded"
+const WELCOME_DISMISSED_KEY = "omrflow_welcome_dismissed"
 
 function normalize(data) {
   if (!data) return []
@@ -50,7 +53,29 @@ export default function Dashboard() {
   const [orgs, setOrgs] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // First-run redirect: send brand-new users to the onboarding wizard.
+  // Read synchronously so the guard runs before any fetch / paint. The wizard
+  // sets `omrflow_onboarded` on BOTH finish and skip, so this never loops.
+  // Gated to the Dashboard route only — other routes are never redirected.
+  const needsOnboarding =
+    typeof localStorage !== "undefined" && !localStorage.getItem(ONBOARDED_KEY)
+
+  // One-time "Workspace ready" banner — shown after onboarding until dismissed.
+  const [welcomeDismissed, setWelcomeDismissed] = useState(
+    () =>
+      typeof localStorage === "undefined" ||
+      !!localStorage.getItem(WELCOME_DISMISSED_KEY),
+  )
+
+  function dismissWelcome() {
+    try {
+      localStorage.setItem(WELCOME_DISMISSED_KEY, "1")
+    } catch { /* ignore storage failures */ }
+    setWelcomeDismissed(true)
+  }
+
   useEffect(() => {
+    if (needsOnboarding) return undefined
     let active = true
     ;(async () => {
       const [classesRes, rostersRes, orgsRes] = await Promise.allSettled([
@@ -72,12 +97,37 @@ export default function Dashboard() {
     return () => {
       active = false
     }
-  }, [])
+  }, [needsOnboarding])
+
+  // Redirect brand-new users into the wizard (only from this route).
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />
+  }
 
   const isNewUser = !loading && classes.length === 0 && rosters.length === 0
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-8">
+      {/* One-time "Workspace ready" banner — shown post-onboarding */}
+      {!welcomeDismissed && (
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-[var(--color-success)]/40 bg-card p-4">
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-success)]">Workspace ready</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              You're all set. Create a test or scan sheets whenever you're ready.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={dismissWelcome}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Dismiss"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

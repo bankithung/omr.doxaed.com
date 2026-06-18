@@ -87,6 +87,8 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
   try {
     browser = await chromium.launch({ headless: true, ...launchOpts })
     const context = await browser.newContext({ acceptDownloads: true })
+    // Bypass the first-run onboarding redirect: every page starts already-onboarded.
+    await context.addInitScript(() => { try { localStorage.setItem("omrflow_onboarded", "1") } catch {} })
     const page = await context.newPage()
     page.setDefaultTimeout(30000)
 
@@ -311,6 +313,8 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
       // (c) public portal: publish, then look up a roll in a FRESH no-auth context
       const pub = py("publish", String(testId))
       const pctx = await browser.newContext()
+      // Bypass the first-run onboarding redirect: every page starts already-onboarded.
+      await pctx.addInitScript(() => { try { localStorage.setItem("omrflow_onboarded", "1") } catch {} })
       const pp = await pctx.newPage()
       await pp.goto(`${FRONTEND}/r/${pub.slug}`)
       await pp.locator("#roll_number").fill(STUDENTS[0])
