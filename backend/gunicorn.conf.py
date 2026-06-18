@@ -1,5 +1,5 @@
 """
-Gunicorn configuration for OMRFlow production deployment.
+Gunicorn configuration for DoxaEd OMR production deployment.
 
 Usage:
     gunicorn config.wsgi:application -c gunicorn.conf.py

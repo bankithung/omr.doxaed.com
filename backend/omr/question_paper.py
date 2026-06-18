@@ -343,7 +343,7 @@ def render_question_paper_pdf(omr_sheet, *, include_answer_key: bool = False) ->
         topMargin=2 * cm,
         bottomMargin=2 * cm,
         title=test_title or "Question Paper",
-        author="OMRFlow",
+        author="DoxaEd OMR",
         # Determinism: no creation timestamp — ReportLab embeds %CreationDate
         # in the producer string but NOT in the PDF stream content that affects
         # the byte-level hash; we do NOT set creationDate to avoid any dynamic
@@ -363,7 +363,7 @@ def _empty_pdf() -> bytes:
     """Return a minimal valid PDF for an OmrSheet with no questions."""
     styles = _build_styles()
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, title="Question Paper", author="OMRFlow")
+    doc = SimpleDocTemplate(buf, pagesize=A4, title="Question Paper", author="DoxaEd OMR")
     doc.build([Paragraph("No questions found for this sheet.", styles["meta"])])
     buf.seek(0)
     return buf.read()

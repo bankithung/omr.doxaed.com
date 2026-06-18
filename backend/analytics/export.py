@@ -236,7 +236,7 @@ def report_pdf(test) -> bytes:
     # ------------------------------------------------------------------
     # 1. Title block
     # ------------------------------------------------------------------
-    story.append(Paragraph("OMRFlow — Results Report", h1))
+    story.append(Paragraph("DoxaEd OMR — Results Report", h1))
     story.append(Spacer(1, 0.3 * cm))
     story.append(Paragraph(f"<b>Test:</b> {summary['test']['title']}", normal))
     story.append(Paragraph(f"<b>Subject:</b> {summary['test'].get('subject', '')}", normal))

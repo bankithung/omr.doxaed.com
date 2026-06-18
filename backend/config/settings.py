@@ -144,7 +144,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:5173"])
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="OMRFlow <no-reply@omrflow.local>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="DoxaEd OMR <no-reply@doxaed.com>")
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
 # ---------------------------------------------------------------------------

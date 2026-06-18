@@ -44,7 +44,7 @@ function PublicNav() {
   return (
     <nav className="flex items-center gap-4 border-b px-4 py-3 text-sm">
       <Link to="/" className="font-semibold hover:text-primary">
-        OMRFlow
+        DoxaEd OMR
       </Link>
       <div className="ml-auto flex items-center gap-3">
         <Link to="/login" className="hover:text-primary">

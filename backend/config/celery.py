@@ -1,5 +1,5 @@
 """
-Celery application for OMRFlow.
+Celery application for DoxaEd OMR.
 
 In development (and tests), CELERY_TASK_ALWAYS_EAGER=True (the default) means
 every .delay() / .apply_async() call runs synchronously inline — no broker

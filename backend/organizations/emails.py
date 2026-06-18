@@ -9,7 +9,7 @@ def send_invitation_email(invitation):
     The link points to {FRONTEND_URL}/accept-invite?token=<uuid>.
     """
     link = f"{settings.FRONTEND_URL}/accept-invite?token={invitation.token}"
-    subject = f"You're invited to join {invitation.organization.name} on OMRFlow"
+    subject = f"You're invited to join {invitation.organization.name} on DoxaEd OMR"
     body = (
         f"You have been invited to join {invitation.organization.name} as a "
         f"{invitation.role}.\n\n"

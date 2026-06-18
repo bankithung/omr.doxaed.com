@@ -52,7 +52,7 @@ class RegisterTests(APITestCase):
         self.assertEqual(User.objects.filter(email="dup@example.com").count(), 1)
         # Existing user receives a notification email
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("already have an OMRFlow account", mail.outbox[0].subject)
+        self.assertIn("already have a DoxaEd OMR account", mail.outbox[0].subject)
 
     def test_register_returns_detail_message(self):
         resp = self.client.post("/api/v1/auth/register/", {

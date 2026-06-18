@@ -191,7 +191,7 @@ export default function Onboarding() {
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top bar: brand + persistent skip */}
       <header className="flex items-center justify-between border-b px-4 py-3">
-        <span className="text-sm font-semibold">OMRFlow</span>
+        <span className="text-sm font-semibold">DoxaEd OMR</span>
         <Button
           variant="ghost"
           size="sm"
@@ -210,7 +210,7 @@ export default function Onboarding() {
           {step === 0 && (
             <section className="space-y-6 text-center">
               <div className="space-y-2">
-                <h1 className="text-2xl font-bold">Welcome to OMRFlow</h1>
+                <h1 className="text-2xl font-bold">Welcome to DoxaEd OMR</h1>
                 <p className="text-sm text-muted-foreground">Let's set up your workspace.</p>
               </div>
               <Button className="w-full min-h-[40px]" onClick={next}>

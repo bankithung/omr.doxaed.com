@@ -152,8 +152,10 @@ export default function GoogleButton({ label = "Continue with Google" }) {
 }
 
 // A simple "or continue with email" divider, used between the Google button and
-// the email form on Login / Register.
+// the email form on Login / Register. Renders nothing when Google sign-in is not
+// configured (no CLIENT_ID) so the divider never appears orphaned above the form.
 export function OrDivider({ children = "or continue with email" }) {
+  if (!CLIENT_ID) return null
   return (
     <div className="flex items-center gap-3" role="separator" aria-label={children}>
       <span className="h-px flex-1 bg-border" />
