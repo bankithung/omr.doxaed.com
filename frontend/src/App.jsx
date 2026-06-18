@@ -1,19 +1,11 @@
 import { lazy, Suspense } from "react"
-import { Link, Route, Routes, useNavigate, useLocation } from "react-router-dom"
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import { Toaster } from "@/components/ui/sonner"
 import { useAuth } from "@/auth/AuthContext"
 import { useOrg } from "@/org/OrgContext"
 import ProtectedRoute from "@/auth/ProtectedRoute"
 import RootRoute from "@/auth/RootRoute"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu"
-import { ChevronDownIcon, BuildingIcon } from "lucide-react"
+import AppShell from "@/components/AppShell"
 
 const Health = lazy(() => import("@/routes/Health"))
 const StyleGuide = lazy(() => import("@/routes/StyleGuide"))
@@ -41,114 +33,71 @@ const Billing = lazy(() => import("@/routes/Billing"))
 const StudentDetail = lazy(() => import("@/routes/StudentDetail"))
 const PublicResult = lazy(() => import("@/routes/PublicResult"))
 
-function OrgSwitcher() {
-  const { orgs, activeOrg, setActiveOrg } = useOrg()
-  const label = activeOrg ? activeOrg.name : "Personal"
+// ─── Minimal public nav (logged-out chrome) ───────────────────────────────────
 
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-sm font-medium hover:bg-muted transition-colors">
-        <BuildingIcon className="size-3.5 shrink-0 text-muted-foreground" />
-        <span className="max-w-[120px] truncate">{label}</span>
-        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuLabel>Context</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={() => {
-            setActiveOrg(null)
-            window.location.reload()
-          }}
-          data-active={!activeOrg ? "" : undefined}
-          className="data-[active]:font-semibold"
-        >
-          Personal
-        </DropdownMenuItem>
-        {orgs.length > 0 && <DropdownMenuSeparator />}
-        {orgs.map((org) => (
-          <DropdownMenuItem
-            key={org.id}
-            onSelect={() => {
-              setActiveOrg(org.id)
-              window.location.reload()
-            }}
-            data-active={activeOrg?.id === org.id ? "" : undefined}
-            className="data-[active]:font-semibold"
-          >
-            {org.name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function Nav() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-
-  async function handleLogout() {
-    await logout()
-    navigate("/login")
-  }
-
+function PublicNav() {
   return (
     <nav className="flex items-center gap-4 border-b px-4 py-3 text-sm">
       <Link to="/" className="font-semibold hover:text-primary">
         OMRFlow
       </Link>
-      {user && (
-        <>
-          <Link to="/classes" className="text-muted-foreground hover:text-foreground">
-            Classes
-          </Link>
-          <Link to="/rosters" className="text-muted-foreground hover:text-foreground">
-            Rosters
-          </Link>
-          <Link to="/organizations" className="text-muted-foreground hover:text-foreground">
-            Organizations
-          </Link>
-        </>
-      )}
-
       <div className="ml-auto flex items-center gap-3">
-        {user ? (
-          <>
-            <OrgSwitcher />
-            <span className="hidden text-muted-foreground sm:inline">{user.email}</span>
-            <Link to="/profile" className="hover:text-primary">
-              Profile
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" className="hover:text-primary">
-              Sign in
-            </Link>
-            <Link
-              to="/register"
-              className="rounded-lg bg-primary px-3 py-1 text-primary-foreground hover:bg-primary/80"
-            >
-              Register
-            </Link>
-          </>
-        )}
+        <Link to="/login" className="hover:text-primary">
+          Sign in
+        </Link>
+        <Link
+          to="/register"
+          className="rounded-lg bg-primary px-3 py-1.5 text-primary-foreground hover:bg-primary/80 transition-colors min-h-[40px] flex items-center"
+        >
+          Register
+        </Link>
       </div>
     </nav>
   )
 }
 
+// ─── ShellProtectedRoute — wraps content in AppShell ─────────────────────────
+// Reads org membership role to decide whether to surface admin nav items.
+// The membership role is derived from the active org in OrgContext + the orgs
+// list (which carries each org's member role from the API).
+
+function ShellProtectedRoute({ children }) {
+  const { user, loading } = useAuth()
+  const { activeOrg, orgs } = useOrg()
+
+  if (loading) {
+    return <div className="p-8 text-muted-foreground">Loading…</div>
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Determine if the current user is admin in the active org.
+  // The orgs list from the API includes a `role` field for the current user's membership.
+  const activeOrgData = activeOrg
+    ? orgs.find((o) => String(o.id) === String(activeOrg.id))
+    : null
+  const isAdmin = activeOrgData?.role === "admin"
+
+  return (
+    <AppShell isAdmin={isAdmin}>
+      {children}
+    </AppShell>
+  )
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+
 export default function App() {
+  const { user } = useAuth()
   const location = useLocation()
-  // Public portal pages (e.g. /r/:slug) render without the app Nav/org-switcher
+
+  // Public portal pages (/r/:slug) and onboarding render without any shell
   const isPublicPortal = location.pathname.startsWith("/r/")
+
+  // Show the minimal public nav only for logged-out users on non-portal pages
+  const showPublicNav = !user && !isPublicPortal
 
   return (
     <div className="min-h-screen">
@@ -159,172 +108,183 @@ export default function App() {
         Skip to main content
       </a>
       <Toaster />
-      {!isPublicPortal && <Nav />}
-      <main id="main">
-        <Suspense fallback={<div className="p-8 text-muted-foreground">Loading…</div>}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<RootRoute />} />
-            <Route path="/health" element={<Health />} />
-            <Route path="/style-guide" element={<StyleGuide />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Public result portal — no auth, no Nav */}
-            <Route path="/r/:slug" element={<PublicResult />} />
+      {/* Public nav for logged-out auth/landing pages */}
+      {showPublicNav && !isPublicPortal && <PublicNav />}
 
-            {/* Protected routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/classes"
-              element={
-                <ProtectedRoute>
-                  <Classes />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/classes/:id"
-              element={
-                <ProtectedRoute>
-                  <TestList />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/classes/:classId/tests/new"
-              element={
-                <ProtectedRoute>
-                  <TestWizard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/rosters"
-              element={
-                <ProtectedRoute>
-                  <Rosters />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/rosters/:id"
-              element={
-                <ProtectedRoute>
-                  <RosterDetail />
-                </ProtectedRoute>
-              }
-            />
-            {/* Scan routes */}
-            <Route
-              path="/scan"
-              element={
-                <ProtectedRoute>
-                  <Scan />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tests/:testId/scan"
-              element={
-                <ProtectedRoute>
-                  <Scan />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tests/:testId/results"
-              element={
-                <ProtectedRoute>
-                  <Results />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tests/:testId/review"
-              element={
-                <ProtectedRoute>
-                  <ReviewQueue />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tests/:testId/analytics"
-              element={
-                <ProtectedRoute>
-                  <Analytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizations"
-              element={
-                <ProtectedRoute>
-                  <Organizations />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizations/:id/members"
-              element={
-                <ProtectedRoute>
-                  <OrgMembers />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/accept-invite"
-              element={
-                <ProtectedRoute>
+      <Suspense fallback={<div className="p-8 text-muted-foreground">Loading…</div>}>
+        <Routes>
+          {/* Public portal — no shell, no nav */}
+          <Route path="/r/:slug" element={<PublicResult />} />
+
+          {/* Root — redirects to dashboard (logged in) or landing (logged out) */}
+          <Route
+            path="/"
+            element={
+              <main id="main">
+                <RootRoute />
+              </main>
+            }
+          />
+
+          {/* Public routes — minimal chrome (PublicNav above + page content) */}
+          <Route path="/health" element={<main id="main"><Health /></main>} />
+          <Route path="/style-guide" element={<main id="main"><StyleGuide /></main>} />
+          <Route path="/login" element={<main id="main"><Login /></main>} />
+          <Route path="/register" element={<main id="main"><Register /></main>} />
+          <Route path="/verify-email" element={<main id="main"><VerifyEmail /></main>} />
+          <Route path="/forgot-password" element={<main id="main"><ForgotPassword /></main>} />
+          <Route path="/reset-password" element={<main id="main"><ResetPassword /></main>} />
+
+          {/* Protected routes — wrapped in AppShell */}
+          <Route
+            path="/dashboard"
+            element={
+              <ShellProtectedRoute>
+                <Dashboard />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ShellProtectedRoute>
+                <Profile />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes"
+            element={
+              <ShellProtectedRoute>
+                <Classes />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:id"
+            element={
+              <ShellProtectedRoute>
+                <TestList />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:classId/tests/new"
+            element={
+              <ShellProtectedRoute>
+                <TestWizard />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/rosters"
+            element={
+              <ShellProtectedRoute>
+                <Rosters />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/rosters/:id"
+            element={
+              <ShellProtectedRoute>
+                <RosterDetail />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/scan"
+            element={
+              <ShellProtectedRoute>
+                <Scan />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/tests/:testId/scan"
+            element={
+              <ShellProtectedRoute>
+                <Scan />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/tests/:testId/results"
+            element={
+              <ShellProtectedRoute>
+                <Results />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/tests/:testId/review"
+            element={
+              <ShellProtectedRoute>
+                <ReviewQueue />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/tests/:testId/analytics"
+            element={
+              <ShellProtectedRoute>
+                <Analytics />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations"
+            element={
+              <ShellProtectedRoute>
+                <Organizations />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/:id/members"
+            element={
+              <ShellProtectedRoute>
+                <OrgMembers />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/accept-invite"
+            element={
+              <ProtectedRoute>
+                <main id="main">
                   <AcceptInvite />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizations/:id/billing"
-              element={
-                <ProtectedRoute>
-                  <Billing />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizations/:id/audit"
-              element={
-                <ProtectedRoute>
-                  <OrgAudit />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tests/:testId/students/:studentId"
-              element={
-                <ProtectedRoute>
-                  <StudentDetail />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Suspense>
-      </main>
+                </main>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/:id/billing"
+            element={
+              <ShellProtectedRoute>
+                <Billing />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/:id/audit"
+            element={
+              <ShellProtectedRoute>
+                <OrgAudit />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/tests/:testId/students/:studentId"
+            element={
+              <ShellProtectedRoute>
+                <StudentDetail />
+              </ShellProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
     </div>
   )
 }
