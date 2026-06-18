@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 backend/.env
 backend/media/
+backend/staticfiles/
 *.sqlite3
 .pytest_cache/
 

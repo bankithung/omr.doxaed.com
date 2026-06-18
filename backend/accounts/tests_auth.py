@@ -9,11 +9,19 @@ User = get_user_model()
 
 
 # Base class that clears the Django cache before each test so DRF throttle
-# counts don't accumulate across test cases when running the full suite.
+# counts and axes lockout state don't accumulate across test cases.
 class NoThrottleTestCase(APITestCase):
     def _pre_setup(self):
         cache.clear()
         super()._pre_setup()
+
+    def setUp(self):
+        # Also reset axes access-attempt records between tests.
+        try:
+            from axes.utils import reset
+            reset()
+        except Exception:
+            pass
 
 
 class RegisterTests(APITestCase):
@@ -27,15 +35,30 @@ class RegisterTests(APITestCase):
         self.assertTrue(user.check_password("Str0ng!pass"))
         self.assertEqual(len(mail.outbox), 1)
 
-    def test_register_duplicate_email_rejected(self):
+    def test_register_duplicate_email_no_enumeration(self):
+        """Duplicate email must NOT 400-leak. Returns same 201 + sends 'account exists' email."""
         User.objects.create_user(email="dup@example.com", password="x12345!!")
+        mail.outbox.clear()
         resp = self.client.post("/api/v1/auth/register/", {
             "email": "dup@example.com", "password": "Str0ng!pass",
         }, format="json")
-        self.assertEqual(resp.status_code, 400)
+        # Same status code as a fresh signup (no enumeration)
+        self.assertEqual(resp.status_code, 201)
+        # No second user created
+        self.assertEqual(User.objects.filter(email="dup@example.com").count(), 1)
+        # Existing user receives a notification email
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("already have an OMRFlow account", mail.outbox[0].subject)
+
+    def test_register_returns_detail_message(self):
+        resp = self.client.post("/api/v1/auth/register/", {
+            "email": "msg@example.com", "password": "Str0ng!pass",
+        }, format="json")
+        self.assertEqual(resp.status_code, 201)
+        self.assertIn("detail", resp.data)
 
 
-class VerifyEmailTests(APITestCase):
+class VerifyEmailTests(NoThrottleTestCase):
     def test_verify_marks_user_verified(self):
         u = User.objects.create_user(email="v@example.com", password="Str0ng!pass")
         uid, token = make_uid_token(u)
@@ -49,9 +72,24 @@ class VerifyEmailTests(APITestCase):
         resp = self.client.post("/api/v1/auth/verify-email/", {"uid": uid, "token": "bad"}, format="json")
         self.assertEqual(resp.status_code, 400)
 
+    def test_verify_email_throttle(self):
+        """The 11th verify-email request in a minute must be rate-limited (429)."""
+        u = User.objects.create_user(email="throttle@example.com", password="Str0ng!pass")
+        uid, token = make_uid_token(u)
+        cache.clear()
+        for _ in range(10):
+            self.client.post(
+                "/api/v1/auth/verify-email/", {"uid": uid, "token": "bad"}, format="json"
+            )
+        resp = self.client.post(
+            "/api/v1/auth/verify-email/", {"uid": uid, "token": "bad"}, format="json"
+        )
+        self.assertEqual(resp.status_code, 429)
+
 
 class LoginTests(NoThrottleTestCase):
     def setUp(self):
+        super().setUp()
         self.u = User.objects.create_user(email="l@example.com", password="Str0ng!pass", full_name="L")
 
     def test_login_ok(self):
@@ -65,8 +103,80 @@ class LoginTests(NoThrottleTestCase):
         self.assertEqual(resp.status_code, 401)
 
 
+class AxesLockoutTests(NoThrottleTestCase):
+    """django-axes locks out after AXES_FAILURE_LIMIT consecutive failures."""
+
+    def setUp(self):
+        super().setUp()
+        self.u = User.objects.create_user(email="locked@example.com", password="Str0ng!pass")
+
+    def test_axes_lockout_after_failure_limit(self):
+        """After AXES_FAILURE_LIMIT bad logins, the account is locked out."""
+        from django.test import override_settings
+        from django.conf import settings as django_settings
+
+        limit = getattr(django_settings, "AXES_FAILURE_LIMIT", 5)
+
+        # Send `limit` failed login attempts
+        for i in range(limit):
+            resp = self.client.post(
+                "/api/v1/auth/login/",
+                {"email": "locked@example.com", "password": "wrongpass"},
+                format="json",
+                REMOTE_ADDR="10.0.0.1",
+            )
+            # Each attempt before lockout should be 401
+            if i < limit - 1:
+                self.assertEqual(resp.status_code, 401, f"Attempt {i+1} should be 401")
+
+        # The next attempt (limit+1) should be locked
+        resp = self.client.post(
+            "/api/v1/auth/login/",
+            {"email": "locked@example.com", "password": "wrongpass"},
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        self.assertIn(
+            resp.status_code,
+            [403, 429],
+            f"Expected lockout (403 or 429) after {limit} failures, got {resp.status_code}",
+        )
+
+    def test_axes_reset_on_success(self):
+        """A successful login resets the failure counter (AXES_RESET_ON_SUCCESS=True)."""
+        from axes.utils import reset
+        reset()
+
+        # Fail twice
+        for _ in range(2):
+            self.client.post(
+                "/api/v1/auth/login/",
+                {"email": "locked@example.com", "password": "wrongpass"},
+                format="json",
+                REMOTE_ADDR="10.0.0.2",
+            )
+        # Succeed (resets counter)
+        ok = self.client.post(
+            "/api/v1/auth/login/",
+            {"email": "locked@example.com", "password": "Str0ng!pass"},
+            format="json",
+            REMOTE_ADDR="10.0.0.2",
+        )
+        self.assertEqual(ok.status_code, 200)
+
+        # Should still be unlocked (2 prior failures < limit; reset on success)
+        resp = self.client.post(
+            "/api/v1/auth/login/",
+            {"email": "locked@example.com", "password": "wrongpass"},
+            format="json",
+            REMOTE_ADDR="10.0.0.2",
+        )
+        self.assertEqual(resp.status_code, 401)
+
+
 class LogoutTests(NoThrottleTestCase):
     def setUp(self):
+        super().setUp()
         self.u = User.objects.create_user(email="o@example.com", password="Str0ng!pass")
         r = self.client.post("/api/v1/auth/login/", {"email": "o@example.com", "password": "Str0ng!pass"}, format="json")
         self.access, self.refresh = r.data["access"], r.data["refresh"]
@@ -121,6 +231,7 @@ class PasswordResetTests(NoThrottleTestCase):
 
 class MeTests(NoThrottleTestCase):
     def setUp(self):
+        super().setUp()
         self.u = User.objects.create_user(email="m@example.com", password="Str0ng!pass", full_name="Me")
         r = self.client.post("/api/v1/auth/login/", {"email": "m@example.com", "password": "Str0ng!pass"}, format="json")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")

@@ -482,28 +482,24 @@ class ScanUploadView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        # Import pipeline here (avoid circular at module level)
-        from omr.scan.pipeline import process_scan_job
+        # Enqueue one task per page image.
+        # Under CELERY_TASK_ALWAYS_EAGER=True (dev / tests) .delay() runs
+        # the task synchronously inline, so all processing is complete before
+        # the loop returns — identical behaviour to the old direct call.
+        # In production (CELERY_TASK_ALWAYS_EAGER=False) the tasks run async
+        # on a worker and the batch status is updated by the task itself.
+        from omr.tasks import process_scan_job_task
 
-        processed = 0
         for page_no, img_bytes, fname in page_images:
             job = ScanJob(batch=batch, page_no=page_no)
             job.image_file.save(fname, ContentFile(img_bytes), save=True)
+            process_scan_job_task.delay(job.id)
 
-            # Eager synchronous processing
-            try:
-                process_scan_job(job)
-            except Exception:
-                job.status = ScanJob.STATUS_FAILED
-                job.error_reason = "pipeline_exception"
-                job.save(update_fields=["status", "error_reason"])
-
-            processed += 1
-            batch.processed = processed
-            batch.save(update_fields=["processed"])
-
-        batch.status = ScanBatch.STATUS_DONE
-        batch.save(update_fields=["status"])
+        # Under eager mode the tasks have already run; refresh to get the
+        # final counters set by the tasks.  In async mode this reflects
+        # whatever has been processed so far (usually 0 — the client polls
+        # /scan-batches/<id>/ for progress).
+        batch.refresh_from_db()
 
         # ---- record ScanEvent per batch (solo only) ----------------------
         # Org-context ScanEvents were already reserved under the per-org lock
@@ -518,7 +514,11 @@ class ScanUploadView(APIView):
             )
 
         return Response(
-            {"batch_id": batch.id, "total": total, "processed": processed},
+            {
+                "batch_id": batch.id,
+                "total": batch.total,
+                "processed": batch.processed,
+            },
             status=status.HTTP_201_CREATED,
         )
 

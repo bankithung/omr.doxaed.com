@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react"
-import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom"
+import { useParams, useSearchParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { uploadScan, getBatch } from "@/api/scan"
 import { listTests } from "@/api/assessments"
@@ -19,7 +19,6 @@ const POLL_INTERVAL_MS = 1500
 export default function Scan() {
   const { testId: routeTestId } = useParams()
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
 
   // testId from route or query param
   const [testId, setTestId] = useState(routeTestId ?? searchParams.get("test") ?? "")

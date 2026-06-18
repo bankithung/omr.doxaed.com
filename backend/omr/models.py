@@ -90,6 +90,11 @@ class ScanJob(models.Model):
 
     class Meta:
         ordering = ["id"]
+        indexes = [
+            models.Index(fields=["batch"], name="scanjob_batch_idx"),
+            models.Index(fields=["omr_sheet"], name="scanjob_omrsheet_idx"),
+            models.Index(fields=["status"], name="scanjob_status_idx"),
+        ]
 
     def __str__(self):
         return f"ScanJob batch={self.batch_id} page={self.page_no} status={self.status}"
@@ -122,6 +127,10 @@ class GenerationEvent(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "created_at"], name="genevent_org_created_idx"),
+            models.Index(fields=["user", "created_at"], name="genevent_user_created_idx"),
+        ]
 
     def __str__(self):
         return f"GenerationEvent user={self.user_id} test={self.test_id} at {self.created_at}"
@@ -156,6 +165,10 @@ class ScanEvent(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "created_at"], name="scanevent_org_created_idx"),
+            models.Index(fields=["user", "created_at"], name="scanevent_user_created_idx"),
+        ]
 
     def __str__(self):
         return f"ScanEvent user={self.user_id} org={self.organization_id} at {self.created_at}"
@@ -224,6 +237,9 @@ class OmrSheet(models.Model):
 
     class Meta:
         ordering = ["-created_at", "id"]
+        indexes = [
+            models.Index(fields=["test"], name="omrsheet_test_idx"),
+        ]
 
     def __str__(self):
         return self.sheet_code

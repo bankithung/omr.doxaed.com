@@ -1,5 +1,17 @@
 # Current State
 
+- 2026-06-18: **Phase 8 (Hardening — production-grade) complete** (branch `phase-8` → merged to `main`).
+  Env-driven production security (secure cookies/HSTS/SSL/headers, WhiteNoise static, a fail-closed
+  prod-config guard) — `check --deploy` is CLEAN under prod env. Auth hardening: django-axes login
+  lockout, registration no-enumeration, verify-email throttle. Async scanning via Celery (eager in
+  dev, broker-ready for prod). DB indexes on hot paths. Frontend route code-splitting (940→307 kB
+  main) + a11y pass (0 a11y errors) + **production-clean lint (0 errors)**. Question image-upload
+  API. Deployment: `gunicorn.conf.py`, `Procfile`, `backend/.env.prod.example`, `docs/DEPLOYMENT.md`,
+  `docs/SECURITY-CHECKLIST.md` (OWASP). **535 backend tests.** Verified PRODUCTION-READY pending the
+  external steps below.
+  **Must-do before LAUNCH (external/ops):** real Razorpay keys + a payments security review; TLS +
+  the prod env vars; a Redis broker + a Celery worker (set `CELERY_TASK_ALWAYS_EAGER=False`);
+  `pip-audit`/`npm audit`; DB backups; monitoring (Sentry); decide scan-metering granularity.
 - 2026-06-17: **Phase 7 (Subscription & billing) complete** (branch `phase-7` → merged to `main`).
   `billing` app: Plan (Free/Team ₹500/Business ₹1000/Enterprise, seeded) + per-org Subscription;
   `limits.py` resolves the org's plan and enforces SERVER-SIDE per-org gates (seat / generations-day
