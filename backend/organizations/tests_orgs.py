@@ -121,6 +121,23 @@ class _OrgApiBase(APITestCase):
         target = org or self.org
         return {"HTTP_X_ORGANIZATION_ID": str(target.id)}
 
+    def _org_shared_folder_id(self, org=None):
+        """Create an org-WIDE-shared (EDIT) folder via the API under the current
+        login + org header; return its id. Lets a class placed in this folder be
+        seen/edited by any org member (Phase 5B folder visibility)."""
+        target = org or self.org
+        r = self.client.post(
+            "/api/v1/folders/", {"name": "Shared"}, format="json", **self._org_header(target)
+        )
+        fid = r.data["id"]
+        self.client.post(
+            f"/api/v1/folders/{fid}/shares/",
+            {"share_scope": "org", "permission": "edit"},
+            format="json",
+            **self._org_header(target),
+        )
+        return fid
+
 
 # ---------------------------------------------------------------------------
 # B) scope helper unit-level via the API (no header → solo filter)
@@ -176,10 +193,15 @@ class NonMemberOrgHeaderTests(_OrgApiBase):
 
 class OrgSharedClassGroupTests(_OrgApiBase):
     def test_admin_creates_class_member_sees_it(self):
-        """A creates a ClassGroup under org1 → B (same org) sees it in list."""
-        # A creates under org
+        """A creates a ClassGroup (in an org-wide-shared folder) under org1 → B
+        (same org) sees it in list (Phase 5B folder visibility)."""
+        # A creates under org, inside an org-wide-shared folder
+        fid = self._org_shared_folder_id()
         r = self.client.post(
-            "/api/v1/classes/", {"name": "OrgClass"}, format="json", **self._org_header()
+            "/api/v1/classes/",
+            {"name": "OrgClass", "folder": fid},
+            format="json",
+            **self._org_header(),
         )
         self.assertEqual(r.status_code, 201)
         class_id = r.data["id"]
@@ -216,9 +238,14 @@ class OrgSharedClassGroupTests(_OrgApiBase):
         self.assertIn(class_id, ids)
 
     def test_member_can_retrieve_org_class_detail(self):
-        """B can GET the detail of an org-owned class created by A."""
+        """B can GET the detail of an org-owned class created by A (in an
+        org-wide-shared folder, Phase 5B)."""
+        fid = self._org_shared_folder_id()
         r = self.client.post(
-            "/api/v1/classes/", {"name": "OrgClass"}, format="json", **self._org_header()
+            "/api/v1/classes/",
+            {"name": "OrgClass", "folder": fid},
+            format="json",
+            **self._org_header(),
         )
         class_id = r.data["id"]
 
@@ -227,9 +254,13 @@ class OrgSharedClassGroupTests(_OrgApiBase):
         self.assertEqual(r.status_code, 200)
 
     def test_member_can_update_org_class(self):
-        """B can PATCH an org-owned class."""
+        """B can PATCH an org-owned class (in an org-wide EDIT-shared folder)."""
+        fid = self._org_shared_folder_id()
         r = self.client.post(
-            "/api/v1/classes/", {"name": "OrgClass"}, format="json", **self._org_header()
+            "/api/v1/classes/",
+            {"name": "OrgClass", "folder": fid},
+            format="json",
+            **self._org_header(),
         )
         class_id = r.data["id"]
 
@@ -310,8 +341,14 @@ class CrossOrgIsolationTests(_OrgApiBase):
 
 class OrgTestFKValidatorTests(_OrgApiBase):
     def _create_org_class(self):
+        # Place the class in an org-wide-shared folder so any org member can
+        # see/edit it (Phase 5B folder visibility).
+        fid = self._org_shared_folder_id()
         r = self.client.post(
-            "/api/v1/classes/", {"name": "OrgClass"}, format="json", **self._org_header()
+            "/api/v1/classes/",
+            {"name": "OrgClass", "folder": fid},
+            format="json",
+            **self._org_header(),
         )
         return r.data["id"]
 
@@ -391,9 +428,14 @@ class OrgRosterTests(_OrgApiBase):
         self.assertIn(roster_id, ids)
 
     def test_roster_linked_to_org_class(self):
-        """A creates an org ClassGroup, then a Roster linked to it — member B sees both."""
+        """A creates an org ClassGroup (in an org-wide-shared folder), then a
+        Roster linked to it — member B sees both (Phase 5B folder visibility)."""
+        fid = self._org_shared_folder_id()
         r = self.client.post(
-            "/api/v1/classes/", {"name": "OrgClass"}, format="json", **self._org_header()
+            "/api/v1/classes/",
+            {"name": "OrgClass", "folder": fid},
+            format="json",
+            **self._org_header(),
         )
         cg_id = r.data["id"]
 
@@ -434,9 +476,14 @@ class OrgRosterTests(_OrgApiBase):
 
 class IsInScopePermissionTests(_OrgApiBase):
     def test_org_member_can_retrieve_org_class_detail(self):
-        """B retrieves detail of A's org-owned class via org header."""
+        """B retrieves detail of A's org-owned class (in an org-wide-shared
+        folder, Phase 5B) via org header."""
+        fid = self._org_shared_folder_id()
         r = self.client.post(
-            "/api/v1/classes/", {"name": "OrgClass"}, format="json", **self._org_header()
+            "/api/v1/classes/",
+            {"name": "OrgClass", "folder": fid},
+            format="json",
+            **self._org_header(),
         )
         class_id = r.data["id"]
 
@@ -472,14 +519,42 @@ class IsInScopePermissionTests(_OrgApiBase):
 # Phase 6 Task 2 — helpers shared across child-resource org tests
 # ---------------------------------------------------------------------------
 
+def _org_shared_class(org, creator, name="OrgCG"):
+    """Create an org-owned ClassGroup inside an org-WIDE-shared folder.
+
+    Phase 5B folder-visibility: org data is only visible to non-creator members
+    when its governing class lives in a folder that is shared (here, org-wide).
+    These legacy "another member sees org data" tests model that explicit org
+    share so they continue to assert real org-wide visibility under the new model.
+    """
+    from assessments.models import ClassGroup
+    from folders.models import Folder, FolderShare
+
+    folder = Folder.objects.create(
+        organization=org, created_by=creator, name=f"{name}-folder"
+    )
+    FolderShare.objects.create(
+        folder=folder,
+        shared_with=None,
+        share_scope=FolderShare.SHARE_ORG,
+        permission=FolderShare.PERM_EDIT,
+        created_by=creator,
+    )
+    return ClassGroup.objects.create(
+        organization=org, created_by=creator, name=name, folder=folder
+    )
+
+
 def _make_org_test_fixture(org, user_a, user_b):
     """
     Create an org-owned ClassGroup + Test + 3 Questions with options (A=correct).
+    The class lives in an org-wide-shared folder so other org members can see/edit
+    it (Phase 5B folder visibility).
     Returns (class_group, test, questions).
     """
-    from assessments.models import ClassGroup, MarkingScheme, Option, Question, Test
+    from assessments.models import MarkingScheme, Option, Question, Test
 
-    cg = ClassGroup.objects.create(organization=org, created_by=user_a, name="OrgCG")
+    cg = _org_shared_class(org, user_a)
     t = Test.objects.create(
         organization=org,
         created_by=user_a,
@@ -498,10 +573,14 @@ def _make_org_test_fixture(org, user_a, user_b):
 
 
 def _make_org_roster(org, user_a, n_students=2):
-    """Create an org-owned Roster with n_students students."""
+    """Create an org-owned Roster (linked to an org-wide-shared class) with
+    n_students students, so other org members can see/edit it (Phase 5B)."""
     from rosters.models import Roster, Student
 
-    roster = Roster.objects.create(organization=org, created_by=user_a, name="OrgRoster")
+    cg = _org_shared_class(org, user_a, name="OrgRosterCG")
+    roster = Roster.objects.create(
+        organization=org, created_by=user_a, name="OrgRoster", class_group=cg
+    )
     students = []
     for i in range(n_students):
         s = Student.objects.create(

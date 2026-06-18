@@ -10,10 +10,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from assessments.models import Test
-from common.scope import scope_filter
+from common.scope import can_edit_class, scope_filter, visibility_q
 from results.models import StudentResult, PublicResultShare
 from analytics.services import improvement, student_detail, test_summary
 from analytics.models import TestProfile, StudentProfile
+
+
+def _visible_test_qs(request):
+    """Test queryset scoped to the current scope AND folder visibility (Phase 5B)."""
+    return Test.objects.filter(
+        scope_filter(request)
+        & visibility_q(request, "class_group__", "created_by")
+    ).distinct()
 
 
 @api_view(["GET"])
@@ -25,7 +33,7 @@ def test_analytics(request, test_id: int):
     Return the test-level analytics summary.
     Scoped: the test must belong to the current scope (solo or org) — 404 otherwise.
     """
-    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+    test = get_object_or_404(_visible_test_qs(request), id=test_id)
     summary = test_summary(test)
     return Response(summary)
 
@@ -40,7 +48,7 @@ def student_detail_view(request, test_id: int, student_id: int):
     Scoped: the test must belong to the current scope (solo or org), and a StudentResult for
     (test, student) must exist — 404 otherwise.
     """
-    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+    test = get_object_or_404(_visible_test_qs(request), id=test_id)
     result = get_object_or_404(StudentResult, test=test, student_id=student_id)
     detail = student_detail(result)
 
@@ -67,7 +75,7 @@ def improvement_view(request, test_id: int):
     Return retest-chain improvement analytics.
     Scoped: the test must belong to the current scope (solo or org) — 404 otherwise.
     """
-    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+    test = get_object_or_404(_visible_test_qs(request), id=test_id)
     return Response(improvement(test))
 
 
@@ -83,7 +91,7 @@ def test_profile_view(request, test_id: int):
 
     Scoped: the test must belong to the current scope (solo or org) — 404 otherwise.
     """
-    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+    test = get_object_or_404(_visible_test_qs(request), id=test_id)
 
     # Try to fetch a pre-computed profile
     try:
@@ -126,7 +134,7 @@ def student_report_card_view(request, test_id: int, student_id: int):
     from analytics.report_card import student_report_card
 
     test = get_object_or_404(
-        Test.objects.select_related("organization", "user").filter(scope_filter(request)),
+        _visible_test_qs(request).select_related("organization", "user"),
         id=test_id,
     )
     result = get_object_or_404(
@@ -161,7 +169,7 @@ def bulk_report_cards_view(request, test_id: int):
     from analytics.report_card import bulk_report_cards
 
     test = get_object_or_404(
-        Test.objects.select_related("organization", "user").filter(scope_filter(request)),
+        _visible_test_qs(request).select_related("organization", "user"),
         id=test_id,
     )
 
@@ -188,7 +196,7 @@ def test_publish_view(request, test_id: int):
            {is_published, access_mode, access_code?, show_names, show_leaderboard}
            Returns {slug, public_url, is_published, access_mode, show_names, show_leaderboard}.
     """
-    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+    test = get_object_or_404(_visible_test_qs(request), id=test_id)
 
     if request.method == "GET":
         try:
@@ -204,7 +212,14 @@ def test_publish_view(request, test_id: int):
             })
         return Response(_share_response(share))
 
-    # PUT — create or update
+    # PUT — create or update. Publishing changes share state → require EDIT
+    # rights on the governing class (VIEW-only → 403).
+    if not can_edit_class(request, test.class_group):
+        return Response(
+            {"detail": "You have view-only access to this folder; editing is not permitted."},
+            status=403,
+        )
+
     data = request.data
     try:
         share = test.public_share
@@ -279,7 +294,7 @@ def export_view(request, test_id: int):
     """
     from analytics.export import results_csv, results_xlsx, report_pdf
 
-    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+    test = get_object_or_404(_visible_test_qs(request), id=test_id)
 
     fmt = request.query_params.get("output_format", "csv").lower()
 

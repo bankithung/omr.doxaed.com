@@ -80,3 +80,102 @@ def parent_in_scope(value, request):
     if org is not None:
         return getattr(value, "organization_id", None) == org.id
     return getattr(value, "user_id", None) == request.user.id
+
+
+def visibility_q(request, class_prefix="", row_creator_prefix="created_by"):
+    """ORG-scope folder-visibility predicate. AND this with scope_filter(request).
+    SOLO scope and ADMINs → Q() (no-op; admin = full org access, bounded to the
+    active org via request._membership). class_prefix = FK path to the governing
+    ClassGroup ("" when the row IS the ClassGroup). row_creator_prefix = FK path to
+    the row's own created_by (used for class-less rows, e.g. orphan rosters).
+
+    NOTE: because shares__ is a reverse join, a queryset filtered with this Q can
+    yield duplicate rows — every get_queryset using visibility_q MUST end with
+    ``.distinct()``.
+    """
+    # Importing here avoids an app-loading import cycle (folders → common).
+    from folders.models import FolderShare
+
+    org = get_active_org(request)
+    if org is None:
+        return Q()  # solo: folders never apply
+    membership = getattr(request, "_membership", None)
+    if membership is not None and membership.role == OrganizationMembership.ADMIN:
+        return Q()  # admin: full access within active org
+    user = request.user
+    cp = class_prefix
+    fp = f"{cp}folder__"
+    q = (
+        Q(**{f"{fp}created_by": user})
+        | Q(**{f"{fp}shares__shared_with": user})
+        | Q(**{f"{fp}shares__share_scope": FolderShare.SHARE_ORG})
+    )
+    # loose class (folder IS NULL): visible to the governing class's creator
+    if cp:
+        q |= (
+            Q(**{f"{cp}folder__isnull": True})
+            & ~Q(**{f"{cp}isnull": True})
+            & Q(**{f"{cp}created_by": user})
+        )
+        # class-less row (e.g. orphan roster): visible to the row's own creator
+        q |= (Q(**{f"{cp}isnull": True}) & Q(**{row_creator_prefix: user}))
+    else:
+        q |= (Q(**{"folder__isnull": True}) & Q(**{"created_by": user}))
+    return q
+
+
+def is_active_admin(request):
+    """True if the request is in org scope AND the requester is an ACTIVE ADMIN of
+    the active org (bounded to the active X-Organization-Id via request._membership).
+    """
+    org = get_active_org(request)
+    if org is None:
+        return False
+    membership = getattr(request, "_membership", None)
+    return membership is not None and membership.role == OrganizationMembership.ADMIN
+
+
+def can_edit_class(request, class_group):
+    """EDIT-rights predicate for a folder-governed resource (Step 4).
+
+    List/retrieve is allowed for ANY visibility grant; create/update/delete on a
+    folder-governed resource requires EDIT rights:
+      * SOLO scope            → owner (already enforced by scope_filter) → True
+      * ACTIVE-ORG ADMIN      → True (admins have full edit per the owner decision)
+      * folder creator        → True
+      * an EDIT FolderShare   → True (member-share to this user OR an org-wide
+                                 EDIT share), provided the user is an active member
+      * loose class (folder=None) → only its own creator may edit
+    A VIEW-only grant returns False (→ caller raises 403).
+
+    `class_group` may be None (class-less resource) — then only solo/admin/creator
+    of the row applies and the caller is responsible for the creator check.
+    """
+    from folders.models import FolderShare
+
+    org = get_active_org(request)
+    if org is None:
+        return True  # solo: scope_filter already proved ownership
+    if is_active_admin(request):
+        return True
+    if class_group is None:
+        return False
+    user = request.user
+    folder = getattr(class_group, "folder", None)
+    if folder is None:
+        # Loose class: only the class creator may edit.
+        return class_group.created_by_id == user.id
+    if folder.created_by_id == user.id:
+        return True
+    # Must be an active member of the folder's org to inherit a share.
+    if not OrganizationMembership.objects.filter(
+        organization_id=org.id,
+        user=user,
+        status=OrganizationMembership.ACTIVE,
+    ).exists():
+        return False
+    return FolderShare.objects.filter(
+        Q(folder=folder),
+        Q(permission=FolderShare.PERM_EDIT),
+        Q(shared_with=user) | Q(share_scope=FolderShare.SHARE_ORG),
+    ).exists()
