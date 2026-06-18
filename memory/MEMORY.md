@@ -1,6 +1,6 @@
 # OMRFlow — Memory Index
 
-**Status:** On `main`: Phases 0–8 + multi-mode (Mode B pre-bubbled roll, Mode C competitive engine, analytics profiles, report cards, public result portal) + **PRODUCT V2 Phases 0–4b** (design system, responsive shell, mobile lists, shuffled question paper, sheet branding, inline scan-correction + Scan-&-Verify UI). Plan: `docs/superpowers/plans/2026-06-18-productv2-folders-papers-ux.md`. **UI rules mandatory (CLAUDE.md): no alert/native-select/default-styles/gradients; mobile-responsive; custom modals.** Next (sequential): 3c UIs · #87 multi-mark rules · **Phase 5 folders/sharing/admin** · Phase 6 polish. ~440+ tests, E2E Chromium/Chrome/Edge green.
+**Status:** On `main`: Phases 0–8 + multi-mode + **PRODUCT V2 Phases 0–4b + 3c + #87**. 3c = branding settings UI + question-paper download (authed blob) + multipart marking_scheme fix. #87 = configurable multi-mark policy (review/disqualify/wrong/correct_if_all) on Marking/SectionMarkingScheme, grade-owned overmark decision, StudentResult.disqualified_count, wizard policy picker. Plan: `docs/superpowers/plans/2026-06-18-productv2-folders-papers-ux.md`. **UI rules mandatory (CLAUDE.md): no alert/native-select/default-styles/gradients; mobile-responsive; custom modals.** NEXT = **Phase 5** folders/sharing/admin/subjects/onboarding (owner decisions recorded in [phase5-visibility-decisions](phase5-visibility-decisions.md): existing data stays org-visible; admins get FULL edit/delete) → Phase 6 polish. 470 backend tests; E2E Chromium/Chrome/Edge 16/16 + modeB 17/17 green.
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
 **Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–8 + gap-closure. **540 tests**, lint clean. Cross-browser E2E suite in `e2e/` (`node run.mjs`).
 ⚠️ Before launch: real Razorpay keys + payments review; TLS + prod env; Redis+Celery worker; audits/backups/monitoring. See `docs/DEPLOYMENT.md` + `docs/SECURITY-CHECKLIST.md`.
@@ -19,4 +19,4 @@
 - Roadmap: Phases 0–9, MVP = 1–5. Build one phase at a time.
 
 ## Memory index
-- (none yet)
+- [phase5-visibility-decisions](phase5-visibility-decisions.md) — owner-approved folders/sharing visibility + admin-override choices (gate Phase 5B/5C)

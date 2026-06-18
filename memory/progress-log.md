@@ -68,6 +68,18 @@
   UI rules locked in CLAUDE.md. Auto commit-review caught+fixed batch-paper /media exposure + regrade
   IDOR. Parallel-agent branch tangle recovered (now sequential). Each phase E2E-verified across 3
   browsers. Next: 3c UIs · #87 multi-mark rules · Phase 5 folders/sharing · Phase 6 polish.
+- 2026-06-18 — PRODUCT V2 Phase 3c + #87 merged to `main`. **3c** (worktree, 8408f9d→merged):
+  TestSerializer branding fields writable + org-branding endpoint (admin-only) + wizard branding
+  section + org branding card + "Download question papers" (authed blob). Follow-up fix (654f60f):
+  multipart test creation parsed marking_scheme JSON string + rebuilt as plain dict (DRF html-input
+  flattening) so branded-with-logo tests persist instead of 400 (+regression test). **#87 configurable
+  multi-mark rules** (ee5f787): MarkingScheme/SectionMarkingScheme.multi_mark_policy ∈ {review(default,
+  back-compat), disqualify(void/no-penalty), wrong(negative), correct_if_all(lenient)}; grade_sheet owns
+  the authoritative overmark decision (len(marked)>len(correct)) so review routing follows the GRADE
+  (fixes false-positive review on legit multiple-correct); double_mark review-item creation moved from
+  per-page process_scan_job → policy-aware _persist_grading_result; StudentResult.disqualified_count;
+  custom radio-card policy picker in TestWizard. 470 backend tests; E2E Chromium/Chrome/Edge 16/16 +
+  modeB 17/17 green after each. Next: Phase 5 (folders/sharing/admin/subjects/onboarding) · Phase 6 polish.
 - 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
   + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
   distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).
