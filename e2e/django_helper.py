@@ -139,6 +139,22 @@ def cmd_make_scans(test_id, out_dir):
     print(json.dumps(manifest))
 
 
+def cmd_publish(test_id):
+    """Publish a test's results to the public portal (open mode, leaderboard on)
+    and ensure the analytics profile is computed. Prints {slug, test_id}."""
+    from analytics.tasks import recompute_test_profile
+    from results.models import PublicResultShare
+
+    recompute_test_profile(int(test_id))
+    share, _ = PublicResultShare.objects.get_or_create(test_id=int(test_id))
+    share.is_published = True
+    share.access_mode = getattr(PublicResultShare, "ACCESS_OPEN", "open")
+    share.show_names = True
+    share.show_leaderboard = True
+    share.save()
+    print(json.dumps({"slug": share.slug, "test_id": int(test_id)}))
+
+
 def cmd_make_scan_tampered(test_id, out_dir):
     """Render ONE synthetic scan of the test's first sheet but with a WRONG roll
     (each digit shifted +1 mod 10) — correct answers, valid QR. Used to prove the
@@ -204,6 +220,8 @@ def main():
         cmd_make_scans(int(sys.argv[2]), sys.argv[3])
     elif cmd == "make-scan-tampered":
         cmd_make_scan_tampered(int(sys.argv[2]), sys.argv[3])
+    elif cmd == "publish":
+        cmd_publish(sys.argv[2])
     else:
         print(f"unknown command: {cmd}", file=sys.stderr)
         sys.exit(2)
