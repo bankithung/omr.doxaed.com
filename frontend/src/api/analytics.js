@@ -9,6 +9,9 @@ export const getImprovement = (testId) =>
 export const getStudentDetail = (testId, studentId) =>
   api.get(`/analytics/test/${testId}/student/${studentId}/`).then((r) => r.data)
 
+export const getTestProfile = (testId) =>
+  api.get(`/analytics/test/${testId}/profile/`).then((r) => r.data)
+
 /**
  * GET /analytics/test/<testId>/publish/
  * Returns { slug, public_url, is_published, access_mode, show_names, show_leaderboard }
@@ -23,6 +26,35 @@ export const getPublishSettings = (testId) =>
  */
 export const setPublishSettings = (testId, body) =>
   api.put(`/analytics/test/${testId}/publish/`, body).then((r) => r.data)
+
+export async function downloadStudentReportCard(testId, studentId) {
+  const res = await api.get(
+    `/analytics/test/${testId}/student/${studentId}/report-card/`,
+    { responseType: "blob" },
+  )
+  const url = URL.createObjectURL(res.data)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = "report-card.pdf"
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+export async function downloadBulkReportCards(testId) {
+  const res = await api.get(`/analytics/test/${testId}/report-cards/`, {
+    responseType: "blob",
+  })
+  const url = URL.createObjectURL(res.data)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = "report-cards.pdf"
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 export async function exportResults(testId, output_format) {
   const extMap = { csv: "csv", xlsx: "xlsx", pdf: "pdf" }

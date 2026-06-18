@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { listResults } from "@/api/scan"
-import { getPublishSettings, setPublishSettings } from "@/api/analytics"
+import { getPublishSettings, setPublishSettings, downloadBulkReportCards } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -372,6 +372,7 @@ export default function Results() {
   const { testId } = useParams()
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
+  const [downloadingBulk, setDownloadingBulk] = useState(false)
 
   const fetchResults = useCallback(async () => {
     setLoading(true)
@@ -389,6 +390,22 @@ export default function Results() {
     fetchResults()
   }, [fetchResults])
 
+  async function handleBulkReportCards() {
+    setDownloadingBulk(true)
+    try {
+      await downloadBulkReportCards(testId)
+      toast.success("Report cards downloaded")
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        "Failed to download report cards"
+      toast.error(msg)
+    } finally {
+      setDownloadingBulk(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -397,6 +414,14 @@ export default function Results() {
           <p className="text-sm text-muted-foreground">Test #{testId}</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={downloadingBulk}
+            onClick={handleBulkReportCards}
+          >
+            {downloadingBulk ? "Downloading…" : "Download all report cards"}
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link to={`/tests/${testId}/scan`}>Scan more</Link>
           </Button>
