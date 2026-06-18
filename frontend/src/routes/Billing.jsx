@@ -2,70 +2,44 @@ import { useEffect, useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
-import { getPlan, subscribe } from "@/api/billing"
+import { listPlans, getPlan, subscribe } from "@/api/billing"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { CheckIcon, ZapIcon, BuildingIcon, UsersIcon } from "lucide-react"
+import { CheckIcon, ZapIcon, BuildingIcon, UsersIcon, StarIcon } from "lucide-react"
 
-const PLANS = [
-  {
-    code: "free",
-    name: "Free",
-    price: null,
-    priceLabel: "Free",
-    description: "For individuals getting started",
-    limits: {
-      seats: 1,
-      seatsLabel: "1 seat",
-      students: 30,
-      studentsLabel: "30 students / generation",
-      generations: 3,
-      generationsLabel: "3 generations / day",
-      scans: 50,
-      scansLabel: "50 scans / month",
-    },
-    icon: UsersIcon,
-    highlight: false,
-  },
-  {
-    code: "team",
-    name: "Team",
-    price: 500,
-    priceLabel: "₹500 / month",
-    description: "For small teams and schools",
-    limits: {
-      seats: 10,
-      seatsLabel: "10 seats",
-      students: 120,
-      studentsLabel: "120 students / generation",
-      generations: 30,
-      generationsLabel: "30 generations / day",
-      scans: 500,
-      scansLabel: "500 scans / month",
-    },
-    icon: ZapIcon,
-    highlight: true,
-  },
-  {
-    code: "business",
-    name: "Business",
-    price: 1000,
-    priceLabel: "₹1,000 / month",
-    description: "For large institutions",
-    limits: {
-      seats: null,
-      seatsLabel: "Unlimited seats",
-      students: null,
-      studentsLabel: "Unlimited students / generation",
-      generations: null,
-      generationsLabel: "Unlimited generations / day",
-      scans: null,
-      scansLabel: "Unlimited scans / month",
-    },
-    icon: BuildingIcon,
-    highlight: false,
-  },
-]
+// Derive a human-readable price label from price_inr string (e.g. "0.00" → "Free", "500.00" → "₹500 / month").
+function derivePriceLabel(price_inr) {
+  const n = parseFloat(price_inr)
+  if (!n) return "Free"
+  return `₹${n.toLocaleString("en-IN")} / month`
+}
+
+// Derive a limit label: null → "Unlimited", number → "{n} {unit}".
+function limitLabel(value, unit) {
+  if (value === null || value === undefined) return `Unlimited ${unit}`
+  return `${value} ${unit}`
+}
+
+// Build the limits list to display in a PlanCard from backend limits object.
+function buildLimitLines(limits) {
+  return [
+    limitLabel(limits.seat_limit, limits.seat_limit === 1 ? "seat" : "seats"),
+    limitLabel(limits.students_per_generation_limit, "students / generation"),
+    limitLabel(limits.generations_per_day_limit, "generations / day"),
+    limitLabel(limits.monthly_scan_limit, "scans / month"),
+  ]
+}
+
+// Pick a card icon based on plan code.
+const PLAN_ICONS = {
+  free: UsersIcon,
+  team: ZapIcon,
+  business: BuildingIcon,
+  enterprise: StarIcon,
+}
+
+// Plans highlighted as "Popular".
+const HIGHLIGHT_CODES = new Set(["team"])
 
 function UsageBar({ label, used, limit }) {
   if (limit === null || limit === undefined) {
@@ -118,7 +92,11 @@ function UsageBar({ label, used, limit }) {
 function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
   const isCurrent = plan.code === currentPlanCode
   const [loading, setLoading] = useState(false)
-  const Icon = plan.icon
+  const Icon = PLAN_ICONS[plan.code] ?? UsersIcon
+  const isHighlight = HIGHLIGHT_CODES.has(plan.code)
+  const priceLabel = derivePriceLabel(plan.price_inr)
+  const price = parseFloat(plan.price_inr)
+  const limitLines = buildLimitLines(plan.limits)
 
   async function handleSubscribe() {
     setLoading(true)
@@ -156,13 +134,13 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
     <div
       className={[
         "relative flex flex-col rounded-2xl border p-6 transition-shadow",
-        plan.highlight
+        isHighlight
           ? "border-primary shadow-md shadow-primary/10 ring-1 ring-primary"
           : "border-border",
         isCurrent ? "bg-muted/40" : "bg-background",
       ].join(" ")}
     >
-      {plan.highlight && (
+      {isHighlight && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-primary-foreground">
           Popular
         </span>
@@ -172,23 +150,22 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
         <div
           className={[
             "flex size-9 items-center justify-center rounded-lg",
-            plan.highlight ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+            isHighlight ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
           ].join(" ")}
         >
           <Icon className="size-4" />
         </div>
         <div>
           <h3 className="font-semibold leading-tight">{plan.name}</h3>
-          <p className="text-xs text-muted-foreground">{plan.description}</p>
         </div>
       </div>
 
       <div className="mb-5">
-        <span className="text-2xl font-bold">{plan.priceLabel}</span>
+        <span className="text-2xl font-bold">{priceLabel}</span>
       </div>
 
       <ul className="mb-6 space-y-2 text-sm">
-        {Object.values(plan.limits).map((label, i) => (
+        {limitLines.map((label, i) => (
           <li key={i} className="flex items-center gap-2 text-muted-foreground">
             <CheckIcon className="size-3.5 shrink-0 text-primary" />
             {label}
@@ -203,7 +180,7 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
           </div>
         ) : (
           <Button className="w-full" onClick={handleSubscribe} disabled={loading}>
-            {loading ? "Processing…" : plan.price ? "Upgrade" : "Downgrade to Free"}
+            {loading ? "Processing…" : price ? "Upgrade" : "Downgrade to Free"}
           </Button>
         )}
       </div>
@@ -215,6 +192,7 @@ export default function Billing() {
   const { id: orgId } = useParams()
   const { orgs } = useOrg()
   const [planData, setPlanData] = useState(null)
+  const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -224,8 +202,9 @@ export default function Billing() {
     setLoading(true)
     setError(null)
     try {
-      const data = await getPlan(orgId)
-      setPlanData(data)
+      const [orgPlan, allPlans] = await Promise.all([getPlan(orgId), listPlans()])
+      setPlanData(orgPlan)
+      setPlans(allPlans)
     } catch (err) {
       const msg = err?.response?.data?.detail || "Failed to load plan information"
       setError(msg)
@@ -336,8 +315,8 @@ export default function Billing() {
           {/* Tier cards */}
           <div>
             <h2 className="mb-4 text-lg font-semibold">Plans</h2>
-            <div className="grid gap-5 sm:grid-cols-3">
-              {PLANS.map((plan) => (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {plans.map((plan) => (
                 <PlanCard
                   key={plan.code}
                   plan={plan}

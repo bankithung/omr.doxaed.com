@@ -56,9 +56,10 @@ function QuestionResponseRow({ resp }) {
   )
 }
 
-function StudentResultRow({ result }) {
+function StudentResultRow({ result, testId }) {
   const [expanded, setExpanded] = useState(false)
   const responses = result.responses ?? result.question_responses ?? []
+  const studentId = result.student?.id ?? result.student_id
 
   return (
     <>
@@ -85,8 +86,19 @@ function StudentResultRow({ result }) {
         <TableCell>
           {result.needs_review ? <NeedsReviewBadge /> : null}
         </TableCell>
-        <TableCell className="text-right text-xs text-muted-foreground">
-          {expanded ? "▲ collapse" : "▼ details"}
+        <TableCell className="text-right text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-2">
+            {studentId != null && (
+              <Link
+                to={`/tests/${testId}/students/${studentId}`}
+                className="text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Detail
+              </Link>
+            )}
+            <span>{expanded ? "▲ collapse" : "▼ expand"}</span>
+          </div>
         </TableCell>
       </TableRow>
 
@@ -202,14 +214,14 @@ export default function Results() {
               </TableHeader>
               <TableBody>
                 {results.map((r) => (
-                  <StudentResultRow key={r.id} result={r} />
+                  <StudentResultRow key={r.id} result={r} testId={testId} />
                 ))}
               </TableBody>
             </Table>
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground">
-            Click a row to expand per-question responses.
+            Click a row to expand per-question responses. Click "Detail" for the full analytics drill-down.
           </p>
         </>
       )}

@@ -28,10 +28,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ChevronDownIcon, UserPlusIcon, CreditCardIcon } from "lucide-react"
+import { ChevronDownIcon, UserPlusIcon, CreditCardIcon, ClipboardListIcon } from "lucide-react"
 
-const ROLES = ["admin", "member", "viewer"]
-const ROLE_LABELS = { admin: "Admin", member: "Member", viewer: "Viewer" }
+const ROLES = ["admin", "member"]
+const ROLE_LABELS = { admin: "Admin", member: "Member" }
 
 export default function OrgMembers() {
   const { id: orgId } = useParams()
@@ -142,6 +142,14 @@ export default function OrgMembers() {
               Billing
             </Link>
           </Button>
+          {isAdmin && (
+            <Button variant="outline" asChild>
+              <Link to={`/organizations/${orgId}/audit`}>
+                <ClipboardListIcon className="mr-1.5" />
+                Audit log
+              </Link>
+            </Button>
+          )}
           {isAdmin && (
             <Button
               onClick={() => {
