@@ -3,12 +3,13 @@ import json
 from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework.test import APITestCase
 
-from assessments.models import ClassGroup, Test, MarkingScheme, Question, Option
+from assessments.models import ClassGroup, Test, MarkingScheme, Question, Option, Subject
 
 User = get_user_model()
 
@@ -354,3 +355,103 @@ class TestBrandingApiTests(ClassApiTests):
         # marking_scheme parsed from the JSON string and persisted
         self.assertEqual(r.data["marking_scheme"]["marks_per_correct"], "2.00")
         self.assertEqual(r.data["marking_scheme"]["negative_marks_per_wrong"], "0.50")
+
+
+class ClassGroupFolderScopeTests(TestCase):
+    """ClassGroup.clean() must enforce folder owner-scope match."""
+
+    def setUp(self):
+        from folders.models import Folder
+        from organizations.models import Organization
+
+        self.user_a = User.objects.create_user(email="cfa@example.com", password="Str0ng!pass")
+        self.user_b = User.objects.create_user(email="cfb@example.com", password="Str0ng!pass")
+        self.org_a = Organization.objects.create(name="OrgA", owner=self.user_a)
+        self.org_b = Organization.objects.create(name="OrgB", owner=self.user_b)
+
+        # Folder owned by org_a
+        self.folder_org_a = Folder.objects.create(
+            created_by=self.user_a, name="FA", organization=self.org_a
+        )
+        # Folder owned by user_a (solo)
+        self.folder_user_a = Folder.objects.create(
+            created_by=self.user_a, name="FUA", user=self.user_a
+        )
+
+    def test_folder_wrong_org_raises_validation_error(self):
+        """ClassGroup owned by org_b cannot use a folder owned by org_a."""
+        cg = ClassGroup(
+            created_by=self.user_b,
+            name="CG",
+            organization=self.org_b,
+            folder=self.folder_org_a,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            cg.full_clean()
+        self.assertIn("folder", ctx.exception.message_dict)
+
+    def test_folder_user_scope_mismatch_raises_validation_error(self):
+        """ClassGroup owned by org_b cannot use a solo-user folder."""
+        cg = ClassGroup(
+            created_by=self.user_b,
+            name="CG",
+            organization=self.org_b,
+            folder=self.folder_user_a,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            cg.full_clean()
+        self.assertIn("folder", ctx.exception.message_dict)
+
+    def test_folder_matching_org_scope_passes(self):
+        """ClassGroup owned by org_a with folder owned by org_a passes clean."""
+        cg = ClassGroup(
+            created_by=self.user_a,
+            name="CG",
+            organization=self.org_a,
+            folder=self.folder_org_a,
+        )
+        # Should not raise
+        cg.full_clean()
+
+    def test_folder_matching_user_scope_passes(self):
+        """ClassGroup owned by user_a with folder owned by user_a passes clean."""
+        cg = ClassGroup(
+            created_by=self.user_a,
+            name="CG",
+            user=self.user_a,
+            folder=self.folder_user_a,
+        )
+        # Should not raise
+        cg.full_clean()
+
+    def test_no_folder_passes(self):
+        """ClassGroup without a folder passes clean."""
+        cg = ClassGroup(created_by=self.user_a, name="CG", user=self.user_a)
+        cg.full_clean()
+
+
+class SubjectUniquenessTests(TestCase):
+    """Subject(class_group, name) must be unique."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(email="sub@example.com", password="Str0ng!pass")
+        self.cg = ClassGroup.objects.create(
+            created_by=self.user, name="SubCG", user=self.user
+        )
+
+    def test_duplicate_subject_name_in_same_class_raises_integrity_error(self):
+        Subject.objects.create(class_group=self.cg, name="Math")
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Subject.objects.create(class_group=self.cg, name="Math")
+
+    def test_same_name_in_different_classes_is_allowed(self):
+        user2 = User.objects.create_user(email="sub2@example.com", password="Str0ng!pass")
+        cg2 = ClassGroup.objects.create(created_by=user2, name="SubCG2", user=user2)
+        Subject.objects.create(class_group=self.cg, name="Science")
+        s2 = Subject.objects.create(class_group=cg2, name="Science")
+        self.assertEqual(s2.name, "Science")
+
+    def test_subject_str(self):
+        s = Subject.objects.create(class_group=self.cg, name="History")
+        self.assertIn("History", str(s))
