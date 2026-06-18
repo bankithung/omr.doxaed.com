@@ -52,6 +52,13 @@
   generation idempotent (update_or_create on (test,student), pk preserved) + regression test.
   Re-verified full loop + new front door across Chromium/Chrome/Edge (15/15). Demo acct
   teacher@omrflow.test / Teacher@12345.
+- 2026-06-18 — Mode C engine (branch `feat/modec-phase3` → `main`): sections + per-section grading
+  (best-K choose-k shuffle-invariant, flat/fractional negatives, cutoffs flag-not-zero, no-sections
+  bit-identical, retest clones sections) + on-sheet section headers (coord-invariant) + 4/5 options.
+  Design workflow caught 3 issues pre-build (choose-k fairness, header geometry, retest). 756 tests.
+  Competitive CREATION UI deferred into Product v2. Then owner re-scoped → PRODUCT V2 (folders/sharing/
+  admin-visibility, shuffled question paper, sheet branding/logo, inline scan correction, UX/onboarding/
+  mobile overhaul) — design workflow running.
 - 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
   + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
   distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).

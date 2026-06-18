@@ -1,5 +1,21 @@
 # Current State
 
+- 2026-06-18: **Mode C engine (Phase 3A+3B) merged to `main`** (`6944e24`). Competitive (NEET/UPSC):
+  Section/SectionMarkingScheme models, Question.section, Test.MODE_COMPETITIVE + default_options;
+  section grading — **best-K-of-attempted choose-k (shuffle-invariant)**, flat/fractional negatives
+  (Decimal, single quantize), per-section subtotals, qualifying cutoffs that FLAG (never zero) the
+  total; no-sections path bit-identical; retest clones sections. On-sheet section legend + §-gutter
+  markers in header whitespace (NO bubble coord moved — coord-invariance test) + first-class 4/5
+  options. Plan+critique in `docs/superpowers/plans/2026-06-18-phase3-modec.md`. **756 tests.**
+  Competitive-test CREATION UI (section builder) deferred into Product v2.
+- 2026-06-18: **PRODUCT V2 design IN PROGRESS** (owner re-scoped to the full product vision). New work:
+  (1) Folders + sharing + admin-sees-everything (org content org); (2) **shuffled QUESTION PAPER** PDF
+  per student when shuffle on (gap today); (3) sheet BRANDING (heading + logo placeable, proper
+  spacing, scanner-safe, optional); (4) INLINE scan-error correction in the Scan UI; (5) **best-in-class
+  UX/UI overhaul** — short/precise/professional onboarding, full mobile-responsive. Already-built &
+  reused: org/members/roles, public /r/<slug> result page, teacher-only analytics, modes, encrypted
+  PII. Design workflow (research→plan→security-critique) running; plan →
+  `docs/superpowers/plans/2026-06-18-productv2-folders-papers-ux.md`.
 - 2026-06-18: **Multi-mode OMR — Phase 2 (analytical profiles + report cards + PUBLIC result portal)
   COMPLETE & E2E-verified** (branch `feat/omr-modes`; not yet merged). Delivers "every test → a
   proper analytical profile" + the user's public-share-link ask.
