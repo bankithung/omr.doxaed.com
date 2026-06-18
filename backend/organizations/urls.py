@@ -6,6 +6,7 @@ from .views import (
     InviteView,
     MemberDetailView,
     MemberListView,
+    OrgBrandingView,
     OrganizationListCreateView,
 )
 
@@ -27,4 +28,7 @@ urlpatterns = [
 
     # Audit log
     path("organizations/<int:org_id>/audit/", AuditLogView.as_view(), name="org-audit"),
+
+    # Branding (Phase 3c)
+    path("organizations/<int:org_id>/branding/", OrgBrandingView.as_view(), name="org-branding"),
 ]

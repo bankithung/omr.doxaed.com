@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
-import { getMembers, invite, setMemberRole, removeMember } from "@/api/orgs"
+import { getMembers, invite, setMemberRole, removeMember, getOrgBranding, updateOrgBranding } from "@/api/orgs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,6 +32,135 @@ import { ChevronDownIcon, UserPlusIcon, CreditCardIcon, ClipboardListIcon } from
 
 const ROLES = ["admin", "member"]
 const ROLE_LABELS = { admin: "Admin", member: "Member" }
+
+// ─── OrgBrandingCard — admin-only section ─────────────────────────────────────
+
+function OrgBrandingCard({ orgId }) {
+  const [heading, setHeading] = useState("")
+  const [logoFile, setLogoFile] = useState(null)
+  const [currentLogoUrl, setCurrentLogoUrl] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const logoInputRef = useRef(null)
+
+  useEffect(() => {
+    getOrgBranding(orgId)
+      .then((data) => {
+        setHeading(data.default_sheet_heading ?? "")
+        setCurrentLogoUrl(data.logo ?? null)
+      })
+      .catch(() => toast.error("Failed to load branding settings"))
+      .finally(() => setLoading(false))
+  }, [orgId])
+
+  async function handleSave(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      let data
+      if (logoFile) {
+        data = new FormData()
+        data.append("default_sheet_heading", heading.trim())
+        data.append("logo", logoFile)
+      } else {
+        data = { default_sheet_heading: heading.trim() }
+      }
+      const result = await updateOrgBranding(orgId, data)
+      setCurrentLogoUrl(result.logo ?? null)
+      setLogoFile(null)
+      if (logoInputRef.current) logoInputRef.current.value = ""
+      toast.success("Branding settings saved")
+    } catch (err) {
+      const msg = err?.response?.data?.detail || "Failed to save branding"
+      toast.error(msg)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border p-4">
+        <p className="text-sm text-muted-foreground">Loading branding settings…</p>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSave} className="rounded-xl border p-4 space-y-4">
+      <p className="text-sm font-semibold">Organisation branding</p>
+      <p className="text-xs text-muted-foreground">
+        Applied to all sheets generated under this organisation (unless overridden per test).
+      </p>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="org-heading">Default sheet heading</Label>
+        <Input
+          id="org-heading"
+          placeholder="e.g. Springfield School District"
+          value={heading}
+          onChange={(e) => setHeading(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Organisation logo</Label>
+        {currentLogoUrl && (
+          <div className="rounded-lg border p-2 inline-block">
+            <img
+              src={currentLogoUrl}
+              alt="Current organisation logo"
+              className="h-12 w-auto object-contain"
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-[40px]"
+            onClick={() => logoInputRef.current?.click()}
+          >
+            {logoFile ? "Change logo" : currentLogoUrl ? "Replace logo" : "Upload logo"}
+          </Button>
+          {logoFile && (
+            <span className="text-sm text-muted-foreground truncate max-w-[180px]">
+              {logoFile.name}
+            </span>
+          )}
+          {logoFile && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLogoFile(null)
+                if (logoInputRef.current) logoInputRef.current.value = ""
+              }}
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+        {/* Hidden native file input — custom trigger button above */}
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          className="sr-only"
+          onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+          aria-label="Upload organisation logo"
+        />
+        <p className="text-xs text-muted-foreground">PNG or JPEG, max 2 MB</p>
+      </div>
+
+      <Button type="submit" size="sm" disabled={saving} className="min-h-[40px]">
+        {saving ? "Saving…" : "Save branding"}
+      </Button>
+    </form>
+  )
+}
 
 export default function OrgMembers() {
   const { id: orgId } = useParams()
@@ -237,6 +366,13 @@ export default function OrgMembers() {
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {/* Branding settings — admin only (Phase 3c) */}
+      {isAdmin && (
+        <div className="mt-8">
+          <OrgBrandingCard orgId={orgId} />
         </div>
       )}
 

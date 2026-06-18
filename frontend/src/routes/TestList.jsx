@@ -9,7 +9,7 @@ import {
   CheckCircle,
 } from "lucide-react"
 import { getClass, listTests, retest } from "@/api/assessments"
-import { listRosters, generateSheets, mediaUrl } from "@/api/omr"
+import { listRosters, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -64,10 +64,14 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
   const [shuffleOptions, setShuffleOptions] = useState(true)
   const [loading, setLoading] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState(null)
+  // batch_paper_url is an AUTHED API endpoint (not a /media/ link)
+  const [paperBatchUrl, setPaperBatchUrl] = useState(null)
+  const [downloadingPaper, setDownloadingPaper] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setDownloadUrl(null)
+    setPaperBatchUrl(null)
     setRosterId("")
     listRosters()
       .then((data) => setRosters(data.results ?? data))
@@ -81,6 +85,7 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
     }
     setLoading(true)
     setDownloadUrl(null)
+    setPaperBatchUrl(null)
     try {
       const resp = await generateSheets({
         test: test.id,
@@ -90,6 +95,10 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
       })
       const url = mediaUrl(resp.batch_pdf_url)
       setDownloadUrl(url)
+      // batch_paper_url present when shuffle was on → question papers were emitted
+      if (resp.batch_paper_url) {
+        setPaperBatchUrl(resp.batch_paper_url)
+      }
       toast.success(`Generated ${resp.count ?? resp.sheets?.length ?? ""} sheet(s)`)
     } catch (err) {
       const detail =
@@ -99,6 +108,18 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
       toast.error(detail)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDownloadPapers() {
+    if (!paperBatchUrl) return
+    setDownloadingPaper(true)
+    try {
+      await downloadAuthedBlob(paperBatchUrl, "question-papers.pdf")
+    } catch {
+      toast.error("Failed to download question papers")
+    } finally {
+      setDownloadingPaper(false)
     }
   }
 
@@ -163,17 +184,29 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
             </div>
           </div>
 
-          {/* Download link after success */}
+          {/* Download links after success */}
           {downloadUrl && (
             <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
               <p className="mb-2 text-sm font-medium text-green-800 dark:text-green-300">
                 Sheets generated successfully!
               </p>
-              <Button asChild size="sm" variant="outline">
-                <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-                  Download sheets PDF
-                </a>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                    Download sheets PDF
+                  </a>
+                </Button>
+                {paperBatchUrl && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDownloadPapers}
+                    disabled={downloadingPaper}
+                  >
+                    {downloadingPaper ? "Downloading…" : "Download question papers"}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </div>
