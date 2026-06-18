@@ -1,8 +1,8 @@
 import { lazy, Suspense } from "react"
+import { Navigate } from "react-router-dom"
 import { useAuth } from "@/auth/AuthContext"
 
 const Landing = lazy(() => import("@/routes/Landing"))
-const Dashboard = lazy(() => import("@/routes/Dashboard"))
 
 export default function RootRoute() {
   const { user, loading } = useAuth()
@@ -19,6 +19,11 @@ export default function RootRoute() {
     )
   }
 
+  // Redirect logged-in users to /dashboard so they get the full app shell.
+  if (user) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return (
     <Suspense
       fallback={
@@ -27,7 +32,7 @@ export default function RootRoute() {
         </div>
       }
     >
-      {user ? <Dashboard /> : <Landing />}
+      <Landing />
     </Suspense>
   )
 }
