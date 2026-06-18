@@ -12,6 +12,7 @@ from assessments.models import Test
 from common.scope import scope_filter
 from results.models import StudentResult
 from analytics.services import improvement, student_detail, test_summary
+from analytics.models import TestProfile, StudentProfile
 
 
 @api_view(["GET"])
@@ -40,7 +41,20 @@ def student_detail_view(request, test_id: int, student_id: int):
     """
     test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
     result = get_object_or_404(StudentResult, test=test, student_id=student_id)
-    return Response(student_detail(result))
+    detail = student_detail(result)
+
+    # Enrich with percentile + rank from StudentProfile (if available)
+    try:
+        sp = StudentProfile.objects.get(test=test, result=result)
+        detail["percentile"] = sp.percentile
+        detail["rank"] = sp.rank
+        detail["cohort_size"] = sp.cohort_size
+    except StudentProfile.DoesNotExist:
+        detail["percentile"] = None
+        detail["rank"] = None
+        detail["cohort_size"] = None
+
+    return Response(detail)
 
 
 @api_view(["GET"])
@@ -54,6 +68,48 @@ def improvement_view(request, test_id: int):
     """
     test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
     return Response(improvement(test))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def test_profile_view(request, test_id: int):
+    """
+    GET /api/v1/analytics/test/{test_id}/profile/
+
+    Return (or compute on the fly) the psychometric TestProfile for a test.
+    If the profile has not been computed yet, triggers computation synchronously
+    before responding.
+
+    Scoped: the test must belong to the current scope (solo or org) — 404 otherwise.
+    """
+    test = get_object_or_404(Test.objects.filter(scope_filter(request)), id=test_id)
+
+    # Try to fetch a pre-computed profile
+    try:
+        tp = TestProfile.objects.get(test=test)
+    except TestProfile.DoesNotExist:
+        tp = None
+
+    if tp is None:
+        # Compute on the fly (synchronous — always_eager in dev; fast in any env)
+        from analytics.tasks import recompute_test_profile
+        recompute_test_profile(test_id)
+        try:
+            tp = TestProfile.objects.get(test=test)
+        except TestProfile.DoesNotExist:
+            # Still nothing (no results yet)
+            return Response(
+                {"detail": "No results available for this test."},
+                status=404,
+            )
+
+    return Response({
+        "test_id": test_id,
+        "cohort_size": tp.cohort_size,
+        "status": tp.status,
+        "generated_at": tp.generated_at.isoformat() if tp.generated_at else None,
+        "profile": tp.profile,
+    })
 
 
 @api_view(["GET"])

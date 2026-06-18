@@ -9,6 +9,11 @@ urlpatterns = [
         name="analytics-test",
     ),
     path(
+        "analytics/test/<int:test_id>/profile/",
+        views.test_profile_view,
+        name="analytics-test-profile",
+    ),
+    path(
         "analytics/test/<int:test_id>/student/<int:student_id>/",
         views.student_detail_view,
         name="analytics-student-detail",
