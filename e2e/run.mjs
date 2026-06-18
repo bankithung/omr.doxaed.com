@@ -90,6 +90,13 @@ async function runJourney(browserName, launchOpts) {
     const page = await context.newPage()
     page.setDefaultTimeout(30000)
 
+    // 0. Landing page (the logged-out public front door)
+    await step("landing", async () => {
+      await page.goto(`${FRONTEND}/`)
+      await page.getByRole("heading", { name: /Grade a stack of bubble sheets/ }).waitFor({ timeout: 20000 })
+      await shot(page, browserName, "00-landing")
+    })
+
     // 1. Register
     await step("register", async () => {
       await page.goto(`${FRONTEND}/register`)
@@ -115,7 +122,8 @@ async function runJourney(browserName, launchOpts) {
       await page.getByPlaceholder("you@example.com").fill(email)
       await page.getByPlaceholder("••••••••").fill(password)
       await page.getByRole("button", { name: "Sign in" }).click()
-      await page.waitForURL("**/profile", { timeout: 20000 })
+      await page.waitForURL("**/dashboard", { timeout: 20000 })
+      await page.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 20000 })
       await shot(page, browserName, "03-loggedin")
     })
 

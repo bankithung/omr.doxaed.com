@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { useAuth } from "@/auth/AuthContext"
 import { useOrg } from "@/org/OrgContext"
 import ProtectedRoute from "@/auth/ProtectedRoute"
+import RootRoute from "@/auth/RootRoute"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,7 @@ import { ChevronDownIcon, BuildingIcon } from "lucide-react"
 
 const Health = lazy(() => import("@/routes/Health"))
 const StyleGuide = lazy(() => import("@/routes/StyleGuide"))
+const Dashboard = lazy(() => import("@/routes/Dashboard"))
 const Login = lazy(() => import("@/routes/Login"))
 const Register = lazy(() => import("@/routes/Register"))
 const VerifyEmail = lazy(() => import("@/routes/VerifyEmail"))
@@ -92,11 +94,8 @@ function Nav() {
 
   return (
     <nav className="flex items-center gap-4 border-b px-4 py-3 text-sm">
-      <Link to="/health" className="font-semibold hover:text-primary">
+      <Link to="/" className="font-semibold hover:text-primary">
         OMRFlow
-      </Link>
-      <Link to="/style-guide" className="text-muted-foreground hover:text-foreground">
-        Style Guide
       </Link>
       {user && (
         <>
@@ -160,7 +159,7 @@ export default function App() {
         <Suspense fallback={<div className="p-8 text-muted-foreground">Loading…</div>}>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<Health />} />
+            <Route path="/" element={<RootRoute />} />
             <Route path="/health" element={<Health />} />
             <Route path="/style-guide" element={<StyleGuide />} />
             <Route path="/login" element={<Login />} />
@@ -170,6 +169,14 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/profile"
               element={

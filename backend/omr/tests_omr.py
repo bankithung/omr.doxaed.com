@@ -711,6 +711,40 @@ class GenerateEndpointTests(TestCase):
         codes = [s["sheet_code"] for s in data["sheets"]]
         self.assertEqual(len(codes), len(set(codes)), "Sheet codes are not unique")
 
+    def test_regenerate_is_idempotent(self):
+        """Re-generating a test's sheets must NOT 500 on the unique sheet_code
+        constraint (regression). It updates rows in place: stable count, the
+        same pks reused (so results stay valid), and identical codes (the seed
+        is deterministic per test+student)."""
+        from omr.models import OmrSheet
+        from rosters.models import Student
+
+        n_students = Student.objects.filter(roster=self.roster).count()
+        payload = {"test": self.test.id, "roster": self.roster.id}
+
+        first = self.client.post(
+            self.GENERATE_URL, payload, content_type="application/json", **self._auth()
+        )
+        self.assertEqual(first.status_code, 201, first.content)
+        self.assertEqual(OmrSheet.objects.filter(test=self.test).count(), n_students)
+        pks_first = set(OmrSheet.objects.filter(test=self.test).values_list("pk", flat=True))
+        codes_first = sorted(s["sheet_code"] for s in first.json()["sheets"])
+
+        # Second generation for the SAME test+roster must succeed.
+        second = self.client.post(
+            self.GENERATE_URL, payload, content_type="application/json", **self._auth()
+        )
+        self.assertEqual(second.status_code, 201, second.content)
+        self.assertEqual(
+            OmrSheet.objects.filter(test=self.test).count(), n_students,
+            "Re-generation must not create duplicate sheets",
+        )
+        pks_second = set(OmrSheet.objects.filter(test=self.test).values_list("pk", flat=True))
+        self.assertEqual(pks_first, pks_second, "Re-generation must reuse rows (preserve pks)")
+        self.assertEqual(
+            codes_first, sorted(s["sheet_code"] for s in second.json()["sheets"])
+        )
+
     def test_generate_batch_pdf_url_present(self):
         resp = self.client.post(
             self.GENERATE_URL,
