@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
+import { BuildingIcon } from "lucide-react"
 import { useOrg } from "@/org/OrgContext"
 import { createOrg } from "@/api/orgs"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { ListSkeleton } from "@/components/ui/list-skeletons"
 import { DataList } from "@/components/ui/data-list"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/ui/page-header"
@@ -53,13 +56,21 @@ const COLUMNS = [
 export default function Organizations() {
   const { orgs, refreshOrgs } = useOrg()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [orgName, setOrgName] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
+  function loadOrgs() {
     setLoading(true)
-    refreshOrgs().finally(() => setLoading(false))
+    setError(false)
+    refreshOrgs({ force: true })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadOrgs()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function openDialog() {
@@ -78,7 +89,7 @@ export default function Organizations() {
       await createOrg(orgName.trim())
       toast.success("Organization created")
       setDialogOpen(false)
-      await refreshOrgs()
+      await refreshOrgs({ force: true })
     } catch (err) {
       const msg =
         err?.response?.data?.detail ||
@@ -100,9 +111,16 @@ export default function Organizations() {
       />
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <ListSkeleton rows={4} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load organizations"
+          description="Something went wrong while loading your organizations."
+          onRetry={loadOrgs}
+        />
       ) : orgs.length === 0 ? (
         <EmptyState
+          icon={BuildingIcon}
           title="No organizations yet"
           description="Create an organization to collaborate with your team."
           action={<Button onClick={openDialog}>Create organization</Button>}

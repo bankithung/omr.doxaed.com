@@ -3,12 +3,13 @@ import { Link, Navigate } from "react-router-dom"
 import { toast } from "sonner"
 import { FileText, Users, ScanLine, BuildingIcon, X } from "lucide-react"
 import { useAuth } from "@/auth/AuthContext"
+import { useOrg } from "@/org/OrgContext"
 import { listClasses } from "@/api/assessments"
 import { listRosters } from "@/api/omr"
-import { listOrgs } from "@/api/orgs"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StatCard } from "@/components/ui/stat-card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const ONBOARDED_KEY = "omrflow_onboarded"
 const WELCOME_DISMISSED_KEY = "omrflow_welcome_dismissed"
@@ -48,9 +49,12 @@ const QUICK_ACTIONS = [
 
 export default function Dashboard() {
   const { user } = useAuth()
+  // Org count comes from OrgContext (session-cached) rather than an independent
+  // GET /organizations/ on every dashboard visit — org-switch navigates here, so
+  // a per-visit fetch was a major source of redundant org calls.
+  const { orgs } = useOrg()
   const [classes, setClasses] = useState([])
   const [rosters, setRosters] = useState([])
-  const [orgs, setOrgs] = useState([])
   const [loading, setLoading] = useState(true)
 
   // First-run redirect: send brand-new users to the onboarding wizard.
@@ -78,18 +82,15 @@ export default function Dashboard() {
     if (needsOnboarding) return undefined
     let active = true
     ;(async () => {
-      const [classesRes, rostersRes, orgsRes] = await Promise.allSettled([
+      const [classesRes, rostersRes] = await Promise.allSettled([
         listClasses(),
         listRosters(),
-        listOrgs(),
       ])
       if (!active) return
       let failed = false
       if (classesRes.status === "fulfilled") setClasses(normalize(classesRes.value))
       else failed = true
       if (rostersRes.status === "fulfilled") setRosters(normalize(rostersRes.value))
-      else failed = true
-      if (orgsRes.status === "fulfilled") setOrgs(normalize(orgsRes.value))
       else failed = true
       if (failed) toast.error("Some workspace data failed to load")
       setLoading(false)
@@ -227,7 +228,11 @@ export default function Dashboard() {
               </Link>
             </div>
             {loading ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+              <div className="space-y-2 px-4 py-4" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
             ) : classes.length === 0 ? (
               <p className="px-4 py-6 text-sm text-muted-foreground">No classes yet.</p>
             ) : (
@@ -258,7 +263,11 @@ export default function Dashboard() {
               </Link>
             </div>
             {loading ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+              <div className="space-y-2 px-4 py-4" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
             ) : rosters.length === 0 ? (
               <p className="px-4 py-6 text-sm text-muted-foreground">No rosters yet.</p>
             ) : (

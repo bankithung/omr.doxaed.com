@@ -9,6 +9,7 @@ import { getPortalMeta, lookupResult, getLeaderboard } from "@/api/public"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // ────────────────────────────────────────────────
 // Result card
@@ -86,7 +87,12 @@ function LeaderboardSection({ slug }) {
   }, [slug])
 
   if (loading) {
-    return <p className="mt-8 text-sm text-muted-foreground">Loading leaderboard…</p>
+    return (
+      <div className="mt-8 space-y-2" aria-hidden="true">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    )
   }
 
   if (error) {
@@ -197,8 +203,20 @@ export default function PublicResult() {
   // ── Loading state ──
   if (metaLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+      <div className="min-h-screen bg-background">
+        {/* Header placeholder */}
+        <div className="border-b bg-card px-4 py-5 text-center sm:py-7">
+          <Skeleton className="mx-auto h-8 w-48" />
+          <Skeleton className="mx-auto mt-2 h-4 w-64" />
+        </div>
+        {/* Lookup form placeholder */}
+        <div className="mx-auto max-w-lg px-4 py-8">
+          <div className="flex flex-col gap-4" aria-hidden="true">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
       </div>
     )
   }

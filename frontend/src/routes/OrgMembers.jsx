@@ -28,7 +28,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ChevronDownIcon, UserPlusIcon, CreditCardIcon, ClipboardListIcon } from "lucide-react"
+import { ErrorState } from "@/components/ui/error-state"
+import { TableSkeleton } from "@/components/ui/list-skeletons"
+import { ChevronDownIcon, UserPlusIcon, CreditCardIcon, ClipboardListIcon, UsersIcon } from "lucide-react"
 
 const ROLES = ["admin", "member"]
 const ROLE_LABELS = { admin: "Admin", member: "Member" }
@@ -167,6 +169,7 @@ export default function OrgMembers() {
   const { orgs } = useOrg()
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   // Invite dialog
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -182,10 +185,13 @@ export default function OrgMembers() {
   const isAdmin = org?.role === "admin"
 
   async function fetchMembers() {
+    setLoading(true)
+    setError(false)
     try {
       const data = await getMembers(orgId)
       setMembers(data.results ?? data)
     } catch {
+      setError(true)
       toast.error("Failed to load members")
     } finally {
       setLoading(false)
@@ -295,9 +301,16 @@ export default function OrgMembers() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <TableSkeleton rows={5} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load members"
+          description="Something went wrong while loading this organization's members."
+          onRetry={fetchMembers}
+        />
       ) : members.length === 0 ? (
         <EmptyState
+          icon={UsersIcon}
           title="No members yet"
           description="Invite people to join this organization."
           action={

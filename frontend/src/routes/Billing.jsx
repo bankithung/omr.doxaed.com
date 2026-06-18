@@ -5,6 +5,7 @@ import { useOrg } from "@/org/OrgContext"
 import { listPlans, getPlan, subscribe } from "@/api/billing"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { ErrorState } from "@/components/ui/error-state"
 import { CheckIcon, ZapIcon, BuildingIcon, UsersIcon, StarIcon } from "lucide-react"
 
 // Derive a human-readable price label from price_inr string (e.g. "0.00" → "Free", "500.00" → "₹500 / month").
@@ -255,12 +256,11 @@ export default function Billing() {
           </div>
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
-          <p className="font-medium text-destructive">{error}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={fetchPlan}>
-            Retry
-          </Button>
-        </div>
+        <ErrorState
+          title="Couldn't load billing"
+          description={error}
+          onRetry={fetchPlan}
+        />
       ) : (
         <>
           {/* Current plan + status */}

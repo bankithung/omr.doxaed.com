@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
-import { ChevronUp, ChevronDown, Check, X, AlertTriangle } from "lucide-react"
+import { ChevronUp, ChevronDown, Check, X, AlertTriangle, ClipboardListIcon } from "lucide-react"
 import { listResults } from "@/api/scan"
 import { getPublishSettings, setPublishSettings, downloadBulkReportCards } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,9 @@ import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/ui/page-header"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { TableSkeleton } from "@/components/ui/list-skeletons"
 import {
   Table,
   TableBody,
@@ -494,14 +497,17 @@ export default function Results() {
   const { testId } = useParams()
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [downloadingBulk, setDownloadingBulk] = useState(false)
 
   const fetchResults = useCallback(async () => {
     setLoading(true)
+    setError(false)
     try {
       const data = await listResults(testId)
       setResults(data.results ?? data)
     } catch {
+      setError(true)
       toast.error("Failed to load results")
     } finally {
       setLoading(false)
@@ -556,16 +562,24 @@ export default function Results() {
       />
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading results…</p>
+        <TableSkeleton rows={6} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load results"
+          description="Something went wrong while loading results for this test."
+          onRetry={fetchResults}
+        />
       ) : results.length === 0 ? (
-        <div className="rounded-xl border p-8 text-center">
-          <p className="mb-3 text-muted-foreground">
-            No results yet for this test.
-          </p>
-          <Button asChild size="sm">
-            <Link to={`/tests/${testId}/scan`}>Upload scans</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={ClipboardListIcon}
+          title="No results yet"
+          description="Upload scanned sheets to grade students and see results here."
+          action={
+            <Button asChild>
+              <Link to={`/tests/${testId}/scan`}>Upload scans</Link>
+            </Button>
+          }
+        />
       ) : (
         <>
           {/* Summary row */}

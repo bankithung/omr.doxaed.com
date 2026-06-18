@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
+import { UsersIcon } from "lucide-react"
 import { getRoster, listStudents, addStudent, addCount } from "@/api/omr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +15,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { DetailHeaderSkeleton, ListSkeleton } from "@/components/ui/list-skeletons"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
 
@@ -193,8 +196,11 @@ export default function RosterDetail() {
   const [roster, setRoster] = useState(null)
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(false)
     try {
       const [rosterData, studentsData] = await Promise.all([
         getRoster(id),
@@ -203,6 +209,7 @@ export default function RosterDetail() {
       setRoster(rosterData)
       setStudents(studentsData.results ?? studentsData)
     } catch {
+      setError(true)
       toast.error("Failed to load roster data")
     } finally {
       setLoading(false)
@@ -215,8 +222,21 @@ export default function RosterDetail() {
 
   if (loading) {
     return (
+      <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
+        <DetailHeaderSkeleton />
+        <ListSkeleton rows={4} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
       <div className="mx-auto max-w-4xl px-4 py-8">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <ErrorState
+          title="Couldn't load roster"
+          description="Something went wrong while loading this roster."
+          onRetry={fetchData}
+        />
       </div>
     )
   }
@@ -246,6 +266,7 @@ export default function RosterDetail() {
 
       {students.length === 0 ? (
         <EmptyState
+          icon={UsersIcon}
           title="No students yet"
           description="Add individual students or create numbered blank sheets."
           action={

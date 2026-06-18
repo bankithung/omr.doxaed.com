@@ -26,7 +26,7 @@ export default function AcceptInvite() {
         setOrgName(data?.organization?.name ?? data?.org_name ?? "")
         setStatus("success")
         toast.success("Invitation accepted!")
-        refreshOrgs()
+        refreshOrgs({ force: true })
       })
       .catch((err) => {
         const msg =

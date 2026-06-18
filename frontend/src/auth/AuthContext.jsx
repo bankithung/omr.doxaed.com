@@ -3,14 +3,51 @@ import { authApi } from "@/api/client"
 
 const AuthContext = createContext(null)
 
+// Session-level cache for the initial GET /auth/me probe. The provider mounts
+// once at the app root, but React StrictMode double-invokes effects in dev and
+// any remount would otherwise re-probe. We resolve the user ONCE per session and
+// reuse the in-flight promise / cached value; login() and logout() update it so
+// it always reflects the current identity.
+let mePromise = null
+let cachedUser = null
+
+function probeMe() {
+  if (cachedUser) return Promise.resolve(cachedUser)
+  if (!mePromise) {
+    mePromise = authApi
+      .me()
+      .then((r) => {
+        cachedUser = r.data
+        return cachedUser
+      })
+      .catch(() => null)
+      .finally(() => {
+        mePromise = null
+      })
+  }
+  return mePromise
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setRawUser] = useState(cachedUser)
   const [loading, setLoading] = useState(true)
+
+  // Keep the module-level session cache coherent with the live user state, so a
+  // later remount (or StrictMode re-run) reuses the latest identity instead of
+  // re-probing or reverting to stale data. Exposed as `setUser` for callers
+  // (e.g. Profile after updateMe) so the public API is unchanged.
+  function setUser(next) {
+    cachedUser = typeof next === "function" ? next(cachedUser) : next
+    setRawUser(next)
+  }
 
   useEffect(() => {
     if (localStorage.getItem("access")) {
-      authApi.me().then((r) => setUser(r.data)).catch(() => {}).finally(() => setLoading(false))
+      probeMe()
+        .then((u) => { if (u) setUser(u) })
+        .finally(() => setLoading(false))
     } else setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function login(email, password) {
@@ -23,7 +60,9 @@ export function AuthProvider({ children }) {
   async function logout() {
     const refresh = localStorage.getItem("refresh")
     try { if (refresh) await authApi.logout(refresh) } catch { /* ignore */ }
-    localStorage.removeItem("access"); localStorage.removeItem("refresh"); setUser(null)
+    localStorage.removeItem("access"); localStorage.removeItem("refresh")
+    mePromise = null
+    setUser(null)
   }
 
   return (
