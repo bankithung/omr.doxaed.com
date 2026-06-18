@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom"
 import { motion, useScroll, useSpring, useTransform } from "framer-motion"
-import { ArrowRight } from "lucide-react"
 import { MagneticButton } from "./Micro"
+import MaterialIcon from "./MaterialIcon"
 import { palette } from "./motion/tokens"
 
 function LogoMark() {
@@ -42,8 +42,12 @@ export default function LandingNav() {
       className="fixed inset-x-0 top-0 z-50 border-b border-transparent"
     >
       <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-        <Link to="/" className="flex items-center gap-2 text-base font-bold text-white">
-          <LogoMark /> OMRFlow
+        <Link to="/" className="flex items-center gap-2 text-base text-white" aria-label="DoxaEd OMR — home">
+          <LogoMark />
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-semibold tracking-tight">DoxaEd</span>
+            <span className="font-mono-data text-[11px] font-medium uppercase tracking-[0.28em] text-cyan-300">OMR</span>
+          </span>
         </Link>
         <nav className="ml-auto hidden items-center gap-7 text-sm sm:flex">
           <a href="#how-it-works" className="text-neutral-300 transition-colors hover:text-white">How it works</a>
@@ -53,9 +57,10 @@ export default function LandingNav() {
         <MagneticButton className="ml-auto p-1.5 sm:ml-0" strength={0.25} labelStrength={0.45}>
           <Link
             to="/register"
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-neutral-950 shadow-[0_0_30px_-6px_rgba(99,102,241,0.7)] transition-colors hover:bg-neutral-100"
+            className="group inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-neutral-950 shadow-[0_0_30px_-6px_rgba(99,102,241,0.7)] transition-colors hover:bg-neutral-100"
           >
-            Get started <ArrowRight className="size-4" />
+            Get started
+            <MaterialIcon name="arrow" className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
           </Link>
         </MagneticButton>
       </div>
