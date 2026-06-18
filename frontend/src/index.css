@@ -29,6 +29,21 @@
   /* heading: same Geist Variable but with tighter tracking defined at usage */
   --font-heading: 'Geist Variable', sans-serif;
   --font-sans: 'Geist Variable', sans-serif;
+  /* Elevation ladder + border ramp + nav-active + overlay shadow (App-shell v2) */
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-strong: var(--border-strong);
+  --color-border-stronger: var(--border-stronger);
+  /* shorthand so `border-strong` / `border-stronger` resolve (spec §1c) */
+  --color-strong: var(--border-strong);
+  --color-stronger: var(--border-stronger);
+  --color-nav-active-bg: var(--nav-active-bg);
+  --color-nav-active-fg: var(--nav-active-fg);
+  --shadow-overlay: var(--shadow-overlay);
+  --ease-out: var(--ease-out);
+  --ease-standard: var(--ease-standard);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -70,78 +85,125 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* Brand primary — indigo (professional, distinct from status colors) */
+  /* Neutrals — faint cool tint (h 265), chroma ≤0.006 (never reads as color) */
+  --background: oklch(0.994 0.001 265);
+  --foreground: oklch(0.21 0.006 265);
+
+  /* Elevation ladder (flat surfaces; depth = surface step + hairline) */
+  --canvas:    oklch(0.985 0.002 265);  /* app/rail/main canvas (NOT pure white) */
+  --surface-1: oklch(0.985 0.002 265);  /* cards, secondary nav panel */
+  --surface-2: oklch(0.972 0.003 265);  /* popovers, nested panels, card footers */
+  --surface-3: oklch(0.955 0.004 265);  /* highest nested fill */
+
+  --card: oklch(0.985 0.002 265);            /* → --surface-1 */
+  --card-foreground: oklch(0.21 0.006 265);
+  --popover: oklch(0.972 0.003 265);         /* → --surface-2 */
+  --popover-foreground: oklch(0.21 0.006 265);
+
+  /* Brand — indigo (accent ONLY: buttons, ring, links, active-nav text, dots) */
   --primary: oklch(0.488 0.243 264.376);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  /* Accent — teal, distinct from indigo primary */
+  --secondary: oklch(0.968 0.004 265);
+  --secondary-foreground: oklch(0.27 0.008 265);
+  --muted: oklch(0.972 0.003 265);
+  --muted-foreground: oklch(0.55 0.012 265);
+
+  /* Accent — teal (secondary highlights/charts only) */
   --accent: oklch(0.9 0.04 195);
   --accent-foreground: oklch(0.3 0.06 195);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.55 0.18 264.376);
-  /* Chart: real sequential indigo→teal scale (legible, distinct) */
+
+  /* Border ramp — hairlines are the primary depth tool */
+  --border: oklch(0.928 0.003 265);          /* default/subtle (inner dividers) */
+  --border-strong: oklch(0.892 0.004 265);   /* structural rails / outer card edges */
+  --border-stronger: oklch(0.85 0.005 265);  /* hover/active interactive edges */
+  --input: oklch(0.912 0.004 265);
+  --ring: oklch(0.488 0.243 264.376);        /* crisp brand focus */
+
+  /* Active-nav: faint tinted fill + brand text (NOT a saturated pill) */
+  --nav-active-bg: oklch(0.958 0.012 265);
+  --nav-active-fg: var(--primary);
+
+  /* Charts — keep existing sequential indigo→teal */
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.55 0.18 230);
   --chart-3: oklch(0.56 0.16 195);
   --chart-4: oklch(0.62 0.12 160);
   --chart-5: oklch(0.70 0.10 140);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+
+  --radius: 0.5rem;  /* 8px workhorse (was 0.625rem) */
+
+  /* Sidebar (rail + secondary panel) */
+  --sidebar: oklch(0.985 0.002 265);
+  --sidebar-foreground: oklch(0.27 0.006 265);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.94 0.02 264.376);
+  --sidebar-accent: oklch(0.958 0.012 265);          /* matches --nav-active-bg */
   --sidebar-accent-foreground: oklch(0.3 0.08 264.376);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.55 0.18 264.376);
+  --sidebar-border: oklch(0.892 0.004 265);          /* = --border-strong */
+  --sidebar-ring: oklch(0.488 0.243 264.376);
+
+  /* One restrained overlay shadow (dropdowns/dialogs in LIGHT only) */
+  --shadow-overlay: 0 1px 2px oklch(0.21 0.006 265 / 0.06),
+                    0 4px 12px oklch(0.21 0.006 265 / 0.08);
+
+  /* Motion tokens */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 130ms;
+  --dur: 180ms;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  /* Dark mode primary — lighter indigo so it reads on dark bg */
+  --background: oklch(0.178 0.004 265);
+  --foreground: oklch(0.93 0.004 265);
+
+  --canvas:    oklch(0.165 0.004 265);
+  --surface-1: oklch(0.205 0.004 265);
+  --surface-2: oklch(0.235 0.005 265);
+  --surface-3: oklch(0.265 0.006 265);
+
+  --card: oklch(0.205 0.004 265);
+  --card-foreground: oklch(0.93 0.004 265);
+  --popover: oklch(0.235 0.005 265);
+  --popover-foreground: oklch(0.93 0.004 265);
+
   --primary: oklch(0.65 0.18 264.376);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  /* Dark accent — muted teal */
+  --secondary: oklch(0.255 0.006 265);
+  --secondary-foreground: oklch(0.93 0.004 265);
+  --muted: oklch(0.255 0.006 265);
+  --muted-foreground: oklch(0.66 0.012 265);
   --accent: oklch(0.28 0.04 195);
   --accent-foreground: oklch(0.85 0.06 195);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.65 0.18 264.376);
-  /* Chart: legible on dark bg — lighter versions of the sequential scale */
+
+  /* SOLID gray borders — the single biggest dark-mode premium upgrade */
+  --border: oklch(0.27 0.005 265);
+  --border-strong: oklch(0.32 0.006 265);
+  --border-stronger: oklch(0.38 0.007 265);
+  --input: oklch(0.32 0.006 265);
+  --ring: oklch(0.62 0.17 264.376);
+
+  --nav-active-bg: oklch(0.255 0.02 265);
+  --nav-active-fg: oklch(0.78 0.12 264.376);
+
   --chart-1: oklch(0.65 0.18 264.376);
   --chart-2: oklch(0.66 0.15 230);
   --chart-3: oklch(0.67 0.13 195);
   --chart-4: oklch(0.70 0.10 160);
   --chart-5: oklch(0.75 0.09 140);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
+
+  --sidebar: oklch(0.205 0.004 265);
+  --sidebar-foreground: oklch(0.85 0.004 265);
   --sidebar-primary: oklch(0.65 0.18 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0.03 264.376);
-  --sidebar-accent-foreground: oklch(0.85 0.08 264.376);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.18 264.376);
+  --sidebar-accent: oklch(0.255 0.02 265);
+  --sidebar-accent-foreground: oklch(0.82 0.1 264.376);
+  --sidebar-border: oklch(0.32 0.006 265);
+  --sidebar-ring: oklch(0.62 0.17 264.376);
+
+  --shadow-overlay: none;  /* dark relies on border-strong + surface-2 */
 }
 
 @layer base {
@@ -154,6 +216,17 @@
   html {
     @apply font-sans;
   }
+  /* App shell adopts dense UI scale + refined Geist letterforms.
+     Set on the shell wrapper, NOT globally (keeps marketing copy at 16px). */
+  .app-density { font-size: 14px; font-feature-settings: "cv01" 1, "ss03" 1; }
+}
+
+@utility tabular { font-variant-numeric: tabular-nums; }
+@utility tracking-tight-1 { letter-spacing: -0.01em; }
+@utility motion-safe-card {
+  transition-property: background-color, border-color, transform;
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-out);
 }
 
 /* ───────────────────────────────────────────────────────────────────────────

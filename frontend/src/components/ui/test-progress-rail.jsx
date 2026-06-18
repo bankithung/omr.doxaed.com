@@ -124,4 +124,4 @@ function TestProgressRail({ testId, classId, current, className }) {
   )
 }
 
-export { TestProgressRail }
+export { TestProgressRail, STAGES, stageHref }
