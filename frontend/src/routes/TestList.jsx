@@ -33,12 +33,20 @@ import {
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { DetailHeaderSkeleton, ListSkeleton } from "@/components/ui/list-skeletons"
-import { DataList } from "@/components/ui/data-list"
+import { TableSkeleton } from "@/components/ui/skeletons"
+import { Skeleton } from "@/components/ui/skeleton"
+import { DataTable } from "@/components/ui/DataTable"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { Badge } from "@/components/ui/badge"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card"
 
 // ─── Status badge ─────────────────────────────────
 
@@ -193,8 +201,8 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
 
           {/* Download links after success */}
           {downloadUrl && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
-              <p className="mb-2 text-sm font-medium text-green-800 dark:text-green-300">
+            <div className="rounded-lg border border-[var(--color-success)]/40 bg-[color-mix(in_oklch,var(--color-success)_10%,transparent)] p-3">
+              <p className="mb-2 text-sm font-medium text-[var(--color-success)]">
                 Sheets generated successfully!
               </p>
               <div className="flex flex-wrap gap-2">
@@ -355,26 +363,27 @@ function SubjectsSection({ classId }) {
   }
 
   return (
-    <div className="mb-8 rounded-xl border p-4">
-      <p className="text-sm font-semibold">Subjects</p>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        Define subjects for this class to pick them quickly when creating tests.
-      </p>
+    <Card>
+      <CardHeader className="flex-col items-start gap-1">
+        <CardTitle>Subjects</CardTitle>
+        <CardDescription>
+          Define subjects for this class to pick them quickly when creating tests.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <form onSubmit={handleAdd} className="flex items-center gap-2">
+          <Input
+            placeholder="e.g. Mathematics"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="flex-1"
+            aria-label="New subject name"
+          />
+          <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
+            {adding ? "Adding…" : "Add subject"}
+          </Button>
+        </form>
 
-      <form onSubmit={handleAdd} className="mt-3 flex items-center gap-2">
-        <Input
-          placeholder="e.g. Mathematics"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="flex-1"
-          aria-label="New subject name"
-        />
-        <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
-          {adding ? "Adding…" : "Add subject"}
-        </Button>
-      </form>
-
-      <div className="mt-3">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading subjects…</p>
         ) : subjects.length === 0 ? (
@@ -384,14 +393,14 @@ function SubjectsSection({ classId }) {
             {subjects.map((s) => (
               <li
                 key={s.id}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-background py-1 pl-3 pr-1.5 text-sm"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-3 pr-1.5 text-sm"
               >
                 <span>{s.name}</span>
                 <button
                   type="button"
                   onClick={() => setDeleteTarget(s)}
                   aria-label={`Remove subject ${s.name}`}
-                  className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-destructive transition-colors"
+                  className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
                 >
                   <XIcon className="size-3.5" aria-hidden="true" />
                 </button>
@@ -399,7 +408,7 @@ function SubjectsSection({ classId }) {
             ))}
           </ul>
         )}
-      </div>
+      </CardContent>
 
       {/* Delete confirm (custom — never window.confirm) */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !deleting && !o && setDeleteTarget(null)}>
@@ -418,7 +427,7 @@ function SubjectsSection({ classId }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   )
 }
 
@@ -491,7 +500,7 @@ export default function TestList() {
       key: "attempt",
       header: "Attempt",
       cell: (test) => (
-        <span className="text-muted-foreground">#{test.attempt_number}</span>
+        <span className="text-muted-foreground tabular">#{test.attempt_number}</span>
       ),
     },
     {
@@ -512,38 +521,32 @@ export default function TestList() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-        <DetailHeaderSkeleton />
-        <ListSkeleton rows={4} />
-      </div>
+      <PageShell>
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <TableSkeleton rows={4} />
+      </PageShell>
     )
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <PageShell>
         <ErrorState
           title="Couldn't load class data"
           description="Something went wrong while loading this class and its tests."
           onRetry={fetchData}
         />
-      </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        className="mb-2"
-        items={[
-          { label: "Classes", to: "/classes" },
-          { label: classGroup?.name ?? "Class" },
-        ]}
-      />
-
+    <PageShell>
       <PageHeader
-        className="mb-6"
         title={classGroup?.name ?? "Class"}
         description={classGroup?.description}
         actions={
@@ -568,11 +571,14 @@ export default function TestList() {
           }
         />
       ) : (
-        <DataList
-          columns={columns}
-          rows={tests}
-          getRowKey={(test) => test.id}
-        />
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">Tests</h2>
+          <DataTable
+            columns={columns}
+            rows={tests}
+            getRowKey={(test) => test.id}
+          />
+        </section>
       )}
 
       {/* Generate sheets dialog */}
@@ -583,6 +589,6 @@ export default function TestList() {
           onOpenChange={(v) => { if (!v) setGenerateTest(null) }}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

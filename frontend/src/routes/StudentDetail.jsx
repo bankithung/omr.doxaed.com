@@ -3,11 +3,13 @@ import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { getStudentDetail, downloadStudentReportCard } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { DetailHeaderSkeleton, TableSkeleton } from "@/components/ui/list-skeletons"
+import { TableSkeleton } from "@/components/ui/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -17,6 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+const HEAD_CLASS = "sticky top-0 z-10 h-9 bg-surface-1 px-3 text-xs font-medium text-muted-foreground"
+
 function TopicAccuracySection({ topicAccuracy }) {
   const entries = Object.entries(topicAccuracy ?? {})
   if (!entries.length) {
@@ -25,14 +29,14 @@ function TopicAccuracySection({ topicAccuracy }) {
     )
   }
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Topic</TableHead>
-            <TableHead className="w-24 text-right">Correct</TableHead>
-            <TableHead className="w-24 text-right">Total</TableHead>
-            <TableHead className="w-28 text-right">Accuracy</TableHead>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={HEAD_CLASS}>Topic</TableHead>
+            <TableHead className={`${HEAD_CLASS} w-24 text-right`}>Correct</TableHead>
+            <TableHead className={`${HEAD_CLASS} w-24 text-right`}>Total</TableHead>
+            <TableHead className={`${HEAD_CLASS} w-28 text-right`}>Accuracy</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -40,16 +44,16 @@ function TopicAccuracySection({ topicAccuracy }) {
             const pct = stat.accuracy != null ? Math.round(stat.accuracy * 100) : 0
             const colour =
               pct >= 70
-                ? "text-green-600"
+                ? "text-[var(--color-success)]"
                 : pct >= 40
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-red-500"
+                ? "text-[var(--color-warning)]"
+                : "text-[var(--color-error)]"
             return (
               <TableRow key={topic}>
                 <TableCell className="font-medium">{topic}</TableCell>
-                <TableCell className="text-right tabular-nums">{stat.correct ?? 0}</TableCell>
-                <TableCell className="text-right tabular-nums">{stat.total ?? 0}</TableCell>
-                <TableCell className={`text-right tabular-nums font-medium ${colour}`}>
+                <TableCell className="text-right tabular">{stat.correct ?? 0}</TableCell>
+                <TableCell className="text-right tabular">{stat.total ?? 0}</TableCell>
+                <TableCell className={`text-right tabular font-medium ${colour}`}>
                   {pct}%
                 </TableCell>
               </TableRow>
@@ -68,20 +72,20 @@ function PerQuestionSection({ perQuestion }) {
     )
   }
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">Q#</TableHead>
-            <TableHead>Question</TableHead>
-            <TableHead className="w-28">Marked</TableHead>
-            <TableHead className="w-24 text-center">Result</TableHead>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={`${HEAD_CLASS} w-12`}>Q#</TableHead>
+            <TableHead className={HEAD_CLASS}>Question</TableHead>
+            <TableHead className={`${HEAD_CLASS} w-28`}>Marked</TableHead>
+            <TableHead className={`${HEAD_CLASS} w-24 text-center`}>Result</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {perQuestion.map((q, i) => (
             <TableRow key={q.order_index ?? i}>
-              <TableCell className="font-mono text-sm text-muted-foreground">
+              <TableCell className="font-mono text-xs text-muted-foreground">
                 {q.order_index != null ? q.order_index + 1 : i + 1}
               </TableCell>
               <TableCell className="max-w-xs truncate text-sm">
@@ -96,11 +100,11 @@ function PerQuestionSection({ perQuestion }) {
               </TableCell>
               <TableCell className="text-center">
                 {q.flagged ? (
-                  <span className="text-yellow-600 text-xs">flagged</span>
+                  <span className="text-xs text-[var(--color-warning)]">flagged</span>
                 ) : q.is_correct ? (
-                  <span className="text-green-600 font-medium">✓</span>
+                  <span className="font-medium text-[var(--color-success)]">✓</span>
                 ) : (
-                  <span className="text-red-500 font-medium">✗</span>
+                  <span className="font-medium text-[var(--color-error)]">✗</span>
                 )}
               </TableCell>
             </TableRow>
@@ -154,37 +158,38 @@ export default function StudentDetail() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <DetailHeaderSkeleton className="mb-8" />
-        <Skeleton className="mb-8 h-32 w-full rounded-2xl" />
-        <Skeleton className="mb-3 h-5 w-40" />
-        <TableSkeleton rows={4} className="mb-8" />
-        <Skeleton className="mb-3 h-5 w-48" />
+      <PageShell>
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <TableSkeleton rows={4} />
         <TableSkeleton rows={5} />
-      </div>
+      </PageShell>
     )
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <PageShell>
         <ErrorState
           title="Couldn't load student detail"
           description="Something went wrong while loading this student's results."
           onRetry={fetchDetail}
         />
-        <div className="mt-4 text-center">
+        <div className="text-center">
           <Button asChild variant="outline" size="sm">
             <Link to={`/tests/${testId}/results`}>Back to results</Link>
           </Button>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (!data) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <PageShell>
         <EmptyState
           title="No data found"
           description="We couldn't find results for this student."
@@ -194,7 +199,7 @@ export default function StudentDetail() {
             </Button>
           }
         />
-      </div>
+      </PageShell>
     )
   }
 
@@ -203,103 +208,96 @@ export default function StudentDetail() {
   const pct = data.pct != null ? Math.round(data.pct) : (maxScore > 0 ? Math.round((score / maxScore) * 100) : 0)
   const pctColour =
     pct >= 70
-      ? "text-green-600"
+      ? "text-[var(--color-success)]"
       : pct >= 40
-      ? "text-amber-600 dark:text-amber-400"
-      : "text-red-500"
+      ? "text-[var(--color-warning)]"
+      : "text-[var(--color-error)]"
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        className="mb-4"
-        items={[
-          { label: "Classes", to: "/classes" },
-          { label: `Test #${testId}` },
-          { label: "Results", to: `/tests/${testId}/results` },
-          { label: `Student #${studentId}` },
-        ]}
+    <PageShell>
+      <PageHeader
+        title="Student Detail"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-[40px]"
+              disabled={downloading}
+              onClick={handleDownloadReportCard}
+            >
+              {downloading ? "Downloading…" : "Download report card"}
+            </Button>
+            <Button asChild variant="outline" size="sm" className="min-h-[40px]">
+              <Link to={`/tests/${testId}/results`}>Back to results</Link>
+            </Button>
+          </div>
+        }
       />
 
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">Student Detail</h1>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-h-[40px]"
-            disabled={downloading}
-            onClick={handleDownloadReportCard}
-          >
-            {downloading ? "Downloading…" : "Download report card"}
-          </Button>
-          <Button asChild variant="outline" size="sm" className="min-h-[40px]">
-            <Link to={`/tests/${testId}/results`}>Back to results</Link>
-          </Button>
-        </div>
-      </div>
-
       {/* Score summary */}
-      <div className="mb-8 rounded-2xl border bg-background p-6">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Score
-            </span>
-            <span className="text-2xl font-bold tabular-nums">
-              {score}/{maxScore}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Percentage
-            </span>
-            <span className={`text-2xl font-bold tabular-nums ${pctColour}`}>{pct}%</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Correct / Wrong / Blank
-            </span>
-            <span className="text-sm font-medium">
-              <span className="text-green-600">{data.correct ?? 0}✓</span>
-              {" / "}
-              <span className="text-red-500">{data.wrong ?? 0}✗</span>
-              {" / "}
-              <span>{data.blank ?? 0}—</span>
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Rank / Percentile
-            </span>
-            <span className="text-lg font-bold tabular-nums">
-              {data.rank != null ? `#${data.rank}` : "—"}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                {data.percentile != null
-                  ? `${Math.round(data.percentile)}th pct.`
-                  : "—"}
+      <Card>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Score
               </span>
-            </span>
-            {data.cohort_size != null && (
-              <span className="text-xs text-muted-foreground">
-                of {data.cohort_size} students
+              <span className="text-2xl font-bold tabular">
+                {score}/{maxScore}
               </span>
-            )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Percentage
+              </span>
+              <span className={`text-2xl font-bold tabular ${pctColour}`}>{pct}%</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Correct / Wrong / Blank
+              </span>
+              <span className="text-sm font-medium">
+                <span className="text-[var(--color-success)]">{data.correct ?? 0}✓</span>
+                {" / "}
+                <span className="text-[var(--color-error)]">{data.wrong ?? 0}✗</span>
+                {" / "}
+                <span>{data.blank ?? 0}—</span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Rank / Percentile
+              </span>
+              <span className="text-lg font-bold tabular">
+                {data.rank != null ? `#${data.rank}` : "—"}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {data.percentile != null
+                    ? `${Math.round(data.percentile)}th pct.`
+                    : "—"}
+                </span>
+              </span>
+              {data.cohort_size != null && (
+                <span className="text-xs text-muted-foreground">
+                  of {data.cohort_size} students
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Topic accuracy */}
-      <div className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold">Topic accuracy</h2>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">Topic accuracy</h2>
         <TopicAccuracySection topicAccuracy={data.topic_accuracy} />
-      </div>
+      </section>
 
       {/* Per-question breakdown */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Per-question breakdown</h2>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">Per-question breakdown</h2>
         <PerQuestionSection perQuestion={data.per_question} />
-      </div>
-    </div>
+      </section>
+    </PageShell>
   )
 }

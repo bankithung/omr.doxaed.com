@@ -22,11 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { ListSkeleton } from "@/components/ui/list-skeletons"
-import { DataList } from "@/components/ui/data-list"
+import { DataTable } from "@/components/ui/DataTable"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
+import { Badge } from "@/components/ui/badge"
 
 // Sentinel value for the "No folder" option (radix Select disallows empty-string values).
 const NO_FOLDER = "__none__"
@@ -130,36 +129,35 @@ export default function Classes() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <PageShell>
       <PageHeader
-        className="mb-6"
         title="Classes"
         description="Manage your class groups"
         actions={<Button onClick={openDialog}>Create class</Button>}
       />
 
-      {loading ? (
-        <ListSkeleton rows={4} />
-      ) : error ? (
-        <ErrorState
-          title="Couldn't load classes"
-          description="Something went wrong while loading your classes."
-          onRetry={fetchClasses}
-        />
-      ) : classes.length === 0 ? (
-        <EmptyState
-          icon={FileTextIcon}
-          title="No classes yet"
-          description="Create your first class to get started."
-          action={<Button onClick={openDialog}>Create class</Button>}
-        />
-      ) : (
-        <DataList
-          columns={COLUMNS}
-          rows={classes}
-          getRowKey={(cls) => cls.id}
-        />
+      {!loading && !error && classes.length > 0 && (
+        <div className="-mb-4">
+          <Badge variant="neutral" className="tabular">
+            {classes.length} {classes.length === 1 ? "class" : "classes"}
+          </Badge>
+        </div>
       )}
+
+      <DataTable
+        columns={COLUMNS}
+        rows={classes}
+        getRowKey={(cls) => cls.id}
+        loading={loading}
+        error={error}
+        onRetry={fetchClasses}
+        empty={{
+          icon: FileTextIcon,
+          title: "No classes yet",
+          description: "Create your first class to get started.",
+          action: <Button onClick={openDialog}>Create class</Button>,
+        }}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -213,6 +211,6 @@ export default function Classes() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }

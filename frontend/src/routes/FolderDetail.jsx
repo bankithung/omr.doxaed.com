@@ -25,9 +25,9 @@ import {
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { DataList } from "@/components/ui/data-list"
+import { DataTable } from "@/components/ui/DataTable"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // ─── PermissionSegment — custom VIEW/EDIT segmented control (NO native select) ──
@@ -448,33 +448,35 @@ export default function FolderDetail() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 space-y-4">
-        <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-4 w-64" />
-        <div className="space-y-3 pt-4">
+      <PageShell>
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="space-y-3">
           {[0, 1].map((i) => (
             <Skeleton key={i} className="h-14 w-full" />
           ))}
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <PageShell>
         <ErrorState
           title="Couldn't load this folder"
           description="Something went wrong while loading the folder. Check your connection and try again."
           onRetry={fetchData}
         />
-      </div>
+      </PageShell>
     )
   }
 
   if (!folder) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <PageShell>
         <EmptyState
           icon={FolderIcon}
           title="Folder not found"
@@ -485,23 +487,13 @@ export default function FolderDetail() {
             </Button>
           }
         />
-      </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        className="mb-2"
-        items={[
-          { label: "Folders", to: "/folders" },
-          { label: folder.name },
-        ]}
-      />
-
+    <PageShell>
       <PageHeader
-        className="mb-6"
         title={
           <span className="flex items-center gap-2">
             <FolderIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -534,46 +526,49 @@ export default function FolderDetail() {
       />
 
       {/* Classes in this folder */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">Classes in this folder</h2>
-        {canEdit && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-h-[40px]"
-            onClick={() => {
-              setNewName("")
-              setCreateOpen(true)
-            }}
-          >
-            Create class here
-          </Button>
-        )}
-      </div>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">Classes in this folder</h2>
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[40px]"
+              onClick={() => {
+                setNewName("")
+                setCreateOpen(true)
+              }}
+            >
+              Create class here
+            </Button>
+          )}
+        </div>
 
-      {classes.length === 0 ? (
-        <EmptyState
-          title="No classes in this folder"
-          description={
-            canEdit
-              ? "Create a class here, or move an existing class into this folder from its edit screen."
-              : "This folder has no classes yet."
-          }
-          action={
-            canEdit ? (
-              <Button onClick={() => { setNewName(""); setCreateOpen(true) }}>
-                Create class here
-              </Button>
-            ) : null
-          }
-        />
-      ) : (
-        <DataList
-          columns={CLASS_COLUMNS}
-          rows={classes}
-          getRowKey={(cls) => cls.id}
-        />
-      )}
+        {classes.length === 0 ? (
+          <EmptyState
+            className="rounded-lg border border-border"
+            title="No classes in this folder"
+            description={
+              canEdit
+                ? "Create a class here, or move an existing class into this folder from its edit screen."
+                : "This folder has no classes yet."
+            }
+            action={
+              canEdit ? (
+                <Button onClick={() => { setNewName(""); setCreateOpen(true) }}>
+                  Create class here
+                </Button>
+              ) : null
+            }
+          />
+        ) : (
+          <DataTable
+            columns={CLASS_COLUMNS}
+            rows={classes}
+            getRowKey={(cls) => cls.id}
+          />
+        )}
+      </section>
 
       {/* Share dialog */}
       <ShareDialog
@@ -625,6 +620,6 @@ export default function FolderDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }

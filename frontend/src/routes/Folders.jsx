@@ -14,12 +14,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { DataList } from "@/components/ui/data-list"
+import { DataTable } from "@/components/ui/DataTable"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 
 // ─── Permission badge ─────────────────────────────────────────────────────────
 // `permission` is "edit" | "view"; the folder creator gets "edit". We surface a
@@ -78,22 +76,6 @@ const COLUMNS = [
     className: "w-24 text-right",
   },
 ]
-
-// ─── Loading skeleton ─────────────────────────────────────────────────────────
-
-function FoldersSkeleton() {
-  return (
-    <div className="space-y-3" aria-hidden="true">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="flex items-center gap-3 rounded-xl border px-4 py-3">
-          <Skeleton className="size-4" />
-          <Skeleton className="h-4 flex-1 max-w-[180px]" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      ))}
-    </div>
-  )
-}
 
 // ─── Folders list page ──────────────────────────────────────────────────────────
 
@@ -159,43 +141,39 @@ export default function Folders() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <PageShell>
       <PageHeader
-        className="mb-2"
         title="Folders"
         description="Group your classes and share them with your team."
         actions={<Button onClick={openDialog}>New folder</Button>}
       />
 
-      {isAdmin && (
-        <div className="mb-6 mt-3">
-          <Badge variant="info">Admin: showing all organisation folders</Badge>
+      {!loading && !error && folders.length > 0 && (
+        <div className="-mb-4 flex flex-wrap items-center gap-2">
+          <Badge variant="neutral" className="tabular">
+            {folders.length} {folders.length === 1 ? "folder" : "folders"}
+          </Badge>
+          {isAdmin && (
+            <Badge variant="info">Admin: showing all organisation folders</Badge>
+          )}
         </div>
       )}
-      {!isAdmin && <div className="mb-6" />}
 
-      {loading ? (
-        <FoldersSkeleton />
-      ) : error ? (
-        <ErrorState
-          title="Couldn't load folders"
-          description="Something went wrong while loading your folders."
-          onRetry={fetchFolders}
-        />
-      ) : folders.length === 0 ? (
-        <EmptyState
-          icon={FolderIcon}
-          title="No folders yet"
-          description="Create a folder to organise your classes — and share whole folders with colleagues."
-          action={<Button onClick={openDialog}>New folder</Button>}
-        />
-      ) : (
-        <DataList
-          columns={COLUMNS}
-          rows={folders}
-          getRowKey={(folder) => folder.id}
-        />
-      )}
+      <DataTable
+        columns={COLUMNS}
+        rows={folders}
+        getRowKey={(folder) => folder.id}
+        loading={loading}
+        error={error}
+        onRetry={fetchFolders}
+        empty={{
+          icon: FolderIcon,
+          title: "No folders yet",
+          description:
+            "Create a folder to organise your classes — and share whole folders with colleagues.",
+          action: <Button onClick={openDialog}>New folder</Button>,
+        }}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -221,6 +199,6 @@ export default function Folders() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }

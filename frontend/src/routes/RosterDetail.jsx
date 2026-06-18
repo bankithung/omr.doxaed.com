@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { DetailHeaderSkeleton, ListSkeleton } from "@/components/ui/list-skeletons"
-import { DataList } from "@/components/ui/data-list"
+import { TableSkeleton } from "@/components/ui/skeletons"
+import { Skeleton } from "@/components/ui/skeleton"
+import { DataTable } from "@/components/ui/DataTable"
+import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
 
 function AddStudentDialog({ rosterId, onAdded }) {
   const [open, setOpen] = useState(false)
@@ -76,9 +77,9 @@ function AddStudentDialog({ rosterId, onAdded }) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="roll-number">Roll number</Label>
+            <Label htmlFor="roll_number">Roll number</Label>
             <Input
-              id="roll-number"
+              id="roll_number"
               value={rollNumber}
               onChange={(e) => setRollNumber(e.target.value)}
               placeholder="e.g. 101"
@@ -168,7 +169,7 @@ const STUDENT_COLUMNS = [
     key: "roll",
     header: "Roll #",
     cell: (s) => (
-      <span className="font-mono font-medium">{s.roll_number}</span>
+      <span className="font-mono text-xs font-medium">{s.roll_number}</span>
     ),
   },
   {
@@ -223,38 +224,31 @@ export default function RosterDetail() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-        <DetailHeaderSkeleton />
-        <ListSkeleton rows={4} />
-      </div>
+      <PageShell>
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <TableSkeleton rows={4} />
+      </PageShell>
     )
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <PageShell>
         <ErrorState
           title="Couldn't load roster"
           description="Something went wrong while loading this roster."
           onRetry={fetchData}
         />
-      </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        className="mb-2"
-        items={[
-          { label: "Rosters", to: "/rosters" },
-          { label: roster?.name ?? "Roster" },
-        ]}
-      />
-
+    <PageShell>
       <PageHeader
-        className="mb-6"
         title={roster?.name ?? "Roster"}
         description={`${students.length} student${students.length !== 1 ? "s" : ""}`}
         actions={
@@ -278,12 +272,15 @@ export default function RosterDetail() {
           }
         />
       ) : (
-        <DataList
-          columns={STUDENT_COLUMNS}
-          rows={students}
-          getRowKey={(s) => s.id}
-        />
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">Students</h2>
+          <DataTable
+            columns={STUDENT_COLUMNS}
+            rows={students}
+            getRowKey={(s) => s.id}
+          />
+        </section>
       )}
-    </div>
+    </PageShell>
   )
 }
