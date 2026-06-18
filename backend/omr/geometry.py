@@ -46,7 +46,8 @@ OPTION_PITCH = 22   # px between option bubble centres
 # Public API
 # ---------------------------------------------------------------------------
 
-def build_template(num_questions: int, num_options: int, roll_digits: int) -> dict:
+def build_template(num_questions: int, num_options: int, roll_digits: int,
+                   roll_kind: str = "writein") -> dict:
     """
     Return a descriptor dict containing canonical pixel-space positions for all
     elements on the OMR sheet.
@@ -56,6 +57,9 @@ def build_template(num_questions: int, num_options: int, roll_digits: int) -> di
     num_questions : int   Total questions in the test (≥ 1).
     num_options   : int   Options per question, clamped to [2, 6].
     roll_digits   : int   Number of digit columns in the roll-number grid (≥ 1).
+    roll_kind     : str   "writein" (default) | "prebubbled" | "none".
+                          "prebubbled" sets roll_grid.prefilled = True so the generator
+                          knows to draw solid fill discs for the assigned roll value.
 
     Returns
     -------
@@ -63,7 +67,8 @@ def build_template(num_questions: int, num_options: int, roll_digits: int) -> di
         page_px        [W, H]
         dpi            int
         fiducials      list[{cx, cy}]
-        roll_grid      {origin, col_pitch, row_pitch, radius, cols, rows}
+        roll_grid      {origin, col_pitch, row_pitch, radius, cols, rows,
+                        kind, prefilled}
         qr             {x, y, size}
         answer_bubbles list[{q_pos, page, options:[{label, cx, cy, r}]}]
         page_count     int
@@ -74,7 +79,7 @@ def build_template(num_questions: int, num_options: int, roll_digits: int) -> di
 
     fiducials = _fiducials()
     qr = _qr()
-    roll_grid = _roll_grid(roll_digits)
+    roll_grid = _roll_grid(roll_digits, roll_kind=roll_kind)
     answer_bubbles, page_map = _answer_grid(num_questions, num_options, page_count)
 
     return {
@@ -123,11 +128,18 @@ def _qr():
     return {"x": x, "y": y, "size": size}
 
 
-def _roll_grid(roll_digits: int):
+def _roll_grid(roll_digits: int, roll_kind: str = "writein"):
     """
     Roll-number grid on page 1 only.
     N = roll_digits digit-columns × 10 rows (digits 0–9).
     Placed below the header band.
+
+    Parameters
+    ----------
+    roll_digits : int   Number of digit columns.
+    roll_kind   : str   "writein" | "prebubbled" | "none".
+                        Stored in the descriptor as roll_grid.kind and
+                        roll_grid.prefilled (True when kind == "prebubbled").
     """
     col_pitch = 22   # px between column centres
     row_pitch = 20   # px between row centres
@@ -155,6 +167,8 @@ def _roll_grid(roll_digits: int):
         "radius": radius,
         "cols": roll_digits,
         "rows": 10,
+        "kind": roll_kind,
+        "prefilled": (roll_kind == "prebubbled"),
     }
 
 

@@ -208,10 +208,15 @@ class GenerateView(APIView):
             max_roll_int = 99
         roll_digits = max(2, len(str(max_roll_int)))
 
+        # Resolve roll_kind from the test's mode (Phase 1A)
+        test_mode = getattr(test, "mode", "standard")
+        roll_kind = "prebubbled" if test_mode == "roster_prebubbled" else "writein"
+
         descriptor = build_template(
             num_questions=num_questions,
             num_options=num_options,
             roll_digits=roll_digits,
+            roll_kind=roll_kind,
         )
 
         # Build question dicts for shuffle
@@ -241,6 +246,9 @@ class GenerateView(APIView):
                 shuffle_options=shuffle_options,
             )
 
+            # For Mode B (roster_prebubbled), embed the student's roll number in
+            # the sheet dict so the generator can draw pre-filled discs.
+            student_roll = student.roll_number or ""
             sheet_dict = {
                 "sheet_code": sheet_code,
                 "human_readable_code": human_code,
@@ -250,6 +258,7 @@ class GenerateView(APIView):
                 "student_name": student.full_name or "",
                 "roll_label": "Roll No.",
                 "roll_digits": roll_digits,
+                "roll_value": student_roll if roll_kind == "prebubbled" else "",
             }
 
             pdf_bytes = render_sheet_pdf(sheet_dict, descriptor)
@@ -275,6 +284,8 @@ class GenerateView(APIView):
                     "page_count": descriptor["page_count"],
                     "page_map": descriptor["page_map"],
                     "assembly_status": OmrSheet.ASSEMBLY_READY,
+                    "roll_kind": roll_kind,
+                    "roll_value": student_roll if roll_kind == "prebubbled" else "",
                 },
             )
 

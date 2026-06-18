@@ -20,6 +20,13 @@ class Test(OwnerScopedModel):
     DRAFT, READY, CLOSED = "draft", "ready", "closed"
     STATUS_CHOICES = [(DRAFT, "Draft"), (READY, "Ready"), (CLOSED, "Closed")]
 
+    MODE_STANDARD = "standard"
+    MODE_ROSTER_PREBUBBLED = "roster_prebubbled"
+    MODE_CHOICES = [
+        (MODE_STANDARD, "Standard"),
+        (MODE_ROSTER_PREBUBBLED, "Roster (Pre-bubbled roll)"),
+    ]
+
     class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="tests")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
     title = models.CharField(max_length=255)
@@ -29,6 +36,8 @@ class Test(OwnerScopedModel):
     )
     attempt_number = models.PositiveIntegerField(default=1)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=DRAFT)
+    mode = models.CharField(max_length=32, choices=MODE_CHOICES, default=MODE_STANDARD)
+    template_spec = models.JSONField(default=dict, blank=True)
 
     class Meta(OwnerScopedModel.Meta):
         ordering = ["-created_at", "id"]
