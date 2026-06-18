@@ -14,6 +14,8 @@ import {
 } from "recharts"
 import { getTestAnalytics, getImprovement, exportResults, getTestProfile } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { StatCard } from "@/components/ui/stat-card"
 import {
   Table,
   TableBody,
@@ -44,17 +46,6 @@ function fmtRate(rate) {
 // Sub-components
 // ────────────────────────────────────────────────
 
-function StatCard({ label, value, sub }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 shadow-sm">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-2xl font-bold tabular-nums">{value ?? "—"}</span>
-      {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
-    </div>
-  )
-}
 
 function DistributionChart({ distribution }) {
   if (!distribution?.length) {
@@ -139,17 +130,17 @@ function HardestQuestionsSection({ hardestQuestions }) {
               </TableCell>
               <TableCell className="max-w-xs truncate text-sm">{q.text ?? "—"}</TableCell>
               <TableCell>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                <Badge
+                  variant={
                     parseFloat(q.wrong_rate) >= 0.7
-                      ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                      ? "error"
                       : parseFloat(q.wrong_rate) >= 0.4
-                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                      : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                  }`}
+                      ? "warning"
+                      : "success"
+                  }
                 >
                   {fmtRate(q.wrong_rate)}
-                </span>
+                </Badge>
               </TableCell>
               <TableCell className="tabular-nums text-sm text-muted-foreground">
                 {q.n ?? "—"}
@@ -368,18 +359,16 @@ function ImprovementTab({ testId }) {
 function ItemFlag({ flags }) {
   if (!flags?.length) return null
   const labels = {
-    too_easy: { text: "Too easy", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
-    too_hard: { text: "Too hard", cls: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
-    negative_discrimination: { text: "Neg. discrimination", cls: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
+    too_easy: { text: "Too easy", variant: "info" },
+    too_hard: { text: "Too hard", variant: "error" },
+    negative_discrimination: { text: "Neg. discrimination", variant: "warning" },
   }
   return (
     <div className="flex flex-wrap gap-1">
       {flags.map((f) => {
         const meta = labels[f]
         return meta ? (
-          <span key={f} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>
-            {meta.text}
-          </span>
+          <Badge key={f} variant={meta.variant}>{meta.text}</Badge>
         ) : null
       })}
     </div>

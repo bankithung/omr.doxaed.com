@@ -8,37 +8,12 @@ import { listRosters } from "@/api/omr"
 import { listOrgs } from "@/api/orgs"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { StatCard } from "@/components/ui/stat-card"
 
 function normalize(data) {
   if (!data) return []
   const arr = data.results ?? data
   return Array.isArray(arr) ? arr : []
-}
-
-function StatCard({ label, value, sub }) {
-  // undefined/null => still loading (show a skeleton). Numbers render big;
-  // strings (e.g. an email) render smaller and truncate so they never spill
-  // out of the card. min-w-0 lets the value truncate inside the grid cell.
-  const isLoading = value === undefined || value === null
-  const isNumber = typeof value === "number"
-  return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-xl border bg-card p-4 shadow-sm">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      {isLoading ? (
-        <span className="my-1 h-6 w-12 animate-pulse rounded bg-muted" aria-hidden="true" />
-      ) : (
-        <span
-          className={`font-bold ${isNumber ? "text-2xl tabular-nums" : "truncate text-sm"}`}
-          title={isNumber ? undefined : String(value)}
-        >
-          {value}
-        </span>
-      )}
-      {sub && <span className="truncate text-xs text-muted-foreground">{sub}</span>}
-    </div>
-  )
 }
 
 const QUICK_ACTIONS = [

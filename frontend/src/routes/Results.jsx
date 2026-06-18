@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
+import { ChevronUp, ChevronDown, Check, X, AlertTriangle } from "lucide-react"
 import { listResults } from "@/api/scan"
 import { getPublishSettings, setPublishSettings, downloadBulkReportCards } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -17,28 +19,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-// Inline badge — no separate badge component needed
 function NeedsReviewBadge() {
-  return (
-    <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-      Needs review
-    </span>
-  )
+  return <Badge variant="warning">Needs review</Badge>
 }
 
 function ScoreBadge({ score, maxScore }) {
   const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0
-  const colour =
-    pct >= 70
-      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-      : pct >= 40
-        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colour}`}>
-      {score}/{maxScore}
-    </span>
-  )
+  const variant = pct >= 70 ? "success" : pct >= 40 ? "warning" : "error"
+  return <Badge variant={variant}>{score}/{maxScore}</Badge>
 }
 
 function QuestionResponseRow({ resp }) {
@@ -50,11 +38,14 @@ function QuestionResponseRow({ resp }) {
       </td>
       <td className="px-2 py-1">
         {resp.flagged ? (
-          <span className="text-yellow-600">⚠ flagged</span>
+          <span className="inline-flex items-center gap-1 text-[var(--color-warning)]">
+            <AlertTriangle className="size-3" aria-hidden="true" />
+            flagged
+          </span>
         ) : resp.is_correct ? (
-          <span className="text-green-600">✓</span>
+          <Check className="size-3.5 text-[var(--color-success)]" aria-label="Correct" />
         ) : (
-          <span className="text-red-500">✗</span>
+          <X className="size-3.5 text-[var(--color-error)]" aria-label="Incorrect" />
         )}
       </td>
     </tr>
@@ -83,11 +74,15 @@ function StudentResultRow({ result, testId }) {
           <ScoreBadge score={result.score ?? 0} maxScore={result.max_score ?? 0} />
         </TableCell>
         <TableCell className="text-sm text-muted-foreground">
-          <span className="text-green-600">{result.correct_count ?? 0}✓</span>
+          <span className="inline-flex items-center gap-0.5 text-[var(--color-success)]">
+            <Check className="size-3" aria-hidden="true" />{result.correct_count ?? 0}
+          </span>
           {" / "}
-          <span className="text-red-500">{result.wrong_count ?? 0}✗</span>
+          <span className="inline-flex items-center gap-0.5 text-[var(--color-error)]">
+            <X className="size-3" aria-hidden="true" />{result.wrong_count ?? 0}
+          </span>
           {" / "}
-          <span>{result.blank_count ?? 0}—</span>
+          <span>{result.blank_count ?? 0}</span>
         </TableCell>
         <TableCell>
           {result.needs_review ? <NeedsReviewBadge /> : null}
@@ -103,7 +98,16 @@ function StudentResultRow({ result, testId }) {
                 Detail
               </Link>
             )}
-            <span>{expanded ? "▲ collapse" : "▼ expand"}</span>
+            <button
+              type="button"
+              aria-label={expanded ? "Collapse responses" : "Expand responses"}
+              className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
+            >
+              {expanded
+                ? <ChevronUp className="size-4" aria-hidden="true" />
+                : <ChevronDown className="size-4" aria-hidden="true" />}
+            </button>
           </div>
         </TableCell>
       </TableRow>
@@ -229,13 +233,11 @@ function PublishControl({ testId }) {
         <div>
           <span className="font-semibold">Share results publicly</span>
           {settings?.is_published && (
-            <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
-              Published
-            </span>
+            <Badge variant="success" className="ml-2">Published</Badge>
           )}
         </div>
         <span className="text-muted-foreground" aria-hidden="true">
-          {open ? "▲" : "▼"}
+          {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </span>
       </button>
 
