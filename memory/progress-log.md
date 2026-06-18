@@ -92,6 +92,18 @@
   SOURCE parent → a member could re-parent a child into a VIEW-only same-org test/roster via writable FK;
   now gates source+dest, +2 regression tests). 917 backend tests; E2E Chromium/Chrome/Edge 16/16 + modeB
   17/17. NEXT: Phase 5D/5E frontend (folders UI + sharing + subjects + onboarding) → Phase 6 polish.
+- 2026-06-18 — PRODUCT V2 **Phases 5D/5E + 6 COMPLETE** → `main` (b0a04bb). 5D folders/sharing/subjects
+  UI (7f30f8e: /folders + /folders/:id, custom share modal member/org VIEW/EDIT, Folders nav, optional
+  folder picker on class create, per-class Subjects + wizard subject Select w/ free-text fallback). 5E
+  onboarding (08aa47e: /onboarding 5-step wizard, localStorage-gated redirect, run.mjs addInitScript
+  bypass, "Workspace ready" banner). 6A (fb54b8b: content-skeletons + standardized EmptyState +
+  ErrorState-with-retry across ~17 routes; AppShell org-list+/auth/me dedup measured 24/22→13/13 per run).
+  6B (50ddbf3: 320px mobile sweep, Analytics scrollable tabs/legible charts/2-up StatCards, TestWizard
+  compact stepper + sticky footer, TestProgressRail replacing the 6-button row [same routes], breadcrumbs,
+  PublicResult touch). E2E artifact resolved honestly: heaviest modeB flow burst past 120/min UserRate
+  throttle at machine speed → made user/anon rates env-overridable (1310a4d; prod defaults intact, local
+  .env relaxes). NO backend mojibake existed (repo scan = 0). 917 backend tests; E2E Chromium/Chrome/Edge
+  16/16 + modeB 17/17; check clean. **Product v2 (Phases 0–6) DONE end-to-end.**
 - 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
   + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
   distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).
