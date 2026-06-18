@@ -35,7 +35,11 @@ export default function Landing() {
 
   return (
     <MotionConfig reducedMotion="user" transition={spring.smooth}>
-      <div className="landing-cinematic relative min-h-screen overflow-x-hidden bg-[#05060a] text-white antialiased">
+      {/* overflow-x-CLIP (not hidden): clip prevents horizontal scroll without
+          creating a scroll container, so the pinned Centerpiece's position:sticky
+          still sticks to the viewport. overflow-x-hidden would force overflow-y to
+          'auto', establishing a scroll container and breaking the scroll-jack. */}
+      <div className="landing-cinematic relative min-h-screen overflow-x-clip bg-[#05060a] text-white antialiased">
         <ScrollRail />
         <LandingNav />
         <Hero />
