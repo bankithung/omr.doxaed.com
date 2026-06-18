@@ -37,3 +37,10 @@
   security (check --deploy clean), django-axes lockout, no-enumeration register, Celery async (eager
   in dev) + DB indexes, frontend code-splitting (940→307 kB) + a11y + clean lint, image-upload API,
   deployment config + DEPLOYMENT.md + SECURITY-CHECKLIST.md. 535 tests green. Verified PRODUCTION-READY.
+- 2026-06-18 — Gap-closure + full cross-browser E2E (branch `gap-closure` → `main`). Roadmap-vs-code
+  audit: core loop fully wired. Closed gaps: removed non-existent "viewer" role; added GET
+  /billing/plans (Billing shows real seeded limits); wired student-detail drill-down + audit-log UIs;
+  documented intentional free-org-1-seat gating. Built a Playwright suite (`e2e/`) driving the WHOLE
+  loop unmocked (synthetic scans of real sheets via the simulator; email verify-token regenerated) —
+  **PASSED 14/14 in Chromium + Chrome + Edge.** E2E caught + fixed 2 real runtime bugs (Results.jsx
+  flat-vs-nested serializer fields; avg-score NaN from Decimal-as-string). 540 tests green.

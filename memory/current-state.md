@@ -1,5 +1,19 @@
 # Current State
 
+- 2026-06-18: **✅ PRODUCTION-READY — gaps closed + full cross-browser E2E PASSED** (branch
+  `gap-closure` → merged to `main`). A roadmap-vs-code gap audit found the core loop fully wired;
+  closed the real gaps: removed a non-existent "viewer" role (silent-failure), added a real
+  `GET /billing/plans/` endpoint (Billing UI now shows truthful seeded limits, not stale hard-codes),
+  wired the built-but-unreachable **student-detail** drill-down + **audit-log** UIs. **540 backend
+  tests.** Then ran a Playwright E2E driving the ENTIRE loop (register → verify → login → class →
+  test(MCQs) → roster+students → generate sheets → upload synthetic scans → auto-grade → results →
+  student drill-down → analytics → export CSV/Excel/PDF) in **all 3 available browsers (Chromium,
+  Chrome, Edge) — 14/14 steps each, unmocked CV/QR/grade pipeline**. The E2E surfaced + fixed two
+  real runtime bugs unit tests missed: Results.jsx read nested `student.*` fields but the API is flat
+  (`student_roll`/`student_name`/`student` FK id) → roll/name cols + the Detail link broke; and
+  avg-score did string-concat on DRF Decimal-as-string → `NaN` (now `Number()`-coerced). Grading
+  verified correct (perturbed sheet scored 4/5, rest 5/5; analytics avg 4.8). Harness lives in `e2e/`
+  (`run.mjs` + `django_helper.py`, see `e2e/README.md`). Screenshots/exports captured as evidence.
 - 2026-06-18: **Phase 8 (Hardening — production-grade) complete** (branch `phase-8` → merged to `main`).
   Env-driven production security (secure cookies/HSTS/SSL/headers, WhiteNoise static, a fail-closed
   prod-config guard) — `check --deploy` is CLEAN under prod env. Auth hardening: django-axes login

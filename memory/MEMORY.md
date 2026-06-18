@@ -1,8 +1,8 @@
 # OMRFlow — Memory Index
 
-**Status:** Phase 8 (Hardening) DONE (2026-06-18). Webapp PRODUCTION-READY (pending external ops). Next: Phase 9 (Mobile) + browser E2E.
+**Status:** ✅ WEBAPP PRODUCTION-READY (2026-06-18) — Phases 0–8 done, gaps closed, full E2E passed in Chromium/Chrome/Edge. Next: Phase 9 (Mobile, needs framework decision) + external launch ops.
 **Stack:** Django 5 + DRF · React (Vite, JS) + Tailwind v4 + shadcn/ui · local PostgreSQL `omrflow`.
-**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–8. 535 tests, lint clean.
+**Repo:** Standalone git repo (own history; `backend/` + `frontend/` at root). `main` holds Phases 0–8 + gap-closure. **540 tests**, lint clean. Cross-browser E2E suite in `e2e/` (`node run.mjs`).
 ⚠️ Before launch: real Razorpay keys + payments review; TLS + prod env; Redis+Celery worker; audits/backups/monitoring. See `docs/DEPLOYMENT.md` + `docs/SECURITY-CHECKLIST.md`.
 
 ## Next steps
