@@ -25,6 +25,11 @@ class MarkingSchemeSerializer(serializers.ModelSerializer):
 
 class TestSerializer(serializers.ModelSerializer):
     marking_scheme = MarkingSchemeSerializer(required=False)
+    mode = serializers.ChoiceField(
+        choices=["standard", "roster_prebubbled"],
+        default="standard",
+        required=False,
+    )
 
     class Meta:
         model = Test
@@ -36,6 +41,7 @@ class TestSerializer(serializers.ModelSerializer):
             "parent_test",
             "attempt_number",
             "status",
+            "mode",
             "marking_scheme",
             "created_at",
             "updated_at",
