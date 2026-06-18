@@ -73,6 +73,7 @@ class ScanJob(models.Model):
     )
     page_no = models.IntegerField(default=1)
     image_file = models.FileField(upload_to="scans/", null=True, blank=True)
+    warped_file = models.FileField(upload_to="scans_warped/", null=True, blank=True)
     status = models.CharField(
         max_length=16,
         choices=STATUS_CHOICES,
