@@ -44,4 +44,38 @@ function Badge({ className, variant, ...props }) {
   )
 }
 
-export { Badge, badgeVariants }
+// Map a semantic status → the status token used for the dot fill.
+const STATUS_DOT_COLOR = {
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  error: "var(--color-error)",
+  info: "var(--color-info)",
+  neutral: "var(--muted-foreground)",
+}
+
+/**
+ * StatusDot — a tiny colored dot + label for DENSE table cells (where a pill
+ * Badge would be too heavy). Use Badge in cards/headers, StatusDot in rows.
+ *
+ * Props:
+ *   status — one of "success" | "warning" | "error" | "info" | "neutral"
+ *   children — the label text
+ */
+function StatusDot({ status = "neutral", className, children, ...props }) {
+  return (
+    <span
+      data-slot="status-dot"
+      className={cn("inline-flex items-center gap-1.5 text-sm", className)}
+      {...props}
+    >
+      <span
+        aria-hidden="true"
+        className="size-1.5 shrink-0 rounded-full"
+        style={{ backgroundColor: STATUS_DOT_COLOR[status] ?? STATUS_DOT_COLOR.neutral }}
+      />
+      {children}
+    </span>
+  )
+}
+
+export { Badge, badgeVariants, StatusDot }
