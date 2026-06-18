@@ -99,8 +99,9 @@ export default function App() {
   // Public portal pages (/r/:slug) and onboarding render without any shell
   const isPublicPortal = location.pathname.startsWith("/r/")
 
-  // Show the minimal public nav only for logged-out users on non-portal pages
-  const showPublicNav = !user && !isPublicPortal
+  // Show the minimal public nav only for logged-out users on non-portal pages.
+  // The landing page ("/") ships its own sticky hero nav, so skip it there.
+  const showPublicNav = !user && !isPublicPortal && location.pathname !== "/"
 
   return (
     <div className="min-h-screen">
