@@ -4,7 +4,7 @@ import { toast } from "sonner"
 
 import { createTest, createQuestion, updateTest } from "@/api/assessments"
 import { listSubjects } from "@/api/subjects"
-import { Stepper } from "@/components/ui/stepper"
+import { Stepper, StepperCompact } from "@/components/ui/stepper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -138,8 +138,9 @@ function QuestionEditor({ question, index, multipleCorrect, onChange, onRemove, 
                 />
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   type="button"
+                  className="size-10 shrink-0"
                   disabled={question.options.length <= 2}
                   onClick={() => removeOption(optIdx)}
                   aria-label={`Remove option ${opt.label}`}
@@ -168,8 +169,9 @@ function QuestionEditor({ question, index, multipleCorrect, onChange, onRemove, 
                 />
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   type="button"
+                  className="size-10 shrink-0"
                   disabled={question.options.length <= 2}
                   onClick={() => removeOption(optIdx)}
                   aria-label={`Remove option ${opt.label}`}
@@ -602,9 +604,17 @@ function StepDetails({ classId, onNext }) {
         )}
       </div>
 
-      <Button type="submit" disabled={saving || !title.trim()}>
-        {saving ? "Creating test…" : "Next: Add questions"}
-      </Button>
+      {/* Action footer — sticky above the mobile tab bar so Next is always
+          reachable; inline within the form flow on ≥sm. */}
+      <div className="sticky bottom-16 z-30 -mx-4 border-t border-border bg-background px-4 py-3 sm:static sm:bottom-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <Button
+          type="submit"
+          disabled={saving || !title.trim()}
+          className="w-full min-h-[44px] sm:w-auto"
+        >
+          {saving ? "Creating test…" : "Next: Add questions"}
+        </Button>
+      </div>
     </form>
   )
 }
@@ -696,11 +706,12 @@ function StepQuestions({ testId, multipleCorrect, initialQuestions, onBack, onNe
         ))}
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <Button variant="outline" type="button" onClick={onBack}>
+      {/* Action footer — sticky above the mobile tab bar; inline on ≥sm */}
+      <div className="sticky bottom-16 z-30 -mx-4 flex gap-3 border-t border-border bg-background px-4 py-3 sm:static sm:bottom-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-2 sm:pb-0">
+        <Button variant="outline" type="button" onClick={onBack} className="min-h-[44px] flex-1 sm:flex-none">
           Back
         </Button>
-        <Button type="button" onClick={handleNext}>
+        <Button type="button" onClick={handleNext} className="min-h-[44px] flex-1 sm:flex-none">
           Next: Review
         </Button>
       </div>
@@ -771,14 +782,16 @@ function StepReview({ testId, classId, questions, onBack }) {
         </ol>
       )}
 
-      <div className="flex gap-3">
-        <Button variant="outline" type="button" onClick={onBack}>
+      {/* Action footer — sticky above the mobile tab bar; inline on ≥sm */}
+      <div className="sticky bottom-16 z-30 -mx-4 flex gap-3 border-t border-border bg-background px-4 py-3 sm:static sm:bottom-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <Button variant="outline" type="button" onClick={onBack} className="min-h-[44px] flex-1 sm:flex-none">
           Back
         </Button>
         <Button
           type="button"
           disabled={finishing || savedQuestions.length === 0}
           onClick={handleFinish}
+          className="min-h-[44px] flex-1 sm:flex-none"
         >
           {finishing ? "Finishing…" : "Finish & mark ready"}
         </Button>
@@ -825,8 +838,9 @@ export default function TestWizard() {
         <h1 className="mt-2 text-2xl font-bold">Create test</h1>
       </div>
 
-      {/* Step indicator */}
-      <Stepper steps={WIZARD_STEPS} current={step} />
+      {/* Step indicator — compact under md, full horizontal stepper ≥md */}
+      <StepperCompact steps={WIZARD_STEPS} current={step} className="md:hidden" />
+      <Stepper steps={WIZARD_STEPS} current={step} className="hidden md:flex" />
 
       {/* Step panels */}
       {step === 0 && (

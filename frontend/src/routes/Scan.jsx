@@ -34,6 +34,8 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { TestProgressRail } from "@/components/ui/test-progress-rail"
 import {
   Select,
   SelectContent,
@@ -475,7 +477,24 @@ export default function Scan() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">Scan OMR sheets</h1>
+      {/* Breadcrumb + lifecycle rail — only when scoped to a specific test */}
+      {routeTestId && (
+        <>
+          <Breadcrumb
+            className="mb-2"
+            items={[
+              { label: "Classes", to: "/classes" },
+              { label: `Test #${routeTestId}` },
+              { label: "Scan" },
+            ]}
+          />
+          <h1 className="mb-4 text-2xl font-bold">Scan OMR sheets</h1>
+          <TestProgressRail testId={routeTestId} current="scan" className="mb-6" />
+        </>
+      )}
+      {!routeTestId && (
+        <h1 className="mb-6 text-2xl font-bold">Scan OMR sheets</h1>
+      )}
 
       {/* ── Upload section ── */}
       {!done && (

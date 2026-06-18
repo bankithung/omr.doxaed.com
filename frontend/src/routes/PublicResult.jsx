@@ -26,14 +26,14 @@ function ResultCard({ result }) {
         : "bg-red-100 text-red-800 border-red-200"
 
   return (
-    <div className="mt-6 rounded-xl border bg-card p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-lg font-semibold">{name || "—"}</p>
+    <div className="mt-6 rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-lg font-semibold">{name || "—"}</p>
           <p className="text-sm text-muted-foreground">Roll: {roll_number}</p>
         </div>
         <div
-          className={`rounded-full border px-4 py-2 text-2xl font-bold tabular-nums ${colour}`}
+          className={`shrink-0 rounded-full border px-4 py-2 text-2xl font-bold tabular-nums ${colour}`}
           aria-label={`Score ${score} out of ${max_score}`}
         >
           {score}/{max_score}
@@ -255,19 +255,21 @@ export default function PublicResult() {
 
       {/* ── Main content ── */}
       <main className="mx-auto max-w-lg px-4 py-8">
-        {/* Lookup form */}
+        {/* Lookup form — single column, large touch targets on mobile */}
         <form onSubmit={handleLookup} aria-label="Result lookup form" className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="roll_number">Roll number</Label>
             <Input
               id="roll_number"
               type="text"
+              inputMode="numeric"
               placeholder="e.g. 2024001"
               value={rollNumber}
               onChange={(e) => setRollNumber(e.target.value)}
               autoComplete="off"
               required
               aria-required="true"
+              className="h-11 text-base"
             />
           </div>
 
@@ -281,11 +283,12 @@ export default function PublicResult() {
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
                 autoComplete="off"
+                className="h-11 text-base"
               />
             </div>
           )}
 
-          <Button type="submit" disabled={looking || !rollNumber.trim()} className="w-full">
+          <Button type="submit" disabled={looking || !rollNumber.trim()} className="h-11 w-full text-base">
             {looking ? "Looking up…" : "Get result"}
           </Button>
         </form>

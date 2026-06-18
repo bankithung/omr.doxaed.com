@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { UsersIcon } from "lucide-react"
 import { getRoster, listStudents, addStudent, addCount } from "@/api/omr"
@@ -19,6 +19,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { DetailHeaderSkeleton, ListSkeleton } from "@/components/ui/list-skeletons"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
 
 function AddStudentDialog({ rosterId, onAdded }) {
   const [open, setOpen] = useState(false)
@@ -244,13 +245,13 @@ export default function RosterDetail() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Breadcrumb */}
-      <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/rosters" className="hover:text-foreground hover:underline">
-          Rosters
-        </Link>
-        <span>/</span>
-        <span>{roster?.name ?? "Roster"}</span>
-      </div>
+      <Breadcrumb
+        className="mb-2"
+        items={[
+          { label: "Rosters", to: "/rosters" },
+          { label: roster?.name ?? "Roster" },
+        ]}
+      />
 
       <PageHeader
         className="mb-6"

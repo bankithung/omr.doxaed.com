@@ -5,6 +5,8 @@ import { CheckCircleIcon } from "lucide-react"
 import { listReview, resolveReview } from "@/api/scan"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { TestProgressRail } from "@/components/ui/test-progress-rail"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { ListSkeleton } from "@/components/ui/list-skeletons"
@@ -145,20 +147,22 @@ export default function ReviewQueue() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Review queue</h1>
-          <p className="text-sm text-muted-foreground">Test #{testId}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/tests/${testId}/results`}>Results</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/tests/${testId}/scan`}>Scan more</Link>
-          </Button>
-        </div>
+      <Breadcrumb
+        className="mb-2"
+        items={[
+          { label: "Classes", to: "/classes" },
+          { label: `Test #${testId}` },
+          { label: "Review" },
+        ]}
+      />
+
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold">Review queue</h1>
+        <p className="text-sm text-muted-foreground">Test #{testId}</p>
       </div>
+
+      {/* Test lifecycle rail (replaces the old Results/Scan sibling buttons) */}
+      <TestProgressRail testId={testId} current="review" className="mb-6" />
 
       {loading ? (
         <ListSkeleton rows={3} />
