@@ -276,6 +276,47 @@ class GenerateView(APIView):
             for q in questions_list
         ]
 
+        # ---- resolve branding once (Test → Org fallback) -----------------
+        # Resolution order per S4/Phase-3b spec:
+        #   1. Test.sheet_heading / Test.logo (explicit test-level branding)
+        #   2. If brand_inherit_org=True → Org.default_sheet_heading / Org.logo
+        #   3. If nothing → no branding (sheet unchanged, descriptor identical)
+        resolved_heading = ""
+        resolved_logo_path = ""
+        resolved_logo_position = "left"
+
+        test_heading = getattr(test, "sheet_heading", "") or ""
+        test_logo = getattr(test, "logo", None)
+        test_logo_field = test_logo if test_logo and test_logo.name else None
+        test_logo_position = getattr(test, "logo_position", "left") or "left"
+        brand_inherit_org = getattr(test, "brand_inherit_org", True)
+
+        # Fetch org branding once (avoid repeated DB queries per student)
+        org_fresh = None
+        if brand_inherit_org and org is not None:
+            org_fresh = Organization.objects.filter(pk=org.pk).first()
+
+        if test_heading:
+            resolved_heading = test_heading
+            resolved_logo_position = test_logo_position
+        elif org_fresh:
+            resolved_heading = getattr(org_fresh, "default_sheet_heading", "") or ""
+            resolved_logo_position = "left"  # org doesn't have a position field
+
+        if test_logo_field:
+            try:
+                resolved_logo_path = test_logo_field.path
+                resolved_logo_position = test_logo_position
+            except (ValueError, AttributeError):
+                resolved_logo_path = ""
+        elif org_fresh:
+            org_logo = getattr(org_fresh, "logo", None)
+            if org_logo and org_logo.name:
+                try:
+                    resolved_logo_path = org_logo.path
+                except (ValueError, AttributeError):
+                    resolved_logo_path = ""
+
         # ---- per-student sheet generation --------------------------------
         created_sheets = []
         per_student_pdfs = []   # list of bytes (OMR sheets)
@@ -313,6 +354,10 @@ class GenerateView(APIView):
                 "roll_label": "Roll No.",
                 "roll_digits": roll_digits,
                 "roll_value": roll_value,
+                # Phase 3b branding (absent → generator skips branding, output unchanged)
+                "heading": resolved_heading,
+                "logo_path": resolved_logo_path,
+                "logo_position": resolved_logo_position,
             }
 
             pdf_bytes = render_sheet_pdf(sheet_dict, descriptor)
