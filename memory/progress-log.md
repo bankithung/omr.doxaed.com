@@ -52,6 +52,15 @@
   generation idempotent (update_or_create on (test,student), pk preserved) + regression test.
   Re-verified full loop + new front door across Chromium/Chrome/Edge (15/15). Demo acct
   teacher@omrflow.test / Teacher@12345.
+- 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
+  + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
+  distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).
+  2B 2-page report card PDF (parent summary + teacher diagnostic, individual+bulk). 2C item-analysis
+  tab + percentile/rank + report-card downloads. 2D public /r/<slug> portal (publish toggle, no-auth
+  roll lookup, optional access-code + leaderboard, name masking). Adversarial security review caught+
+  fixed a silent-no-op throttle, roll_number type-validation, and a mask initial-leak. Full E2E
+  Chromium/Chrome/Edge (standard 16/16 + Mode-B 17/17) incl. report-card download + public lookup.
+  ~703 tests. Next: Phase 3 (Mode C competitive).
 - 2026-06-18 — Multi-mode OMR initiative (branch `feat/omr-modes`). Deep research+design workflow →
   spec `docs/superpowers/specs/2026-06-18-omr-modes-and-advanced-features.md` (6 modes, 7-phase
   roadmap, critique SOLID). **Phase 1 DONE** (1A generation: Test.mode/template_spec, build_template
