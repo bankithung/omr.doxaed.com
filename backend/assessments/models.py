@@ -10,12 +10,30 @@ class ClassGroup(OwnerScopedModel):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    folder = models.ForeignKey(
+        "folders.Folder",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="class_groups",
+    )
 
     class Meta(OwnerScopedModel.Meta):
         ordering = ["name", "id"]
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if self.folder_id is not None:
+            if (
+                self.folder.organization_id != self.organization_id
+                or self.folder.user_id != self.user_id
+            ):
+                raise ValidationError(
+                    {"folder": "Folder must share the class's owner scope."}
+                )
 
 
 class Test(OwnerScopedModel):
@@ -193,3 +211,22 @@ class Option(models.Model):
 
     class Meta:
         ordering = ["label", "id"]
+
+
+class Subject(models.Model):
+    class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="subjects")
+    name = models.CharField(max_length=255)
+    order_index = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order_index", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["class_group", "name"],
+                name="uniq_subject_class_name",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} (class={self.class_group_id})"

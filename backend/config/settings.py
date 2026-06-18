@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "organizations",
     "billing",
     "assessments",
+    "folders",
     "rosters",
     "omr",
     "results",
