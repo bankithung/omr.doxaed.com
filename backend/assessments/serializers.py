@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from common.scope import parent_in_scope
 
-from .models import ClassGroup, MarkingScheme, Option, Question, Test
+from .models import ClassGroup, MarkingScheme, Option, Question, Section, SectionMarkingScheme, Test
 
 
 class ClassGroupSerializer(serializers.ModelSerializer):
@@ -23,10 +23,93 @@ class MarkingSchemeSerializer(serializers.ModelSerializer):
         )
 
 
+class SectionMarkingSchemeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SectionMarkingScheme
+        fields = (
+            "marks_per_correct",
+            "negative_marks_per_wrong",
+            "negative_kind",
+            "partial_marking",
+            "multiple_correct_allowed",
+            "qualify_pct",
+        )
+
+
+class SectionSerializer(serializers.ModelSerializer):
+    marking_scheme = SectionMarkingSchemeSerializer(required=False)
+
+    class Meta:
+        model = Section
+        fields = (
+            "id", "test", "key", "label", "order_index",
+            "q_start", "q_end", "policy", "choose_k",
+            "marking_scheme",
+        )
+        read_only_fields = ("id",)
+
+    def validate(self, data):
+        test = data.get("test") or (self.instance.test if self.instance else None)
+        policy = data.get("policy", self.instance.policy if self.instance else "all")
+        choose_k = data.get("choose_k", self.instance.choose_k if self.instance else None)
+        q_start = data.get("q_start", self.instance.q_start if self.instance else None)
+        q_end = data.get("q_end", self.instance.q_end if self.instance else None)
+
+        if q_start and q_end and q_start > q_end:
+            raise serializers.ValidationError("q_start must be <= q_end.")
+
+        if policy == Section.POLICY_CHOOSE_K:
+            if choose_k is None:
+                raise serializers.ValidationError({"choose_k": "choose_k required when policy=choose_k."})
+            if q_start and q_end:
+                range_size = q_end - q_start + 1
+                if not (1 <= choose_k <= range_size):
+                    raise serializers.ValidationError({"choose_k": f"choose_k must be 1..{range_size}."})
+
+        if test and q_start and q_end:
+            siblings = Section.objects.filter(test=test)
+            if self.instance:
+                siblings = siblings.exclude(id=self.instance.id)
+            for sib in siblings:
+                if not (q_end < sib.q_start or q_start > sib.q_end):
+                    raise serializers.ValidationError(
+                        f"Range [{q_start},{q_end}] overlaps with section '{sib.key}' "
+                        f"[{sib.q_start},{sib.q_end}]."
+                    )
+        return data
+
+    def validate_test(self, value):
+        request = self.context["request"]
+        if not parent_in_scope(value, request):
+            raise serializers.ValidationError("Test not found in your account.")
+        return value
+
+    def create(self, validated_data):
+        ms_data = validated_data.pop("marking_scheme", None)
+        section = Section.objects.create(**validated_data)
+        if ms_data is not None:
+            SectionMarkingScheme.objects.create(section=section, **ms_data)
+        section.sync_question_membership()
+        return section
+
+    def update(self, instance, validated_data):
+        ms_data = validated_data.pop("marking_scheme", None)
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        if ms_data is not None:
+            sms, _ = SectionMarkingScheme.objects.get_or_create(section=instance)
+            for k, v in ms_data.items():
+                setattr(sms, k, v)
+            sms.save()
+        instance.sync_question_membership()
+        return instance
+
+
 class TestSerializer(serializers.ModelSerializer):
     marking_scheme = MarkingSchemeSerializer(required=False)
     mode = serializers.ChoiceField(
-        choices=["standard", "roster_prebubbled"],
+        choices=["standard", "roster_prebubbled", "competitive"],
         default="standard",
         required=False,
     )
@@ -42,6 +125,7 @@ class TestSerializer(serializers.ModelSerializer):
             "attempt_number",
             "status",
             "mode",
+            "default_options",
             "marking_scheme",
             "created_at",
             "updated_at",

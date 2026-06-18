@@ -89,6 +89,8 @@ class StudentResult(models.Model):
     wrong_count = models.IntegerField(default=0)
     blank_count = models.IntegerField(default=0)
     needs_review = models.BooleanField(default=False)
+    section_breakdown = models.JSONField(default=dict, blank=True)
+    qualified_all = models.BooleanField(default=True)
     graded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -123,11 +125,16 @@ class QuestionResponse(models.Model):
     marked_options = models.JSONField(default=list)
     is_correct = models.BooleanField(default=False)
     flagged = models.BooleanField(default=False)
+    section = models.ForeignKey(
+        "assessments.Section", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="question_responses"
+    )
 
     class Meta:
         ordering = ["q_pos", "id"]
         indexes = [
             models.Index(fields=["student_result", "question"], name="qresponse_result_question_idx"),
+            models.Index(fields=["student_result", "section"], name="qresponse_result_section_idx"),
         ]
 
     def __str__(self):

@@ -296,6 +296,33 @@ def _maybe_grade(omr_sheet) -> None:
     # Grade the sheet
     grading = grade_sheet(omr_sheet, aggregated_reads)
 
+    # Build section_breakdown for persistence
+    section_breakdown = {
+        str(s["section_id"]): {
+            "subtotal": float(s["subtotal"]),
+            "correct": s["correct"],
+            "wrong": s["wrong"],
+            "blank": s["blank"],
+            "q_count": s["q_count"],
+            "max_subtotal": float(s["max_subtotal"]),
+            "counts": s["counts"],
+            "qualify_pct": s["qualify_pct"],
+            "qualified": s["qualified"],
+        }
+        for s in grading.get("sections", [])
+    }
+
+    # Build q_pos -> section_id map for QuestionResponse stamping
+    qpos_to_section_id: dict = {}
+    if omr_sheet.question_order:
+        from assessments.models import Question as _Q
+        q_section_map = {
+            q.id: q.section_id
+            for q in _Q.objects.filter(id__in=omr_sheet.question_order).only("id", "section_id")
+        }
+        for idx, q_id in enumerate(omr_sheet.question_order):
+            qpos_to_section_id[idx] = q_section_map.get(q_id)
+
     # Create/update StudentResult
     result, _ = StudentResult.objects.update_or_create(
         omr_sheet=omr_sheet,
@@ -308,6 +335,8 @@ def _maybe_grade(omr_sheet) -> None:
             "wrong_count": grading["wrong_count"],
             "blank_count": grading["blank_count"],
             "needs_review": False,
+            "section_breakdown": section_breakdown,
+            "qualified_all": grading.get("qualified_all", True),
         },
     )
 
@@ -345,6 +374,7 @@ def _maybe_grade(omr_sheet) -> None:
             marked_options=marked,
             is_correct=is_correct,
             flagged=flagged,
+            section_id=qpos_to_section_id.get(q_pos),
         )
 
     # Set needs_review when a double-mark was detected. The ReviewItem itself is
