@@ -1,3 +1,5 @@
+import json
+
 from rest_framework import serializers
 
 from common.logo_validators import validate_logo_image
@@ -152,6 +154,27 @@ class TestSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "parent_test", "attempt_number", "created_at", "updated_at")
+
+    def to_internal_value(self, data):
+        # Multipart requests (logo upload) carry every field as a flat string,
+        # so the nested `marking_scheme` object arrives JSON-encoded. Parse it
+        # back to a dict AND rebuild `data` as a plain dict — DRF treats a
+        # QueryDict as HTML input and would otherwise look for flattened
+        # `marking_scheme.<field>` keys, ignoring the object we inject.
+        ms = data.get("marking_scheme") if hasattr(data, "get") else None
+        if isinstance(ms, str):
+            if hasattr(data, "getlist"):  # QueryDict / MultiValueDict (multipart)
+                plain = {k: data.get(k) for k in data.keys()}
+            else:
+                plain = dict(data)
+            try:
+                plain["marking_scheme"] = json.loads(ms)
+            except (ValueError, TypeError):
+                raise serializers.ValidationError(
+                    {"marking_scheme": "marking_scheme must be valid JSON."}
+                )
+            data = plain
+        return super().to_internal_value(data)
 
     def validate_class_group(self, value):
         request = self.context["request"]

@@ -1,4 +1,5 @@
 import io
+import json
 from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -319,3 +320,37 @@ class TestBrandingApiTests(ClassApiTests):
             format="json",
         )
         self.assertEqual(r.status_code, 400)
+
+    def test_create_multipart_with_logo_and_marking_scheme(self):
+        """The wizard's logo path POSTs multipart with a JSON-encoded marking_scheme.
+
+        Regression: the nested marking_scheme arrives as a flat JSON string in a
+        multipart body. It must be parsed and persisted alongside the logo, not 400.
+        """
+        cid = self._make_class()
+        upload = SimpleUploadedFile("logo.png", _tiny_png(), content_type="image/png")
+        r = self.client.post(
+            "/api/v1/tests/",
+            {
+                "class_group": cid,
+                "title": "Branded + Scored",
+                "mode": "standard",
+                "sheet_heading": "Acme School",
+                "logo": upload,
+                "logo_position": "right",
+                "brand_inherit_org": "false",
+                "marking_scheme": json.dumps(
+                    {"marks_per_correct": "2", "negative_marks_per_wrong": "0.5"}
+                ),
+            },
+            format="multipart",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        # Branding persisted
+        self.assertEqual(r.data["sheet_heading"], "Acme School")
+        self.assertEqual(r.data["logo_position"], "right")
+        self.assertTrue(r.data["logo"], "Expected a non-empty logo URL")
+        self.assertFalse(r.data["brand_inherit_org"])
+        # marking_scheme parsed from the JSON string and persisted
+        self.assertEqual(r.data["marking_scheme"]["marks_per_correct"], "2.00")
+        self.assertEqual(r.data["marking_scheme"]["negative_marks_per_wrong"], "0.50")
