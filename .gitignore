@@ -16,3 +16,10 @@ frontend/.env
 # Misc
 .DS_Store
 .playwright-mcp/
+
+# E2E harness artifacts
+e2e/node_modules/
+e2e/screenshots/
+e2e/scans/
+e2e/downloads/
+e2e/last-run.json

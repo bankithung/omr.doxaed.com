@@ -1,0 +1,10 @@
+{
+  "name": "omrflow-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end browser tests for OMRFlow across Chromium/Chrome/Edge",
+  "devDependencies": {
+    "playwright": "^1.61.0"
+  }
+}
