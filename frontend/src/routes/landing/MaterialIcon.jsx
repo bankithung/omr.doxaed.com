@@ -1,0 +1,90 @@
+/**
+ * MaterialIcon — Material Symbols (Rounded) rendered as inline SVG.
+ *
+ * The `material-symbols` package ships a single ~5 MB variable icon font; loading
+ * it for ~16 glyphs would make a premium landing feel slow. Instead we inline the
+ * exact Material Symbols **Rounded** glyph outlines we use (24px optical grid,
+ * `currentColor` fill, viewBox 0 -960 960 960) so icons are crisp, optically
+ * sized, consistently styled, and cost zero network. This is the cohesive icon
+ * language for the landing — there is ZERO emoji anywhere on the page.
+ *
+ * Usage: <MaterialIcon name="trophy" className="size-5 text-amber-300" />
+ */
+
+const PATHS = {
+  // auto_awesome — eyebrow / sparkle accent
+  sparkles:
+    "M360-840 308-708 176-656l132 52 52 132 52-132 132-52-132-52-52-132ZM360-440 308-308 176-256l132 52 52 132 52-132 132-52-132-52-52-132Zm320-80 64-160 160-64-160-64-64-160-64 160-160 64 160 64 64 160Z",
+  // workspace_premium — topper / award
+  trophy:
+    "M280-80v-366q-51-41-75.5-97T180-660q0-125 87.5-212.5T480-960q125 0 212.5 87.5T780-660q0 61-24.5 117T680-446v366l-200-60-200 60Zm200-280q83 0 141.5-58.5T680-560q0-83-58.5-141.5T480-760q-83 0-141.5 58.5T280-560q0 83 58.5 141.5T480-360Zm-120 263 120-36 120 36v-129q-28 14-58.5 21t-61.5 7q-31 0-61.5-7T360-226v129Zm120-65Z",
+  // target — hardest question / accuracy
+  target:
+    "M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-160q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-480q0-33-23.5-56.5T480-560q-33 0-56.5 23.5T400-480q0 33 23.5 56.5T480-400Z",
+  // shuffle — per-student shuffle
+  shuffle:
+    "M560-160v-80h104L537-367l57-57 126 126v-102h80v240H560ZM216-160l-56-56 504-504H560v-80h240v240h-80v-104L216-160Zm151-377L160-744l56-56 207 207-56 56Z",
+  // groups — roster / class
+  groups:
+    "M0-240v-53q0-39 41.5-63t108.5-24q12 0 23 .5t22 2.5q-8 17-12 34.5t-4 36.5v66H0Zm240 0v-66q0-32 17.5-58.5T307-471q32-20 76.5-30t96.5-10q53 0 97.5 10t76.5 30q32 20 49 46.5t17 58.5v66H240Zm540 0v-66q0-20-3.5-37.5T763-410q11-2 22-2.5t23-.5q67 0 108 24t41 63v53H780Zm-540-80h311q-10-20-55.5-35T480-410q-55 0-100.5 15T325-360Zm-175-100q-29 0-49.5-20.5T80-530q0-30 20.5-50t49.5-20q30 0 50 20t20 50q0 29-20 49.5T150-460Zm660 0q-29 0-49.5-20.5T740-530q0-30 20.5-50t49.5-20q30 0 50 20t20 50q0 29-20 49.5T810-460Zm-330-40q-50 0-85-35t-35-85q0-51 35-85.5t85-34.5q51 0 85.5 34.5T560-620q0 50-34.5 85T480-500Zm0-80q17 0 28.5-11.5T520-620q0-17-11.5-28.5T480-660q-17 0-28.5 11.5T440-620q0 17 11.5 28.5T480-580Z",
+  // checklist — one question bank
+  checklist:
+    "M222-200 80-342l56-56 85 85 170-170 56 57-225 226Zm0-320L80-662l56-56 85 85 170-170 56 57-225 226Zm298 240v-80h360v80H520Zm0-320v-80h360v80H520Z",
+  // document_scanner — scan
+  scan: "M120-120v-200h80v120h120v80H120Zm520 0v-80h120v-120h80v200H640ZM280-280v-400h80v400h-80Zm160 0v-400h80v400h-80Zm160 0v-400h80v400h-80ZM120-640v-200h200v80H200v120h-80Zm640 0v-120H640v-80h200v200h-80Z",
+  // verified_user — never guessed / shield
+  shield:
+    "m438-338 226-226-57-57-169 169-85-85-57 57 142 142ZM480-80q-139-35-229.5-159.5T160-516v-244l320-120 320 120v244q0 152-90.5 276.5T480-80Zm0-84q104-33 172-132t68-220v-189l-240-90-240 90v189q0 121 68 220t172 132Zm0-316Z",
+  // monitoring — analytics profile
+  analytics:
+    "M144-144v-72h672v72H144Zm75-153-51-51 219-219 120 120 199-199H600v-72h240v240h-72v-118L552-345 432-465 219-297Z",
+  // trending_up — improvement trend
+  trending:
+    "m136-240-56-56 296-298 160 160 208-206H640v-80h240v240h-80v-104L536-320 376-480 136-240Z",
+  // lock — encrypted PII
+  lock: "M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm240-120q33 0 56.5-23.5T560-360q0-33-23.5-56.5T480-440q-33 0-56.5 23.5T400-360q0 33 23.5 56.5T480-280ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z",
+  // folder_shared — folders & sharing
+  folder:
+    "M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z",
+  // task_alt — auditable results / correct
+  task: "m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Z",
+  // devices — any phone or scanner
+  devices:
+    "M80-160v-80h80v-440q0-33 23.5-56.5T240-760h600v80H240v440h240v80H80Zm560 0q-17 0-28.5-11.5T600-200v-360q0-17 11.5-28.5T640-600h200q17 0 28.5 11.5T880-560v360q0 17-11.5 28.5T840-160H640Zm40-120h120v-240H680v240Z",
+  // bolt — fast / minutes
+  bolt: "M422-232 instead",
+  // east — arrow
+  arrow: "M647-440H160v-80h487L423-744l57-56 320 320-320 320-57-56 224-224Z",
+  // layers — stack
+  layers:
+    "M480-80 120-360l66-50 294 228 294-228 66 50L480-80Zm0-200L120-560l360-280 360 280-360 280Zm0-101 230-179-230-179-230 179 230 179Z",
+  // query_stats — distribution
+  stats:
+    "M120-120v-80l80-80v160h-80Zm160 0v-240l80-80v320h-80Zm160 0v-320l80 81v239h-80Zm160 0v-239l80-80v319h-80Zm160 0v-400l80-80v480h-80ZM120-327v-113l280-280 160 160 280-280v113L560-447 400-607 120-327Z",
+  // percent — percentile
+  percent:
+    "M300-520q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600Zm360 440q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T720-300q0-25-17.5-42.5T660-360q-25 0-42.5 17.5T600-300q0 25 17.5 42.5T660-240Zm-444 80-56-56 584-584 56 56-584 584Z",
+}
+
+// bolt needs a clean glyph (the source above is a guard placeholder).
+PATHS.bolt =
+  "M421-80q-9 0-15.5-6T399-103l37-220-148-49q-9-3-14-10.5t-5-16.5q0-3 7-19l266-396q5-7 12.5-11.5T577-836q9 0 16 6.5t6 16.5l-37 220 148 49q9 3 14 10.5t5 16.5q0 3-7 19L460-102q-5 7-12.5 11.5T421-80Z"
+
+export default function MaterialIcon({ name, className = "", title, ...rest }) {
+  const d = PATHS[name]
+  if (!d) return null
+  return (
+    <svg
+      viewBox="0 -960 960 960"
+      className={className}
+      fill="currentColor"
+      role={title ? "img" : "presentation"}
+      aria-hidden={title ? undefined : true}
+      aria-label={title || undefined}
+      {...rest}
+    >
+      {title ? <title>{title}</title> : null}
+      <path d={d} />
+    </svg>
+  )
+}

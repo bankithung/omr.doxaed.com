@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom"
 import { motion, useReducedMotion } from "framer-motion"
-import { ArrowRight, Layers } from "lucide-react"
 import { MagneticButton } from "./Micro"
+import MaterialIcon from "./MaterialIcon"
 import { ease, dur } from "./motion/tokens"
 
 export default function CTA() {
@@ -34,11 +34,13 @@ export default function CTA() {
         transition={{ duration: dur.hero, ease: ease.outSoft }}
         className="mx-auto max-w-3xl text-center"
       >
-        <Layers className="mx-auto size-9 text-indigo-300" />
-        <h2 className="mt-5 text-balance text-4xl font-bold tracking-tight text-white sm:text-5xl">
-          Stop grading by hand.
+        <span className="glass mx-auto flex size-14 items-center justify-center rounded-2xl">
+          <MaterialIcon name="layers" className="size-7 text-indigo-300" />
+        </span>
+        <h2 className="text-display-sm mx-auto mt-6 text-balance text-4xl font-semibold text-white sm:text-[3.25rem]">
+          Stop grading <span className="font-serif-accent text-[1.1em] text-cyan-200">by hand</span>.
         </h2>
-        <p className="mx-auto mt-4 max-w-xl text-balance text-lg text-neutral-300">
+        <p className="mx-auto mt-4 max-w-xl text-balance text-lg leading-relaxed text-neutral-300">
           Create your first test free and grade your next exam in minutes — shuffled sheets,
           auto-grading and analytics included.
         </p>
@@ -48,14 +50,15 @@ export default function CTA() {
             <span className="landing-beam relative inline-flex rounded-2xl p-[1.5px]">
               <Link
                 to="/register"
-                className="relative z-10 inline-flex min-h-[52px] items-center gap-2 rounded-2xl bg-white px-8 text-base font-semibold text-neutral-950 transition-colors hover:bg-neutral-100"
+                className="group relative z-10 inline-flex min-h-[52px] items-center gap-2 rounded-2xl bg-white px-8 text-base font-semibold text-neutral-950 transition-colors hover:bg-neutral-100"
               >
-                Start free <ArrowRight className="size-4" />
+                Start free
+                <MaterialIcon name="arrow" className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </Link>
             </span>
           </MagneticButton>
         </div>
-        <p className="mt-4 text-xs text-neutral-500">No card required · Cancel anytime</p>
+        <p className="mt-4 font-mono-data text-xs text-neutral-500">No card required · Cancel anytime</p>
       </motion.div>
     </section>
   )

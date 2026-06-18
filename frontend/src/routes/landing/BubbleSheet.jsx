@@ -78,15 +78,15 @@ export default function BubbleSheet({
           <rect key={i} x={x} y={y} width="8" height="8" rx="1.5" fill={DARK.fiducial} />
         ))}
 
-        {/* QR block (stylized) top-right */}
+        {/* QR block (stylized) top-right — 5×5 module grid for clarity */}
         <g>
-          <rect x="150" y="12" width="32" height="32" rx="2" fill={DARK.ink} opacity="0.10" />
-          {Array.from({ length: 16 }).map((_, i) => {
-            const r = Math.floor(i / 4)
-            const c = i % 4
+          <rect x="146" y="10" width="36" height="36" rx="2.5" fill={DARK.ink} opacity="0.10" />
+          {Array.from({ length: 25 }).map((_, i) => {
+            const r = Math.floor(i / 5)
+            const c = i % 5
             const on = (r * 7 + c * 5 + (r === c ? 3 : 0) + seed) % 3 === 0
             return on ? (
-              <rect key={i} x={153 + c * 7} y={15 + r * 7} width="5" height="5" fill={DARK.ink} />
+              <rect key={i} x={149 + c * 6.4} y={13 + r * 6.4} width="5" height="5" rx="0.6" fill={DARK.ink} />
             ) : null
           })}
         </g>
@@ -140,9 +140,9 @@ export default function BubbleSheet({
                 const isMarked = opt === marked
                 return (
                   <g key={opt}>
-                    <circle cx={cx} cy={y} r="5.2" fill="none"
-                      stroke={DARK.bubble} strokeWidth="1" />
-                    {isMarked && <circle cx={cx} cy={y} r="4.4" fill={tint} />}
+                    <circle cx={cx} cy={y} r="5.6" fill="none"
+                      stroke={DARK.bubble} strokeWidth="1.1" />
+                    {isMarked && <circle cx={cx} cy={y} r="4.7" fill={tint} />}
                   </g>
                 )
               })}

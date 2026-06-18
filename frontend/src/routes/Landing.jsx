@@ -1,7 +1,19 @@
 import { useEffect } from "react"
 import { MotionConfig } from "framer-motion"
+
+// Self-hosted landing fonts — these ship in the lazy landing chunk only and are
+// re-pointed to `.landing-cinematic` in index.css, so the app's global font is
+// untouched. Geist Variable (sans) is already loaded app-wide; here we add the
+// serif accent (Instrument Serif italic) and the mono data face (Geist Mono).
+import "@fontsource/instrument-serif/400-italic.css"
+import "@fontsource/geist-mono/400.css"
+import "@fontsource/geist-mono/500.css"
+import "@fontsource/geist-mono/600.css"
+
 import { spring } from "./landing/motion/tokens"
 import LandingNav, { ScrollRail } from "./landing/LandingNav"
+import SmoothScroll from "./landing/SmoothScroll"
+import Atmosphere from "./landing/Atmosphere"
 import Hero from "./landing/Hero"
 import Centerpiece from "./landing/Centerpiece"
 import Bento from "./landing/Bento"
@@ -10,7 +22,7 @@ import CTA from "./landing/CTA"
 import Footer from "./landing/Footer"
 
 /**
- * OMRFlow cinematic landing — a SELF-CONTAINED DARK canvas.
+ * DoxaEd OMR cinematic landing — a SELF-CONTAINED DARK canvas.
  *
  * This route owns its dark look in a contained `.landing-cinematic` wrapper with
  * EXPLICIT colors (near-black bg + light text + brand indigo/teal glows). It does
@@ -39,7 +51,9 @@ export default function Landing() {
           creating a scroll container, so the pinned Centerpiece's position:sticky
           still sticks to the viewport. overflow-x-hidden would force overflow-y to
           'auto', establishing a scroll container and breaking the scroll-jack. */}
-      <div className="landing-cinematic relative min-h-screen overflow-x-clip bg-[#05060a] text-white antialiased">
+      <div id="top" className="landing-cinematic relative min-h-screen overflow-x-clip bg-[#05060a] text-white antialiased">
+        <SmoothScroll />
+        <Atmosphere />
         <ScrollRail />
         <LandingNav />
         <Hero />
