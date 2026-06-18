@@ -223,6 +223,107 @@ def _draw_roll_grid(c: Canvas, roll_grid: dict, sheet: dict, page_h_px: float) -
                 c.circle(cx_pt, cy_pt, r_pt, fill=0, stroke=1)
 
 
+def _draw_section_headers(c: Canvas, descriptor: dict, page_no: int,
+                          page_h_px: float) -> None:
+    """
+    Draw a compact section legend in the existing top-header whitespace.
+
+    This function is gated on descriptor.get("sections") — when the key is
+    absent (standard/legacy sheets) it is a no-op and the output is
+    byte-identical to the pre-sections generator.
+
+    Implementation note (C2 invariant):
+        Section labels are drawn ONLY in existing whitespace — the legend
+        text lives in the header area on page 1 (right column) and as a
+        small inline marker in the question-number gutter on subsequent
+        pages.  _draw_answer_bubbles is never touched; no cx/cy coordinates
+        change.
+
+    Legend format on page 1 (below Sheet ID line, in the right column):
+        "Sections: A — Physics (Q1–35, all)  ·  B — CSAT (attempt any 10 of 15)"
+    On pages > 0: omit the legend (no header area); section start markers are
+    drawn as small bold labels in the gutter ("§A", "§B") next to the first
+    question number of that section on that page.
+    """
+    sections = descriptor.get("sections")
+    if not sections:
+        return
+
+    from omr.geometry import MARGIN, FID
+
+    # ----- Page 1: draw a compact legend in header whitespace -----
+    if page_no == 0:
+        # Use the right-column area in the header (below "Sheet ID:" line,
+        # right of the roll grid).  Right half starts at W//2 from left.
+        from omr.geometry import W
+        right_col_left_px = W // 2
+        right_col_left_pt = px_len_to_pt(right_col_left_px)
+
+        # Vertical start: just below the fiducial bottom edge + quiet zone
+        # (same anchor as _draw_header uses for its first line).
+        fid_clear_px = MARGIN + FID + 12   # = 76 px from top
+        y_top = px_to_pt(0, fid_clear_px, page_h_px)[1]
+
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(right_col_left_pt, y_top, "Sections:")
+        y_top -= 10
+
+        c.setFont("Helvetica", 6)
+        for sec in sorted(sections, key=lambda s: s.get("order_index", 0)):
+            lo, hi = sec["q_pos_range"][0], sec["q_pos_range"][1]
+            policy_info = sec.get("policy", {})
+            if isinstance(policy_info, dict):
+                ptype = policy_info.get("type", "all")
+                k = policy_info.get("k")
+            else:
+                ptype = str(policy_info)
+                k = None
+
+            if ptype == "choose_k" and k:
+                policy_str = f"attempt any {k} of {hi - lo + 1}"
+            else:
+                policy_str = "all"
+
+            # Print as 1-based question numbers for human readability
+            label_text = (
+                f"{sec['key']} — {sec['label']}  "
+                f"(Q{lo + 1}–{hi + 1}, {policy_str})"
+            )
+            # Truncate to fit the right half width
+            max_chars = 55
+            if len(label_text) > max_chars:
+                label_text = label_text[: max_chars - 1] + "…"
+            c.drawString(right_col_left_pt, y_top, label_text)
+            y_top -= 9
+
+    # ----- All pages: draw small gutter markers at section start rows -----
+    # Filter sections whose first q_pos falls on this page.
+    # Build lookup: first q_pos of each section on this page.
+    answer_bubbles = descriptor.get("answer_bubbles", [])
+    q_pos_to_bubble = {b["q_pos"]: b for b in answer_bubbles if b["page"] == page_no}
+
+    for sec in sections:
+        lo = sec["q_pos_range"][0]
+        if lo not in q_pos_to_bubble:
+            continue   # section doesn't start on this page
+        bubble = q_pos_to_bubble[lo]
+        if not bubble["options"]:
+            continue
+
+        first_opt = bubble["options"][0]
+        # Draw a small bold marker in the gutter, just to the left of the Q-label
+        from omr.geometry import OPTION_PITCH
+        label_offset_pt = px_len_to_pt(OPTION_PITCH)
+        gutter_x_pt, cy_pt = px_to_pt(first_opt["cx"], first_opt["cy"], page_h_px)
+        gutter_x_pt -= label_offset_pt * 1.5  # further left of the Q-number
+
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont("Helvetica-Bold", 5)
+        marker = f"§{sec['key']}"  # e.g. "§A"
+        c.drawCentredString(gutter_x_pt, cy_pt - 2, marker)
+
+
 def _draw_answer_bubbles(c: Canvas, answer_bubbles: list, page_no: int,
                          page_h_px: float) -> None:
     """
@@ -325,6 +426,9 @@ def render_sheet_pdf(sheet: dict, descriptor: dict) -> bytes:
 
         # --- Answer bubbles for this page ---
         _draw_answer_bubbles(c, answer_bubbles, page_no, page_h_px)
+
+        # --- Section headers (gated; no-op for legacy sheets) ---
+        _draw_section_headers(c, descriptor, page_no, page_h_px)
 
         c.showPage()
 
