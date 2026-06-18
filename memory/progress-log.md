@@ -117,6 +117,24 @@
   wrapper `overflow-x-hidden`→`overflow-x-clip` (hidden forced overflow-y:auto → scroll container → broke
   position:sticky → blank centerpiece). Screenshot-verified all acts at scroll depths; E2E 16/16+17 (hero h1
   keeps "Grade a stack of bubble sheets"). Iterating on refinement next.
+- 2026-06-19 — **SUPABASE-GRADE APP OVERHAUL + DoxaEd OMR rebrand COMPLETE → `main`**. Owner wanted the
+  logged-in app to feel like Supabase (multi-level sidebar) + all pages premium + login/signup/forgot/reset
+  + Google sign-in + Terms/Privacy + rebrand. Ran a 6-agent research workflow → build-ready spec
+  (`appdesign-spec-tmp.md`, gitignored scratch at repo root). Executed in phases (each E2E-verified+merged):
+  **P1** (1c74efe) flat oklch tokens light+dark + AppShell v2 (icon rail + route-driven contextual secondary
+  panel + TopBar breadcrumb/⌘K/OrgSwitcher/AccountMenu/ThemeToggle + test/org-scoped panels) + cmdk command
+  palette + Card/Avatar/DataTable/skeletons + dark mode (next-themes); fixed 2 dead nav links. **P2a/P2b**
+  (0f9e739, 7c9421c) migrated ALL pages to PageShell/PageHeader/DataTable/Card/status-tokens; horizontal
+  TestProgressRails removed (test-scoped panel replaces); Profile→full Settings layout. **P3** (e10d8b6)
+  branded split AuthLayout (Login/Register/Forgot/Reset) + **env-driven Google Sign-In** (GIS frontend +
+  POST /auth/google/ verifying ID token, 503 when unset; needs `VITE_GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_ID`
+  = the Google Cloud OAuth Web Client ID; secret NOT needed) + **Terms (/terms) + Privacy (/privacy)** pages
+  (template, needs legal review). **P4 rebrand** (bcd8fa9) OMRFlow→DoxaEd OMR all user-facing (nav/onboarding/
+  emails/report-card+question-paper PDFs/from-email); kept internal `omrflow` db + `@omrflow.test` fixtures.
+  **Polish** edge pages (onboarding/verify/accept). Parallel-agent tangle happened (worktree isolation flag
+  DIDN'T take — both ran on shared tree) but self-resolved into disjoint branches; LESSON: run agents
+  SEQUENTIALLY. 924 backend tests; E2E Chromium/Chrome/Edge 16/16 + modeB 17/17; build/lint clean; no app
+  gradients (landing-only). Screenshot-verified shell+pages+auth light+dark = genuinely premium.
 - 2026-06-18 — Multi-mode OMR Phase 2 (branch `feat/omr-modes`): analytical profiles + report cards
   + PUBLIC result portal. 2A psychometrics engine (difficulty/discrimination/point-biserial/KR-20/
   distractors/percentile, golden-number tested, min-cohort+zero-variance guards, Celery-populated).
