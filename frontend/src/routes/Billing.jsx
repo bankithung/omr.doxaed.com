@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
 import { listPlans, getPlan, subscribe } from "@/api/billing"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
 import { ErrorState } from "@/components/ui/error-state"
+import {
+  Card,
+  CardHeader,
+  CardContent,
+} from "@/components/ui/card"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
+import { Skeleton } from "@/components/ui/skeleton"
 import { CheckIcon, ZapIcon, BuildingIcon, UsersIcon, StarIcon } from "lucide-react"
 
 // Derive a human-readable price label from price_inr string (e.g. "0.00" → "Free", "500.00" → "₹500 / month").
@@ -42,13 +51,19 @@ const PLAN_ICONS = {
 // Plans highlighted as "Popular".
 const HIGHLIGHT_CODES = new Set(["team"])
 
+// Map subscription status → a Badge status variant.
+const STATUS_VARIANT = {
+  active: "success",
+  trialing: "info",
+}
+
 function UsageBar({ label, used, limit }) {
   if (limit === null || limit === undefined) {
     return (
       <div className="space-y-1">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{label}</span>
-          <span className="font-medium">{used ?? 0} / Unlimited</span>
+          <span className="tabular font-medium">{used ?? 0} / Unlimited</span>
         </div>
       </div>
     )
@@ -64,12 +79,12 @@ function UsageBar({ label, used, limit }) {
         <span className="text-muted-foreground">{label}</span>
         <span
           className={[
-            "font-medium",
+            "tabular font-medium",
             isDanger
               ? "text-destructive"
               : isWarning
-              ? "text-amber-600 dark:text-amber-400"
-              : "text-foreground",
+                ? "text-[var(--color-warning)]"
+                : "text-foreground",
           ].join(" ")}
         >
           {used ?? 0} / {limit}
@@ -82,8 +97,8 @@ function UsageBar({ label, used, limit }) {
           isDanger
             ? "[&_[data-slot=progress-indicator]]:bg-destructive"
             : isWarning
-            ? "[&_[data-slot=progress-indicator]]:bg-amber-500"
-            : "",
+              ? "[&_[data-slot=progress-indicator]]:bg-[var(--color-warning)]"
+              : "",
         ].join(" ")}
       />
     </div>
@@ -134,11 +149,9 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
   return (
     <div
       className={[
-        "relative flex flex-col rounded-2xl border p-6 transition-shadow",
-        isHighlight
-          ? "border-primary shadow-md shadow-primary/10 ring-1 ring-primary"
-          : "border-border",
-        isCurrent ? "bg-muted/40" : "bg-background",
+        "relative flex flex-col rounded-lg border p-6",
+        isHighlight ? "border-primary" : "border-border",
+        isCurrent ? "bg-surface-2" : "bg-card",
       ].join(" ")}
     >
       {isHighlight && (
@@ -150,7 +163,7 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
       <div className="mb-4 flex items-center gap-2.5">
         <div
           className={[
-            "flex size-9 items-center justify-center rounded-lg",
+            "flex size-9 items-center justify-center rounded-md",
             isHighlight ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
           ].join(" ")}
         >
@@ -162,7 +175,7 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
       </div>
 
       <div className="mb-5">
-        <span className="text-2xl font-bold">{priceLabel}</span>
+        <span className="tabular text-2xl font-bold">{priceLabel}</span>
       </div>
 
       <ul className="mb-6 space-y-2 text-sm">
@@ -176,7 +189,7 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
 
       <div className="mt-auto">
         {isCurrent ? (
-          <div className="flex items-center justify-center rounded-lg border border-border bg-muted py-2 text-sm font-medium text-muted-foreground">
+          <div className="flex items-center justify-center rounded-md border border-border bg-muted py-2 text-sm font-medium text-muted-foreground">
             Current plan
           </div>
         ) : (
@@ -223,36 +236,20 @@ export default function Billing() {
   const usage = planData?.usage ?? {}
   const limits = planData?.limits ?? {}
 
-  const statusBadgeClass =
-    planData?.status === "active"
-      ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
-      : planData?.status === "trialing"
-      ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
-      : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      {/* Header */}
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
-            <Link to={`/organizations/${orgId}/members`} className="hover:text-foreground">
-              {org?.name ?? "Organization"}
-            </Link>
-            <span>/</span>
-            <span>Billing</span>
-          </div>
-          <h1 className="text-2xl font-bold">Billing &amp; Subscription</h1>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Billing & subscription"
+        description={`Plan and usage for ${org?.name ?? "this organization"}`}
+      />
 
       {loading ? (
-        <div className="space-y-4">
-          <div className="h-32 animate-pulse rounded-2xl bg-muted" />
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="h-64 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-64 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-64 animate-pulse rounded-2xl bg-muted" />
+        <div className="space-y-8">
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-64 rounded-lg" />
+            ))}
           </div>
         </div>
       ) : error ? (
@@ -264,41 +261,37 @@ export default function Billing() {
       ) : (
         <>
           {/* Current plan + status */}
-          <div className="mb-8 rounded-2xl border border-border bg-background p-6">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <Card>
+            <CardHeader className="flex-wrap gap-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Current Plan
+                  Current plan
                 </p>
-                <p className="mt-0.5 text-xl font-bold">{planData?.plan?.name ?? "Free"}</p>
+                <p className="mt-0.5 text-xl font-bold">
+                  {planData?.plan?.name ?? "Free"}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 {planData?.status && (
-                  <span className={["rounded-full px-2.5 py-0.5 text-xs font-medium", statusBadgeClass].join(" ")}>
-                    {planData.status.charAt(0).toUpperCase() + planData.status.slice(1)}
-                  </span>
+                  <Badge variant={STATUS_VARIANT[planData.status] ?? "warning"}>
+                    {planData.status.charAt(0).toUpperCase() +
+                      planData.status.slice(1)}
+                  </Badge>
                 )}
                 {planData?.current_period_end && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="tabular text-xs text-muted-foreground">
                     Renews{" "}
-                    {new Date(planData.current_period_end).toLocaleDateString(undefined, {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {new Date(planData.current_period_end).toLocaleDateString(
+                      undefined,
+                      { year: "numeric", month: "short", day: "numeric" }
+                    )}
                   </p>
                 )}
               </div>
-            </div>
-
-            {/* Usage bars */}
-            <div className="space-y-4">
+            </CardHeader>
+            <CardContent className="space-y-4">
               <h2 className="text-sm font-semibold">Usage this period</h2>
-              <UsageBar
-                label="Seats"
-                used={usage.seats}
-                limit={limits.seat_limit}
-              />
+              <UsageBar label="Seats" used={usage.seats} limit={limits.seat_limit} />
               <UsageBar
                 label="Generations today"
                 used={usage.generations_today}
@@ -309,12 +302,12 @@ export default function Billing() {
                 used={usage.scans_this_month}
                 limit={limits.monthly_scan_limit}
               />
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Tier cards */}
-          <div>
-            <h2 className="mb-4 text-lg font-semibold">Plans</h2>
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Plans</h2>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {plans.map((plan) => (
                 <PlanCard
@@ -326,15 +319,15 @@ export default function Billing() {
                 />
               ))}
             </div>
-          </div>
+          </section>
 
           {/* Note */}
-          <p className="mt-6 text-xs text-muted-foreground">
-            Payments are processed securely via Razorpay. Subscriptions renew automatically.
-            Contact support to cancel.
+          <p className="text-xs text-muted-foreground">
+            Payments are processed securely via Razorpay. Subscriptions renew
+            automatically. Contact support to cancel.
           </p>
         </>
       )}
-    </div>
+    </PageShell>
   )
 }

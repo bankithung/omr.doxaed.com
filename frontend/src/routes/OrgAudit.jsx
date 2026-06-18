@@ -1,20 +1,12 @@
 import { useEffect, useState, useCallback } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { ShieldIcon } from "lucide-react"
 import { useOrg } from "@/org/OrgContext"
 import { getAudit } from "@/api/orgs"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { TableSkeleton } from "@/components/ui/list-skeletons"
+import { DataTable } from "@/components/ui/DataTable"
+import { PageShell } from "@/components/ui/page-shell"
+import { PageHeader } from "@/components/ui/page-header"
 
 function formatDate(isoString) {
   if (!isoString) return "—"
@@ -26,6 +18,52 @@ function formatDate(isoString) {
     minute: "2-digit",
   })
 }
+
+const COLUMNS = [
+  {
+    key: "actor",
+    header: "Actor",
+    cell: (entry) =>
+      entry.actor_email ?? (
+        <span className="italic text-muted-foreground">system</span>
+      ),
+  },
+  {
+    key: "action",
+    header: "Action",
+    cell: (entry) => (
+      <span className="font-mono text-xs">{entry.action}</span>
+    ),
+  },
+  {
+    key: "target",
+    header: "Target",
+    cell: (entry) => (
+      <span className="text-muted-foreground">
+        {entry.target_type ? (
+          <>
+            {entry.target_type}
+            {entry.target_id != null && (
+              <span className="font-mono text-xs"> #{entry.target_id}</span>
+            )}
+          </>
+        ) : (
+          "—"
+        )}
+      </span>
+    ),
+  },
+  {
+    key: "when",
+    header: "When",
+    cell: (entry) => (
+      <span className="tabular text-muted-foreground">
+        {formatDate(entry.created_at)}
+      </span>
+    ),
+    className: "whitespace-nowrap",
+  },
+]
 
 export default function OrgAudit() {
   const { id: orgId } = useParams()
@@ -53,69 +91,37 @@ export default function OrgAudit() {
   }, [fetchAudit])
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
-            <Link
-              to={`/organizations/${orgId}/members`}
-              className="hover:text-foreground hover:underline"
-            >
-              {org?.name ?? "Organization"}
-            </Link>
-            <span>/</span>
-            <span>Audit log</span>
-          </div>
-          <h1 className="text-2xl font-bold">Audit Log</h1>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Audit log"
+        description={`Events for ${org?.name ?? "this organization"}`}
+      />
 
-      {loading ? (
-        <TableSkeleton rows={6} />
-      ) : error ? (
-        <ErrorState
-          title="Couldn't load audit log"
-          description="Something went wrong while loading the audit log."
-          onRetry={fetchAudit}
-        />
-      ) : entries.length === 0 ? (
-        <EmptyState
-          icon={ShieldIcon}
-          title="No audit entries"
-          description="Audit events will appear here as members and admins take actions."
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Actor</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Target</TableHead>
-                <TableHead>When</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="text-sm">
-                    {entry.actor_email ?? <span className="italic text-muted-foreground">system</span>}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">{entry.action}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {entry.target_type
-                      ? `${entry.target_type}${entry.target_id != null ? ` #${entry.target_id}` : ""}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(entry.created_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      {!loading && !error && entries.length > 0 && (
+        <div className="-mb-4">
+          <span className="text-sm text-muted-foreground">
+            <span className="tabular font-medium text-foreground">
+              {entries.length}
+            </span>{" "}
+            {entries.length === 1 ? "entry" : "entries"}
+          </span>
         </div>
       )}
-    </div>
+
+      <DataTable
+        columns={COLUMNS}
+        rows={entries}
+        getRowKey={(entry) => entry.id}
+        loading={loading}
+        error={error}
+        onRetry={fetchAudit}
+        empty={{
+          icon: ShieldIcon,
+          title: "No audit entries",
+          description:
+            "Audit events will appear here as members and admins take actions.",
+        }}
+      />
+    </PageShell>
   )
 }

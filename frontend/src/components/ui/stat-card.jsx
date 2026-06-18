@@ -22,12 +22,12 @@ function StatCard({ label, value, sub, loading, className, ...props }) {
     <div
       data-slot="stat-card"
       className={cn(
-        "flex min-w-0 flex-col gap-1 rounded-xl border bg-card p-4 shadow-sm",
+        "flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-card p-4",
         className
       )}
       {...props}
     >
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground truncate">
+      <span className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
 
@@ -36,8 +36,8 @@ function StatCard({ label, value, sub, loading, className, ...props }) {
       ) : (
         <span
           className={cn(
-            "font-bold",
-            isNumber ? "text-2xl tabular-nums" : "truncate text-sm"
+            "font-bold text-foreground",
+            isNumber ? "tabular text-2xl" : "truncate text-sm"
           )}
           title={isNumber ? undefined : String(value)}
         >
