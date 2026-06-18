@@ -70,7 +70,7 @@ async function shot(page, browser, label) {
 const log = (msg) => console.log(`  ${msg}`)
 
 // ── the journey for one browser ──────────────────────────────────────────────
-async function runJourney(browserName, launchOpts) {
+async function runJourney(browserName, launchOpts, mode = "standard") {
   const result = { browser: browserName, steps: [], ok: false, error: null }
   const email = `omrflow.e2e.${browserName}.${RUN_ID}@example.com`
   const password = "E2ePass!2026"
@@ -146,6 +146,9 @@ async function runJourney(browserName, launchOpts) {
       // Step 1 — details
       await page.getByPlaceholder("e.g. Mid-term Exam").fill(`E2E Test ${RUN_ID}`)
       await page.getByPlaceholder("e.g. Mathematics").fill("Mathematics")
+      if (mode === "roster_prebubbled") {
+        await page.locator("#mode-roster").click()
+      }
       await page.getByRole("button", { name: "Next: Add questions" }).click()
       // Step 2 — questions
       for (let i = 0; i < N_QUESTIONS; i++) {
@@ -287,6 +290,26 @@ async function runJourney(browserName, launchOpts) {
       await shot(page, browserName, "11-exported")
     })
 
+    // 12. Mode B only — tamper detection: upload a scan whose roll is altered to a
+    // DIFFERENT valid roll; the QR still identifies the sheet (so it grades) but
+    // the pre-bubbled-roll cross-check must flag roll_mismatch in the review queue.
+    if (mode === "roster_prebubbled") {
+      await step("roll-tamper-detection", async () => {
+        const outDir = path.join(SCANS, `${browserName}-tamper-${RUN_ID}`)
+        const t = py("make-scan-tampered", String(testId), outDir)
+        if (!t.file) throw new Error("tampered scan not produced")
+        await page.goto(`${FRONTEND}/tests/${testId}/scan`)
+        await page.locator('input[type="file"]').setInputFiles([t.file])
+        await page.getByRole("button", { name: /Upload & scan/ }).click()
+        await page.getByText("processed successfully", { exact: false }).first().waitFor({ timeout: 90000 })
+        await page.goto(`${FRONTEND}/tests/${testId}/review`)
+        await page.waitForLoadState("networkidle")
+        await page.getByText("Roll number mismatch", { exact: false }).first().waitFor({ timeout: 20000 })
+        await shot(page, browserName, "12-roll-mismatch")
+        log(`tamper: printed ${t.real_roll} vs scanned ${t.tampered_roll} → roll_mismatch flagged`)
+      })
+    }
+
     result.ok = true
     await context.close()
   } catch (err) {
@@ -300,14 +323,27 @@ async function runJourney(browserName, launchOpts) {
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
   const only = process.argv[2]
-  const matrix = only ? BROWSERS.filter((b) => b.name === only) : BROWSERS
+  // Standard journey across all browsers + one Mode-B journey (pre-bubbled roll
+  // + tamper detection) on chromium. `node run.mjs <name>` restricts to one.
+  let runs
+  if (only === "modeB") {
+    runs = [{ label: "chromium-modeB", opts: {}, mode: "roster_prebubbled" }]
+  } else if (only) {
+    const b = BROWSERS.find((x) => x.name === only) || BROWSERS[0]
+    runs = [{ label: b.name, opts: b.opts, mode: "standard" }]
+  } else {
+    runs = [
+      ...BROWSERS.map((b) => ({ label: b.name, opts: b.opts, mode: "standard" })),
+      { label: "chromium-modeB", opts: {}, mode: "roster_prebubbled" },
+    ]
+  }
   const results = []
-  for (const b of matrix) {
-    console.log(`\n=== ${b.name} ===`)
-    const r = await runJourney(b.name, b.opts)
+  for (const b of runs) {
+    console.log(`\n=== ${b.label} ===`)
+    const r = await runJourney(b.label, b.opts, b.mode)
     results.push(r)
-    if (r.ok) console.log(`  ✅ ${b.name}: full loop passed (${r.steps.length} steps)`)
-    else console.log(`  ❌ ${b.name}: failed at "${r.steps[r.steps.length - 1] ?? "launch"}" → ${r.error}`)
+    if (r.ok) console.log(`  ✅ ${b.label}: full loop passed (${r.steps.length} steps)`)
+    else console.log(`  ❌ ${b.label}: failed at "${r.steps[r.steps.length - 1] ?? "launch"}" → ${r.error}`)
   }
 
   console.log("\n================ SUMMARY ================")
