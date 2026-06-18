@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
+import { FileTextIcon } from "lucide-react"
 import { listClasses, createClass } from "@/api/assessments"
 import { listFolders } from "@/api/folders"
 import { Button } from "@/components/ui/button"
@@ -22,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { ListSkeleton } from "@/components/ui/list-skeletons"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
 
@@ -67,6 +70,7 @@ const COLUMNS = [
 export default function Classes() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -75,10 +79,13 @@ export default function Classes() {
   const [submitting, setSubmitting] = useState(false)
 
   async function fetchClasses() {
+    setLoading(true)
+    setError(false)
     try {
       const data = await listClasses()
       setClasses(data.results ?? data)
     } catch {
+      setError(true)
       toast.error("Failed to load classes")
     } finally {
       setLoading(false)
@@ -132,9 +139,16 @@ export default function Classes() {
       />
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <ListSkeleton rows={4} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load classes"
+          description="Something went wrong while loading your classes."
+          onRetry={fetchClasses}
+        />
       ) : classes.length === 0 ? (
         <EmptyState
+          icon={FileTextIcon}
           title="No classes yet"
           description="Create your first class to get started."
           action={<Button onClick={openDialog}>Create class</Button>}

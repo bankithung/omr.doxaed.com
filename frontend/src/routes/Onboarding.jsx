@@ -142,7 +142,7 @@ export default function Onboarding() {
     try {
       const org = await createOrg(orgName.trim())
       setOrgId(org.id)
-      await refreshOrgs()
+      await refreshOrgs({ force: true })
       setActiveOrg(String(org.id))
       next()
     } catch (err) {

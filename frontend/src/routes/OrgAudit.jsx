@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
+import { ShieldIcon } from "lucide-react"
 import { useOrg } from "@/org/OrgContext"
 import { getAudit } from "@/api/orgs"
 import {
@@ -12,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { TableSkeleton } from "@/components/ui/list-skeletons"
 
 function formatDate(isoString) {
   if (!isoString) return "—"
@@ -29,16 +32,25 @@ export default function OrgAudit() {
   const { orgs } = useOrg()
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const org = orgs.find((o) => String(o.id) === String(orgId))
 
-  useEffect(() => {
+  const fetchAudit = useCallback(() => {
     setLoading(true)
+    setError(false)
     getAudit(orgId)
       .then((data) => setEntries(data.results ?? data))
-      .catch(() => toast.error("Failed to load audit log"))
+      .catch(() => {
+        setError(true)
+        toast.error("Failed to load audit log")
+      })
       .finally(() => setLoading(false))
   }, [orgId])
+
+  useEffect(() => {
+    fetchAudit()
+  }, [fetchAudit])
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -59,9 +71,16 @@ export default function OrgAudit() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading audit log…</p>
+        <TableSkeleton rows={6} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load audit log"
+          description="Something went wrong while loading the audit log."
+          onRetry={fetchAudit}
+        />
       ) : entries.length === 0 ? (
         <EmptyState
+          icon={ShieldIcon}
           title="No audit entries"
           description="Audit events will appear here as members and admins take actions."
         />

@@ -26,6 +26,10 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { Skeleton } from "@/components/ui/skeleton"
+import { StatGridSkeleton } from "@/components/ui/list-skeletons"
+import { BarChart2 } from "lucide-react"
 
 // ────────────────────────────────────────────────
 // Helpers
@@ -643,9 +647,11 @@ export default function Analytics() {
   const { testId } = useParams()
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const fetchSummary = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await getTestAnalytics(testId)
       setSummary(data)
@@ -654,6 +660,7 @@ export default function Analytics() {
         err.response?.data?.detail ||
         err.response?.data?.message ||
         "Failed to load analytics"
+      setError(msg)
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -667,7 +674,25 @@ export default function Analytics() {
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-8">
-        <p className="text-sm text-muted-foreground">Loading analytics…</p>
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <StatGridSkeleton count={5} className="mb-8 lg:grid-cols-5" />
+        <Skeleton className="mb-6 h-48 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <ErrorState
+          title="Couldn't load analytics"
+          description={error}
+          onRetry={fetchSummary}
+        />
       </div>
     )
   }
@@ -676,6 +701,7 @@ export default function Analytics() {
     return (
       <div className="mx-auto max-w-5xl px-4 py-8">
         <EmptyState
+          icon={BarChart2}
           title="No analytics data"
           description="Analytics will appear once students have been graded."
           action={

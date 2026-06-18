@@ -1,9 +1,13 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
+import { CheckCircleIcon } from "lucide-react"
 import { listReview, resolveReview } from "@/api/scan"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { ListSkeleton } from "@/components/ui/list-skeletons"
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"]
 
@@ -115,13 +119,16 @@ export default function ReviewQueue() {
   const { testId } = useParams()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
+    setError(false)
     try {
       const data = await listReview(testId)
       setItems(data.results ?? data)
     } catch {
+      setError(true)
       toast.error("Failed to load review queue")
     } finally {
       setLoading(false)
@@ -154,14 +161,24 @@ export default function ReviewQueue() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading review items…</p>
+        <ListSkeleton rows={3} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load review queue"
+          description="Something went wrong while loading items pending review."
+          onRetry={fetchItems}
+        />
       ) : items.length === 0 ? (
-        <div className="rounded-xl border p-8 text-center">
-          <p className="text-muted-foreground">All items resolved — no pending reviews.</p>
-          <Button asChild size="sm" className="mt-4" variant="outline">
-            <Link to={`/tests/${testId}/results`}>View results</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={CheckCircleIcon}
+          title="All caught up"
+          description="All items resolved — no pending reviews."
+          action={
+            <Button asChild variant="outline">
+              <Link to={`/tests/${testId}/results`}>View results</Link>
+            </Button>
+          }
+        />
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">

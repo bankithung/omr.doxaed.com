@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -365,6 +366,7 @@ export default function FolderDetail() {
   const [folder, setFolder] = useState(null)
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -378,6 +380,8 @@ export default function FolderDetail() {
   const canEdit = folder?.permission === "edit"
 
   const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(false)
     try {
       const [f, clsData] = await Promise.all([
         getFolder(id),
@@ -386,6 +390,7 @@ export default function FolderDetail() {
       setFolder(f)
       setClasses(clsData.results ?? clsData)
     } catch {
+      setError(true)
       toast.error("Failed to load folder")
     } finally {
       setLoading(false)
@@ -454,10 +459,23 @@ export default function FolderDetail() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <ErrorState
+          title="Couldn't load this folder"
+          description="Something went wrong while loading the folder. Check your connection and try again."
+          onRetry={fetchData}
+        />
+      </div>
+    )
+  }
+
   if (!folder) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
         <EmptyState
+          icon={FolderIcon}
           title="Folder not found"
           description="This folder may have been deleted or you no longer have access."
           action={

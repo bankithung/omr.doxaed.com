@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
+import { UsersIcon } from "lucide-react"
 import { listRosters, createRoster } from "@/api/omr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +15,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { ListSkeleton } from "@/components/ui/list-skeletons"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
 
@@ -109,12 +112,16 @@ const COLUMNS = [
 export default function Rosters() {
   const [rosters, setRosters] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const fetchRosters = useCallback(async () => {
+    setLoading(true)
+    setError(false)
     try {
       const data = await listRosters()
       setRosters(data.results ?? data)
     } catch {
+      setError(true)
       toast.error("Failed to load rosters")
     } finally {
       setLoading(false)
@@ -125,14 +132,6 @@ export default function Rosters() {
     fetchRosters()
   }, [fetchRosters])
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    )
-  }
-
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <PageHeader
@@ -142,8 +141,17 @@ export default function Rosters() {
         actions={<CreateRosterDialog onCreated={fetchRosters} />}
       />
 
-      {rosters.length === 0 ? (
+      {loading ? (
+        <ListSkeleton rows={4} />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load rosters"
+          description="Something went wrong while loading your rosters."
+          onRetry={fetchRosters}
+        />
+      ) : rosters.length === 0 ? (
         <EmptyState
+          icon={UsersIcon}
           title="No rosters yet"
           description="Create a roster to manage students and generate OMR sheets."
           action={<CreateRosterDialog onCreated={fetchRosters} />}

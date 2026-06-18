@@ -7,6 +7,7 @@ import {
   ClipboardList,
   RefreshCw,
   CheckCircle,
+  FileText,
   X as XIcon,
 } from "lucide-react"
 import { getClass, listTests, retest } from "@/api/assessments"
@@ -31,6 +32,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { DetailHeaderSkeleton, ListSkeleton } from "@/components/ui/list-skeletons"
 import { DataList } from "@/components/ui/data-list"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { Badge } from "@/components/ui/badge"
@@ -426,15 +429,19 @@ export default function TestList() {
   const [classGroup, setClassGroup] = useState(null)
   const [tests, setTests] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [retestingId, setRetestingId] = useState(null)
   const [generateTest, setGenerateTest] = useState(null)
 
   const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(false)
     try {
       const [cls, testsData] = await Promise.all([getClass(id), listTests(id)])
       setClassGroup(cls)
       setTests(testsData.results ?? testsData)
     } catch {
+      setError(true)
       toast.error("Failed to load class data")
     } finally {
       setLoading(false)
@@ -504,8 +511,21 @@ export default function TestList() {
 
   if (loading) {
     return (
+      <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
+        <DetailHeaderSkeleton />
+        <ListSkeleton rows={4} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
       <div className="mx-auto max-w-4xl px-4 py-8">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <ErrorState
+          title="Couldn't load class data"
+          description="Something went wrong while loading this class and its tests."
+          onRetry={fetchData}
+        />
       </div>
     )
   }
@@ -537,6 +557,7 @@ export default function TestList() {
 
       {tests.length === 0 ? (
         <EmptyState
+          icon={FileText}
           title="No tests yet"
           description="Create the first test for this class."
           action={

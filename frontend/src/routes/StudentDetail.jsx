@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { getStudentDetail, downloadStudentReportCard } from "@/api/analytics"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { DetailHeaderSkeleton, TableSkeleton } from "@/components/ui/list-skeletons"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -110,15 +114,26 @@ export default function StudentDetail() {
   const { testId, studentId } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
-  useEffect(() => {
+  const fetchDetail = useCallback(async () => {
     setLoading(true)
-    getStudentDetail(testId, studentId)
-      .then(setData)
-      .catch(() => toast.error("Failed to load student detail"))
-      .finally(() => setLoading(false))
+    setError(false)
+    try {
+      const result = await getStudentDetail(testId, studentId)
+      setData(result)
+    } catch {
+      setError(true)
+      toast.error("Failed to load student detail")
+    } finally {
+      setLoading(false)
+    }
   }, [testId, studentId])
+
+  useEffect(() => {
+    fetchDetail()
+  }, [fetchDetail])
 
   async function handleDownloadReportCard() {
     setDownloading(true)
@@ -139,7 +154,29 @@ export default function StudentDetail() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
-        <p className="text-sm text-muted-foreground">Loading student detail…</p>
+        <DetailHeaderSkeleton className="mb-8" />
+        <Skeleton className="mb-8 h-32 w-full rounded-2xl" />
+        <Skeleton className="mb-3 h-5 w-40" />
+        <TableSkeleton rows={4} className="mb-8" />
+        <Skeleton className="mb-3 h-5 w-48" />
+        <TableSkeleton rows={5} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <ErrorState
+          title="Couldn't load student detail"
+          description="Something went wrong while loading this student's results."
+          onRetry={fetchDetail}
+        />
+        <div className="mt-4 text-center">
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/tests/${testId}/results`}>Back to results</Link>
+          </Button>
+        </div>
       </div>
     )
   }
@@ -147,10 +184,15 @@ export default function StudentDetail() {
   if (!data) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
-        <p className="text-sm text-muted-foreground">No data found.</p>
-        <Button asChild variant="outline" size="sm" className="mt-4">
-          <Link to={`/tests/${testId}/results`}>Back to results</Link>
-        </Button>
+        <EmptyState
+          title="No data found"
+          description="We couldn't find results for this student."
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/tests/${testId}/results`}>Back to results</Link>
+            </Button>
+          }
+        />
       </div>
     )
   }

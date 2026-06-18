@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { DataList } from "@/components/ui/data-list"
 import { PageHeader } from "@/components/ui/page-header"
 import { Badge } from "@/components/ui/badge"
@@ -100,6 +101,7 @@ export default function Folders() {
   const { activeOrg, orgs } = useOrg()
   const [folders, setFolders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [name, setName] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -111,10 +113,13 @@ export default function Folders() {
   const isAdmin = activeOrgData?.role === "admin"
 
   async function fetchFolders() {
+    setLoading(true)
+    setError(false)
     try {
       const data = await listFolders()
       setFolders(data.results ?? data)
     } catch {
+      setError(true)
       toast.error("Failed to load folders")
     } finally {
       setLoading(false)
@@ -171,8 +176,15 @@ export default function Folders() {
 
       {loading ? (
         <FoldersSkeleton />
+      ) : error ? (
+        <ErrorState
+          title="Couldn't load folders"
+          description="Something went wrong while loading your folders."
+          onRetry={fetchFolders}
+        />
       ) : folders.length === 0 ? (
         <EmptyState
+          icon={FolderIcon}
           title="No folders yet"
           description="Create a folder to organise your classes — and share whole folders with colleagues."
           action={<Button onClick={openDialog}>New folder</Button>}
