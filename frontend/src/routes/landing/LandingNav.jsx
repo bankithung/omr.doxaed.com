@@ -25,7 +25,7 @@ function Wordmark() {
 const NAV_LINKS = [
   { label: "Features", to: "/features" },
   { label: "Pricing", to: "/pricing" },
-  { label: "How it works", href: "/#how-it-works" },
+  { label: "How it works", to: "/how-it-works" },
   { label: "Built for", href: "/#use-cases" },
   { label: "About", to: "/about" },
 ]
