@@ -43,6 +43,7 @@ import billing.limits as billing_limits
 from assessments.models import Test
 from common.scope import (
     can_edit_class,
+    can_edit_test,
     get_active_org,
     parent_in_scope,
     scope_filter,
@@ -131,9 +132,10 @@ class GenerateView(APIView):
             )
 
         # ---- folder visibility / EDIT gate (Phase 5B) --------------------
-        # Generating sheets is a WRITE on the test's class: require EDIT rights
-        # (folder creator / EDIT share / active-org admin). VIEW-only → 403.
-        if not can_edit_class(request, test.class_group):
+        # Generating sheets is a WRITE on the test: require EDIT rights
+        # (folder creator / EDIT share / grant / active-org admin / class-less
+        # owner). VIEW-only → 403.
+        if not can_edit_test(request, test):
             return Response(
                 {"detail": "You have view-only access to this folder; editing is not permitted."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -557,8 +559,8 @@ class ScanUploadView(APIView):
             )
 
         # ---- folder visibility / EDIT gate (Phase 5B) --------------------
-        # Uploading scans is a WRITE on the test's class: require EDIT rights.
-        if not can_edit_class(request, test.class_group):
+        # Uploading scans is a WRITE on the test: require EDIT rights.
+        if not can_edit_test(request, test):
             return Response(
                 {"detail": "You have view-only access to this folder; editing is not permitted."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -997,7 +999,7 @@ class OmrSheetRegradeView(APIView):
         except OmrSheet.DoesNotExist:
             raise Http404
 
-        if not can_edit_class(request, omr_sheet.test.class_group):
+        if not can_edit_test(request, omr_sheet.test):
             return Response(
                 {"detail": "You have view-only access to this folder; editing is not permitted."},
                 status=status.HTTP_403_FORBIDDEN,

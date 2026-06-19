@@ -225,3 +225,22 @@ def can_edit_class(request, class_group):
         Q(permission=FolderShare.PERM_EDIT),
         Q(shared_with=user) | Q(share_scope=FolderShare.SHARE_ORG),
     ).exists()
+
+
+def can_edit_test(request, test):
+    """EDIT-rights for a Test, including CLASS-LESS exams.
+
+    A test WITH a class defers to ``can_edit_class(class)`` (folder shares /
+    grants / admin). A CLASS-LESS exam is owner-scoped: the solo owner, an
+    active-org admin, or the test's own creator may edit it. Use this instead of
+    ``can_edit_class(request, test.class_group)`` wherever a Test (or its child
+    rows / sheets) is being created, mutated, generated, or scanned.
+    """
+    if getattr(test, "class_group_id", None) is not None:
+        return can_edit_class(request, test.class_group)
+    org = get_active_org(request)
+    if org is None:
+        return True  # solo: queryset scope already proved ownership
+    if is_active_admin(request):
+        return True
+    return test.created_by_id == request.user.id

@@ -232,8 +232,9 @@ class TestSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def validate_class_group(self, value):
+        # value is None for a class-less exam (allowed); only scope-check a class.
         request = self.context["request"]
-        if not parent_in_scope(value, request):
+        if value is not None and not parent_in_scope(value, request):
             raise serializers.ValidationError("Class not found in your account.")
         return value
 

@@ -49,7 +49,11 @@ class Test(OwnerScopedModel):
         (MODE_COMPETITIVE, "Competitive (Sections)"),
     ]
 
-    class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="tests")
+    # Nullable: an exam may be CLASS-LESS (created directly, the Supabase-style
+    # "project" hero). A class is an optional organizer.
+    class_group = models.ForeignKey(
+        ClassGroup, null=True, blank=True, on_delete=models.CASCADE, related_name="tests"
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
     title = models.CharField(max_length=255)
     subject = models.CharField(max_length=255, blank=True)

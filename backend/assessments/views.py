@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from common.scope import (
     can_edit_class,
+    can_edit_test,
     narrowed_subject_names,
     scope_filter,
     scope_kwargs,
@@ -65,32 +66,35 @@ class TestViewSet(ScopedModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        # Creating a test under a class requires EDIT rights on that class.
+        # Class-less exam → owned by its creator (no class gate). Under a class →
+        # requires EDIT rights on that class.
         cg = serializer.validated_data.get("class_group")
-        if not can_edit_class(self.request, cg):
+        if cg is not None and not can_edit_class(self.request, cg):
             raise PermissionDenied(_EDIT_DENIED)
         super().perform_create(serializer)
 
     def perform_update(self, serializer):
-        # Gate BOTH the current class AND the destination class: class_group is a
-        # writable FK, so a member with edit on the source must not re-parent a
-        # test into a class they cannot edit (or cannot see).
-        if not can_edit_class(self.request, serializer.instance.class_group):
+        # Gate the test as it stands (can_edit_test handles class-less ownership),
+        # AND the destination class when re-parenting into one — a writable
+        # class_group FK must not let someone park a test into a class they
+        # cannot edit (or cannot see).
+        instance = serializer.instance
+        if not can_edit_test(self.request, instance):
             raise PermissionDenied(_EDIT_DENIED)
-        new_cg = serializer.validated_data.get("class_group", serializer.instance.class_group)
-        if not can_edit_class(self.request, new_cg):
+        new_cg = serializer.validated_data.get("class_group", instance.class_group)
+        if new_cg is not None and not can_edit_class(self.request, new_cg):
             raise PermissionDenied(_EDIT_DENIED)
         serializer.save()
 
     def perform_destroy(self, instance):
-        if not can_edit_class(self.request, instance.class_group):
+        if not can_edit_test(self.request, instance):
             raise PermissionDenied(_EDIT_DENIED)
         instance.delete()
 
     @action(detail=True, methods=["post"])
     def retest(self, request, pk=None):
         original = self.get_object()
-        if not can_edit_class(request, original.class_group):
+        if not can_edit_test(request, original):
             raise PermissionDenied(_EDIT_DENIED)
         clone = Test.objects.create(
             **scope_kwargs(request),
@@ -168,7 +172,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
         return qs.filter(test_id=test_id) if test_id else qs
 
     def _gate_edit(self, test):
-        if not can_edit_class(self.request, test.class_group):
+        if not can_edit_test(self.request, test):
             raise PermissionDenied(_EDIT_DENIED)
 
     def perform_create(self, serializer):
@@ -203,7 +207,7 @@ class SectionViewSet(viewsets.ModelViewSet):
         return qs.filter(test_id=test_id) if test_id else qs
 
     def _gate_edit(self, test):
-        if not can_edit_class(self.request, test.class_group):
+        if not can_edit_test(self.request, test):
             raise PermissionDenied(_EDIT_DENIED)
 
     def perform_create(self, serializer):
