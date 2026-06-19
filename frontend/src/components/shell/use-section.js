@@ -40,7 +40,9 @@ export function matchOrgScope(pathname) {
  * Returns { classId, current } or null. `current` defaults to "overview".
  */
 export function matchClassScope(pathname) {
-  const m = pathname.match(/^\/classes\/(\d+)(?:\/(exams|students|subjects|access|settings))?\/?$/)
+  const m = pathname.match(
+    /^\/classes\/(\d+)(?:\/(groups|exams|students|subjects|access|settings))?\/?$/,
+  )
   if (!m) return null
   return { classId: m[1], current: m[2] || "overview" }
 }
@@ -48,6 +50,7 @@ export function matchClassScope(pathname) {
 /** Build the breadcrumb trail items for the TopBar from the URL + section. */
 const CLASS_SECTION_LABEL = {
   overview: "Overview",
+  groups: "Sub-groups",
   exams: "Exams",
   students: "Students",
   subjects: "Subjects",

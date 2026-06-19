@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { SearchIcon, FolderIcon } from "lucide-react"
 import { listClasses } from "@/api/assessments"
 import { useOrg } from "@/org/OrgContext"
+import { topKindLabel, pluralize } from "@/features/class/typePresets"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageShell } from "@/components/ui/page-shell"
@@ -36,6 +37,9 @@ function ClassCard({ cls }) {
 export default function Classes() {
   const navigate = useNavigate()
   const { activeOrg } = useOrg() ?? {}
+  // Top-level label adapts to the org type (Class / Department / Course / …).
+  const topLabel = topKindLabel(activeOrg?.type)
+  const plural = pluralize(topLabel)
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -45,7 +49,7 @@ export default function Classes() {
     setLoading(true)
     setError(false)
     try {
-      const data = await listClasses()
+      const data = await listClasses({ parent: "none" })
       setClasses(data.results ?? data)
     } catch {
       setError(true)
@@ -66,9 +70,11 @@ export default function Classes() {
   return (
     <PageShell>
       <PageHeader
-        title="Classes"
-        description={activeOrg ? `Classes in ${activeOrg.name}` : "Your classes"}
-        actions={<Button onClick={() => navigate("/classes/new")}>New class</Button>}
+        title={plural}
+        description={activeOrg ? `${plural} in ${activeOrg.name}` : `Your ${plural.toLowerCase()}`}
+        actions={
+          <Button onClick={() => navigate("/classes/new")}>New {topLabel.toLowerCase()}</Button>
+        }
       />
 
       {!loading && !error && classes.length > 0 && (
@@ -78,11 +84,11 @@ export default function Classes() {
             aria-hidden="true"
           />
           <Input
-            placeholder="Search classes…"
+            placeholder={`Search ${plural.toLowerCase()}…`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
-            aria-label="Search classes"
+            aria-label={`Search ${plural.toLowerCase()}`}
           />
         </div>
       )}
@@ -102,12 +108,12 @@ export default function Classes() {
       ) : classes.length === 0 ? (
         <EmptyState
           icon={FolderIcon}
-          title="No classes yet"
-          description="Create your first class to start adding exams, students and subjects."
-          action={<Button onClick={() => navigate("/classes/new")}>New class</Button>}
+          title={`No ${plural.toLowerCase()} yet`}
+          description={`Create your first ${topLabel.toLowerCase()} to start adding exams, students and subjects.`}
+          action={<Button onClick={() => navigate("/classes/new")}>New {topLabel.toLowerCase()}</Button>}
         />
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No classes match “{query}”.</p>
+        <p className="text-sm text-muted-foreground">No {plural.toLowerCase()} match “{query}”.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((cls) => (

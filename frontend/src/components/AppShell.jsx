@@ -14,6 +14,7 @@ import {
   useBreadcrumbItems,
 } from "@/components/shell/use-section"
 import { useClass } from "@/features/class/useClass"
+import { childKindLabel, pluralize } from "@/features/class/typePresets"
 import { STAGES, stageHref } from "@/components/ui/test-progress-rail"
 
 import { Button } from "@/components/ui/button"
@@ -177,8 +178,10 @@ function usePanel(section) {
   // Class workspace = the Supabase "project" view: a section sidebar for the class.
   if (classScope) {
     const id = classScope.classId
+    const subLabel = pluralize(childKindLabel(activeOrg?.type, cls?.kind_label))
     const items = [
       { label: "Overview", to: `/classes/${id}`, end: true },
+      { label: subLabel, to: `/classes/${id}/groups` },
       { label: "Exams", to: `/classes/${id}/exams` },
       { label: "Students", to: `/classes/${id}/students` },
       { label: "Subjects", to: `/classes/${id}/subjects` },

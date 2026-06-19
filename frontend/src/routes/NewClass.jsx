@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { createClass } from "@/api/assessments"
 import { listFolders } from "@/api/folders"
+import { useOrg } from "@/org/OrgContext"
+import { topKindLabel } from "@/features/class/typePresets"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,6 +26,8 @@ const NO_FOLDER = "__none__"
 // lands on the new class so the user can set it up right away.
 export default function NewClass() {
   const navigate = useNavigate()
+  const { activeOrg } = useOrg() ?? {}
+  const topLabel = topKindLabel(activeOrg?.type)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [folderId, setFolderId] = useState(NO_FOLDER)
@@ -45,7 +49,11 @@ export default function NewClass() {
     }
     setSubmitting(true)
     try {
-      const payload = { name: name.trim(), description: description.trim() }
+      const payload = {
+        name: name.trim(),
+        description: description.trim(),
+        kind_label: topLabel,
+      }
       if (folderId !== NO_FOLDER) payload.folder = Number(folderId)
       const created = await createClass(payload)
       toast.success("Class created")
@@ -59,8 +67,8 @@ export default function NewClass() {
   return (
     <PageShell>
       <PageHeader
-        title="Create class"
-        description="Add a new class group."
+        title={`Create ${topLabel.toLowerCase()}`}
+        description={`Add a new ${topLabel.toLowerCase()} to ${activeOrg?.name ?? "your organization"}.`}
         actions={
           <Button
             variant="outline"
@@ -115,7 +123,7 @@ export default function NewClass() {
 
         <div className="flex gap-2">
           <Button type="submit" disabled={submitting || !name.trim()} className="min-h-[44px]">
-            {submitting ? "Creating…" : "Create class"}
+            {submitting ? "Creating…" : `Create ${topLabel.toLowerCase()}`}
           </Button>
         </div>
       </form>

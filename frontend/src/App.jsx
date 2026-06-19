@@ -40,6 +40,7 @@ const ClassStudents = lazy(() => import("@/routes/class/ClassStudents"))
 const ClassSubjects = lazy(() => import("@/routes/class/ClassSubjects"))
 const ClassAccess = lazy(() => import("@/routes/class/ClassAccess"))
 const ClassSettings = lazy(() => import("@/routes/class/ClassSettings"))
+const ClassSubGroups = lazy(() => import("@/routes/class/ClassSubGroups"))
 const TestWizard = lazy(() => import("@/routes/TestWizard"))
 const Rosters = lazy(() => import("@/routes/Rosters"))
 const RosterDetail = lazy(() => import("@/routes/RosterDetail"))
@@ -254,6 +255,14 @@ export default function App() {
             element={
               <ShellProtectedRoute>
                 <ClassOverview />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:id/groups"
+            element={
+              <ShellProtectedRoute>
+                <ClassSubGroups />
               </ShellProtectedRoute>
             }
           />
