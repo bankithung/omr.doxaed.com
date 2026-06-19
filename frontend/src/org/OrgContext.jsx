@@ -44,7 +44,7 @@ function clearOrgsCache() {
 }
 
 export function OrgProvider({ children }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [orgs, setOrgs] = useState([])
   const [activeOrgId, setActiveOrgId] = useState(() => localStorage.getItem(LS_KEY) || null)
   // `loaded` flips true once the org list has resolved at least once — the
@@ -86,6 +86,10 @@ export function OrgProvider({ children }) {
   )
 
   useEffect(() => {
+    // While the auth probe is in flight, do NOTHING. `user` is briefly null during
+    // loading; clearing activeOrg here would wipe a valid saved org on every page
+    // refresh and bounce the user to a different organization.
+    if (authLoading) return
     if (user) {
       // Uses the session cache — subsequent provider re-renders / route changes
       // reuse the cached list rather than re-hitting the API.
@@ -97,7 +101,7 @@ export function OrgProvider({ children }) {
       setLoaded(false)
       localStorage.removeItem(LS_KEY)
     }
-  }, [user, refreshOrgs])
+  }, [user, authLoading, refreshOrgs])
 
   function setActiveOrg(id) {
     if (id) {

@@ -14,6 +14,12 @@ export const getClass = (id) =>
 export const createClass = (d) =>
   api.post("/classes/", d).then((r) => r.data)
 
+export const updateClass = (id, d) =>
+  api.patch(`/classes/${id}/`, d).then((r) => r.data)
+
+export const deleteClass = (id) =>
+  api.delete(`/classes/${id}/`).then((r) => r.data)
+
 export const listTests = (classId) =>
   api.get("/tests/", { params: { class_group: classId } }).then((r) => r.data)
 

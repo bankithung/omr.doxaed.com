@@ -34,7 +34,12 @@ const Profile = lazy(() => import("@/routes/Profile"))
 const Classes = lazy(() => import("@/routes/Classes"))
 const Folders = lazy(() => import("@/routes/Folders"))
 const FolderDetail = lazy(() => import("@/routes/FolderDetail"))
-const TestList = lazy(() => import("@/routes/TestList"))
+const ClassOverview = lazy(() => import("@/routes/class/ClassOverview"))
+const ClassExams = lazy(() => import("@/routes/class/ClassExams"))
+const ClassStudents = lazy(() => import("@/routes/class/ClassStudents"))
+const ClassSubjects = lazy(() => import("@/routes/class/ClassSubjects"))
+const ClassAccess = lazy(() => import("@/routes/class/ClassAccess"))
+const ClassSettings = lazy(() => import("@/routes/class/ClassSettings"))
 const TestWizard = lazy(() => import("@/routes/TestWizard"))
 const Rosters = lazy(() => import("@/routes/Rosters"))
 const RosterDetail = lazy(() => import("@/routes/RosterDetail"))
@@ -247,7 +252,47 @@ export default function App() {
             path="/classes/:id"
             element={
               <ShellProtectedRoute>
-                <TestList />
+                <ClassOverview />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:id/exams"
+            element={
+              <ShellProtectedRoute>
+                <ClassExams />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:id/students"
+            element={
+              <ShellProtectedRoute>
+                <ClassStudents />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:id/subjects"
+            element={
+              <ShellProtectedRoute>
+                <ClassSubjects />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:id/access"
+            element={
+              <ShellProtectedRoute>
+                <ClassAccess />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/:id/settings"
+            element={
+              <ShellProtectedRoute>
+                <ClassSettings />
               </ShellProtectedRoute>
             }
           />

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { useParams, useNavigate, Link } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import { toast } from "sonner"
 import {
   ScanLine,
@@ -10,7 +10,7 @@ import {
   FileText,
   X as XIcon,
 } from "lucide-react"
-import { getClass, listTests, retest } from "@/api/assessments"
+import { listTests, retest } from "@/api/assessments"
 import { listSubjects, createSubject, deleteSubject } from "@/api/subjects"
 import { listRosters, createRoster } from "@/api/omr"
 import {
@@ -41,12 +41,9 @@ import {
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { TableSkeleton } from "@/components/ui/skeletons"
-import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/ui/DataTable"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { Badge } from "@/components/ui/badge"
-import { PageShell } from "@/components/ui/page-shell"
-import { PageHeader } from "@/components/ui/page-header"
 
 // ─── Status badge ─────────────────────────────────
 
@@ -131,7 +128,7 @@ function TestActions({ test, onRetest, retestingId }) {
 // Lists subjects for the class, supports inline add + custom-confirm delete.
 // Surfaces view-only (403) errors inline via toast — never alert.
 
-function SubjectsSection({ classId }) {
+export function SubjectsSection({ classId }) {
   const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState("")
@@ -263,7 +260,7 @@ function SubjectsSection({ classId }) {
 // manage its students on the roster page. Rosters created here belong to the
 // class, so the Generate-sheets picker shows them automatically.
 
-function RostersSection({ classId }) {
+export function RostersSection({ classId }) {
   const [rosters, setRosters] = useState([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState("")
@@ -452,7 +449,7 @@ function NarrowSubjectsDialog({ grant, subjects, onClose, onSaved }) {
 // API (common/scope.py) — a member without a grant never sees the class. This UI
 // only manages the grant rows and is rendered solely for admins.
 
-function AccessSection({ classId }) {
+export function AccessSection({ classId }) {
   const { activeOrgId } = useOrg() ?? {}
   const [grants, setGrants] = useState([])
   const [members, setMembers] = useState([])
@@ -654,54 +651,42 @@ function AccessSection({ classId }) {
   )
 }
 
-// ─── Main TestList screen ──────────────────────────
+// ─── Exams section (per class) ─────────────────────
+//
+// The class's exams table. Rendered by the ClassExams workspace page; the class
+// header + "New exam" action live on that page.
 
-const CLASS_TABS = [
-  { key: "tests", label: "Tests" },
-  { key: "rosters", label: "Rosters" },
-  { key: "subjects", label: "Subjects" },
-]
-
-export default function TestList() {
-  const { id } = useParams()
+export function ExamsSection({ classId }) {
   const navigate = useNavigate()
-  const { activeOrg } = useOrg() ?? {}
-  const isAdmin = activeOrg?.role === "admin"
-  const tabs = isAdmin
-    ? [...CLASS_TABS, { key: "access", label: "Teacher access" }]
-    : CLASS_TABS
-  const [classGroup, setClassGroup] = useState(null)
   const [tests, setTests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [retestingId, setRetestingId] = useState(null)
-  const [tab, setTab] = useState("tests")
 
-  const fetchData = useCallback(async () => {
+  const fetchTests = useCallback(async () => {
     setLoading(true)
     setError(false)
     try {
-      const [cls, testsData] = await Promise.all([getClass(id), listTests(id)])
-      setClassGroup(cls)
-      setTests(testsData.results ?? testsData)
+      const data = await listTests(classId)
+      setTests(data.results ?? data)
     } catch {
       setError(true)
-      toast.error("Failed to load class data")
+      toast.error("Failed to load exams")
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [classId])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchTests()
+  }, [fetchTests])
 
   async function handleRetest(testId) {
     setRetestingId(testId)
     try {
       const newTest = await retest(testId)
       toast.success(`Retest created: attempt #${newTest.attempt_number}`)
-      fetchData()
+      fetchTests()
     } catch {
       toast.error("Failed to create retest")
     } finally {
@@ -742,101 +727,36 @@ export default function TestList() {
       header: "",
       mobileLabel: "",
       cell: (test) => (
-        <TestActions
-          test={test}
-          onRetest={handleRetest}
-          retestingId={retestingId}
-        />
+        <TestActions test={test} onRetest={handleRetest} retestingId={retestingId} />
       ),
       className: "text-right",
     },
   ]
 
-  if (loading) {
-    return (
-      <PageShell>
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <Skeleton className="h-32 w-full rounded-lg" />
-        <TableSkeleton rows={4} />
-      </PageShell>
-    )
-  }
+  if (loading) return <TableSkeleton rows={4} />
 
   if (error) {
     return (
-      <PageShell>
-        <ErrorState
-          title="Couldn't load class data"
-          description="Something went wrong while loading this class and its tests."
-          onRetry={fetchData}
-        />
-      </PageShell>
+      <ErrorState
+        title="Couldn't load exams"
+        description="Something went wrong while loading this class's exams."
+        onRetry={fetchTests}
+      />
     )
   }
 
-  return (
-    <PageShell>
-      <PageHeader
-        title={classGroup?.name ?? "Class"}
-        description={classGroup?.description}
-        actions={
-          <Button onClick={() => navigate(`/classes/${id}/tests/new`)}>
-            Create test
-          </Button>
+  if (tests.length === 0) {
+    return (
+      <EmptyState
+        icon={FileText}
+        title="No exams yet"
+        description="Create the first exam for this class."
+        action={
+          <Button onClick={() => navigate(`/classes/${classId}/tests/new`)}>New exam</Button>
         }
       />
+    )
+  }
 
-      {/* Tabs — Tests / Rosters / Subjects (refined, single home for the class) */}
-      <div>
-        <div
-          role="tablist"
-          aria-label="Class sections"
-          className="flex gap-1 overflow-x-auto border-b border-border"
-        >
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "relative -mb-px min-h-[40px] whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
-                tab === t.key
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div role="tabpanel" className="pt-5">
-          {tab === "tests" &&
-            (tests.length === 0 ? (
-              <EmptyState
-                icon={FileText}
-                title="No tests yet"
-                description="Create the first test for this class."
-                action={
-                  <Button onClick={() => navigate(`/classes/${id}/tests/new`)}>
-                    Create test
-                  </Button>
-                }
-              />
-            ) : (
-              <DataTable columns={columns} rows={tests} getRowKey={(test) => test.id} />
-            ))}
-          {tab === "rosters" && <RostersSection classId={id} />}
-          {tab === "subjects" && <SubjectsSection classId={id} />}
-          {tab === "access" && isAdmin && <AccessSection classId={id} />}
-        </div>
-      </div>
-
-    </PageShell>
-  )
+  return <DataTable columns={columns} rows={tests} getRowKey={(test) => test.id} />
 }

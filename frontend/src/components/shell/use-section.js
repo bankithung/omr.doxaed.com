@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom"
 import { NAV } from "./nav-config"
+import { useClass } from "@/features/class/useClass"
 
 /** Resolve the active rail section from the current pathname. */
 export function useActiveSection() {
@@ -33,10 +34,42 @@ export function matchOrgScope(pathname) {
   return { orgId: m[1], current: m[2] }
 }
 
+/**
+ * Parse class-scoped (the Supabase "project") context from a pathname.
+ * Matches /classes/:id and /classes/:id/<section>. `/classes/new` is NOT a class.
+ * Returns { classId, current } or null. `current` defaults to "overview".
+ */
+export function matchClassScope(pathname) {
+  const m = pathname.match(/^\/classes\/(\d+)(?:\/(exams|students|subjects|access|settings))?\/?$/)
+  if (!m) return null
+  return { classId: m[1], current: m[2] || "overview" }
+}
+
 /** Build the breadcrumb trail items for the TopBar from the URL + section. */
+const CLASS_SECTION_LABEL = {
+  overview: "Overview",
+  exams: "Exams",
+  students: "Students",
+  subjects: "Subjects",
+  access: "Teacher access",
+  settings: "Settings",
+}
+
 export function useBreadcrumbItems(section, { orgName } = {}) {
   const { pathname } = useLocation()
+  // Called unconditionally (hooks rule); returns null when not in a class scope.
+  const classScope = matchClassScope(pathname)
+  const cls = useClass(classScope ? classScope.classId : null)
   const items = []
+
+  if (classScope) {
+    items.push({ label: "Classes", to: "/classes" })
+    items.push({ label: cls?.name ?? "Class", to: `/classes/${classScope.classId}` })
+    if (classScope.current !== "overview") {
+      items.push({ label: CLASS_SECTION_LABEL[classScope.current] })
+    }
+    return items
+  }
 
   const orgScope = matchOrgScope(pathname)
   if (orgScope) {

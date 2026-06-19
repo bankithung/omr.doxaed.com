@@ -10,8 +10,10 @@ import {
   useActiveSection,
   matchTestScope,
   matchOrgScope,
+  matchClassScope,
   useBreadcrumbItems,
 } from "@/components/shell/use-section"
+import { useClass } from "@/features/class/useClass"
 import { STAGES, stageHref } from "@/components/ui/test-progress-rail"
 
 import { Button } from "@/components/ui/button"
@@ -149,6 +151,9 @@ function NavSection({ title, items, onNavigate }) {
 function usePanel(section) {
   const { pathname } = useLocation()
   const { activeOrg } = useOrg()
+  // Called unconditionally (hooks rule); null when not in a class scope.
+  const classScope = matchClassScope(pathname)
+  const cls = useClass(classScope ? classScope.classId : null)
 
   const testScope = matchTestScope(pathname)
   if (testScope) {
@@ -166,6 +171,26 @@ function usePanel(section) {
       back: classId ? { to: `/classes/${classId}`, label: "Back to class" } : null,
       groups: [{ title: "Lifecycle", items }],
       current: testScope.current,
+    }
+  }
+
+  // Class workspace = the Supabase "project" view: a section sidebar for the class.
+  if (classScope) {
+    const id = classScope.classId
+    const items = [
+      { label: "Overview", to: `/classes/${id}`, end: true },
+      { label: "Exams", to: `/classes/${id}/exams` },
+      { label: "Students", to: `/classes/${id}/students` },
+      { label: "Subjects", to: `/classes/${id}/subjects` },
+    ]
+    if (activeOrg?.role === "admin") {
+      items.push({ label: "Teacher access", to: `/classes/${id}/access` })
+    }
+    items.push({ label: "Settings", to: `/classes/${id}/settings` })
+    return {
+      title: cls?.name ?? "Class",
+      back: { to: "/classes", label: "All classes" },
+      groups: [{ title: "Class", items }],
     }
   }
 
