@@ -9,6 +9,7 @@ const PRODUCT_LINKS = [
   { label: "Features", to: "/features" },
   { label: "Pricing", to: "/pricing" },
   { label: "How it works", to: "/how-it-works" },
+  { label: "Built for", to: "/built-for" },
   { label: "About", to: "/about" },
   { label: "Contact", to: "/contact" },
   { label: "Sign in", to: "/login" },
