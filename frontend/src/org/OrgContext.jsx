@@ -47,6 +47,10 @@ export function OrgProvider({ children }) {
   const { user } = useAuth()
   const [orgs, setOrgs] = useState([])
   const [activeOrgId, setActiveOrgId] = useState(() => localStorage.getItem(LS_KEY) || null)
+  // `loaded` flips true once the org list has resolved at least once — the
+  // org-first gate must wait for this before deciding to send a user to create
+  // an organization (otherwise it would redirect during the initial fetch).
+  const [loaded, setLoaded] = useState(false)
 
   const refreshOrgs = useCallback(
     async ({ force = false } = {}) => {
@@ -64,8 +68,18 @@ export function OrgProvider({ children }) {
           localStorage.removeItem(LS_KEY)
           setActiveOrgId(null)
         }
+        // Org-first (Supabase-style): never run in loose/personal scope when the
+        // user belongs to an org — auto-select one so the app always has an
+        // active organization. Users with NO org are routed to create one.
+        const after = localStorage.getItem(LS_KEY)
+        if (!after && list.length > 0) {
+          localStorage.setItem(LS_KEY, String(list[0].id))
+          setActiveOrgId(String(list[0].id))
+        }
       } catch {
         setOrgs([])
+      } finally {
+        setLoaded(true)
       }
     },
     [user],
@@ -80,6 +94,7 @@ export function OrgProvider({ children }) {
       clearOrgsCache()
       setOrgs([])
       setActiveOrgId(null)
+      setLoaded(false)
       localStorage.removeItem(LS_KEY)
     }
   }, [user, refreshOrgs])
@@ -99,7 +114,7 @@ export function OrgProvider({ children }) {
   const activeOrg = orgs.find((o) => String(o.id) === String(activeOrgId)) || null
 
   return (
-    <OrgContext.Provider value={{ activeOrgId, activeOrg, orgs, setActiveOrg, refreshOrgs }}>
+    <OrgContext.Provider value={{ activeOrgId, activeOrg, orgs, loaded, setActiveOrg, refreshOrgs }}>
       {children}
     </OrgContext.Provider>
   )

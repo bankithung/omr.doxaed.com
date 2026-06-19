@@ -21,7 +21,7 @@ export default function Login() {
     setLoading(true)
     try {
       await login(email, password)
-      navigate("/dashboard")
+      navigate("/classes")
     } catch {
       setError("Invalid email or password.")
     } finally {

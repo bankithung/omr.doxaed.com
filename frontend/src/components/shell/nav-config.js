@@ -2,8 +2,6 @@ import {
   HomeIcon,
   LayersIcon,
   FileTextIcon,
-  FolderIcon,
-  UsersIcon,
   ScanLineIcon,
   BuildingIcon,
   SettingsIcon,
@@ -48,8 +46,6 @@ export const NAV = [
         title: "Library",
         items: [
           { label: "Classes", to: "/classes", icon: FileTextIcon },
-          { label: "Folders", to: "/folders", icon: FolderIcon },
-          { label: "Rosters", to: "/rosters", icon: UsersIcon },
         ],
       },
     ],

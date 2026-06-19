@@ -301,7 +301,7 @@ function OrgSwitcher({ compact = false }) {
   const { orgs, activeOrg, setActiveOrg } = useOrg()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const label = activeOrg ? activeOrg.name : "Personal"
+  const label = activeOrg ? activeOrg.name : "Select organization"
 
   function handleSwitch(id) {
     setActiveOrg(id)
@@ -336,14 +336,7 @@ function OrgSwitcher({ compact = false }) {
           <CommandInput placeholder="Find organization…" />
           <CommandList>
             <CommandEmpty>No organizations found.</CommandEmpty>
-            <CommandGroup heading="Workspace">
-              <CommandItem value="Personal" onSelect={() => handleSwitch(null)}>
-                <Avatar className="size-5">
-                  <AvatarFallback className="text-[10px]">P</AvatarFallback>
-                </Avatar>
-                Personal
-                {!activeOrg && <CheckIcon className="ml-auto size-4" aria-hidden="true" />}
-              </CommandItem>
+            <CommandGroup heading="Organizations">
               {orgs.map((org) => (
                 <CommandItem key={org.id} value={org.name} onSelect={() => handleSwitch(org.id)}>
                   <Avatar className="size-5">
@@ -363,7 +356,7 @@ function OrgSwitcher({ compact = false }) {
             <button
               onClick={() => {
                 setOpen(false)
-                navigate("/organizations")
+                navigate("/organizations/new")
               }}
               className="flex w-full min-h-[40px] items-center gap-2 rounded-md px-2 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
             >

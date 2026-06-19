@@ -43,6 +43,8 @@ const Results = lazy(() => import("@/routes/Results"))
 const ReviewQueue = lazy(() => import("@/routes/ReviewQueue"))
 const Analytics = lazy(() => import("@/routes/Analytics"))
 const GenerateSheets = lazy(() => import("@/routes/GenerateSheets"))
+const NewClass = lazy(() => import("@/routes/NewClass"))
+const NewOrganization = lazy(() => import("@/routes/NewOrganization"))
 const Organizations = lazy(() => import("@/routes/Organizations"))
 const OrgMembers = lazy(() => import("@/routes/OrgMembers"))
 const OrgAudit = lazy(() => import("@/routes/OrgAudit"))
@@ -58,7 +60,7 @@ const PublicResult = lazy(() => import("@/routes/PublicResult"))
 
 function ShellProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  const { activeOrg, orgs } = useOrg()
+  const { activeOrg, orgs, loaded } = useOrg()
 
   if (loading) {
     return <AppShellSkeleton />
@@ -66,6 +68,12 @@ function ShellProtectedRoute({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+
+  // Org-first (Supabase-style): a signed-in user with NO organization is sent to
+  // create one before they can use the app.
+  if (loaded && orgs.length === 0) {
+    return <Navigate to="/organizations/new" replace />
   }
 
   // Determine if the current user is admin in the active org.
@@ -122,6 +130,7 @@ export default function App() {
     isPublicPortal ||
     SELF_CHROMED.includes(location.pathname) ||
     location.pathname === "/onboarding" ||
+    location.pathname === "/organizations/new" ||
     location.pathname === "/accept-invite" ||
     location.pathname === "/health" ||
     location.pathname === "/verify-email" ||
@@ -189,6 +198,18 @@ export default function App() {
             }
           />
 
+          {/* Create organization — org-first onboarding, no AppShell (login required) */}
+          <Route
+            path="/organizations/new"
+            element={
+              <ProtectedRoute>
+                <main id="main">
+                  <NewOrganization />
+                </main>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Protected routes — wrapped in AppShell */}
           <Route
             path="/dashboard"
@@ -211,6 +232,14 @@ export default function App() {
             element={
               <ShellProtectedRoute>
                 <Classes />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/classes/new"
+            element={
+              <ShellProtectedRoute>
+                <NewClass />
               </ShellProtectedRoute>
             }
           />

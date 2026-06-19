@@ -16,9 +16,10 @@ export default function RootRoute() {
     return <BrandedSplash />
   }
 
-  // Redirect logged-in users to /dashboard so they get the full app shell.
+  // Redirect logged-in users to the org home (Classes = the "projects" grid).
+  // The shell's org-first gate sends users with no organization to create one.
   if (user) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/classes" replace />
   }
 
   return (
