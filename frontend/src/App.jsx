@@ -6,6 +6,8 @@ import { useOrg } from "@/org/OrgContext"
 import ProtectedRoute from "@/auth/ProtectedRoute"
 import RootRoute from "@/auth/RootRoute"
 import AppShell from "@/components/AppShell"
+import AppShellSkeleton from "@/components/AppShellSkeleton"
+import BrandedSplash from "@/components/BrandedSplash"
 
 const Health = lazy(() => import("@/routes/Health"))
 const StyleGuide = lazy(() => import("@/routes/StyleGuide"))
@@ -18,6 +20,10 @@ const ForgotPassword = lazy(() => import("@/routes/ForgotPassword"))
 const ResetPassword = lazy(() => import("@/routes/ResetPassword"))
 const Terms = lazy(() => import("@/routes/Terms"))
 const Privacy = lazy(() => import("@/routes/Privacy"))
+const Pricing = lazy(() => import("@/routes/Pricing"))
+const Features = lazy(() => import("@/routes/Features"))
+const About = lazy(() => import("@/routes/About"))
+const Contact = lazy(() => import("@/routes/Contact"))
 const Profile = lazy(() => import("@/routes/Profile"))
 const Classes = lazy(() => import("@/routes/Classes"))
 const Folders = lazy(() => import("@/routes/Folders"))
@@ -71,7 +77,7 @@ function ShellProtectedRoute({ children }) {
   const { activeOrg, orgs } = useOrg()
 
   if (loading) {
-    return <div className="p-8 text-muted-foreground">Loading…</div>
+    return <AppShellSkeleton />
   }
 
   if (!user) {
@@ -102,9 +108,10 @@ export default function App() {
   const isPublicPortal = location.pathname.startsWith("/r/")
 
   // Show the minimal public nav only for logged-out users on non-portal pages.
-  // The landing page ("/") ships its own sticky hero nav, and the auth pages
-  // (centered AuthLayout) + legal pages ship their own headers, so skip
-  // the public nav on all of them to render them full-screen and clean.
+  // SELF_CHROMED pages ship their OWN chrome, so the minimal PublicNav above is
+  // suppressed for them: the landing ("/") + the 4 marketing pages render inside
+  // their own nav/footer (PublicLayout / landing), and the auth + legal pages
+  // ship their own headers — all rendered full-screen and clean.
   const SELF_CHROMED = [
     "/",
     "/login",
@@ -113,9 +120,27 @@ export default function App() {
     "/reset-password",
     "/terms",
     "/privacy",
+    "/pricing",
+    "/features",
+    "/about",
+    "/contact",
   ]
   const showPublicNav =
     !user && !isPublicPortal && !SELF_CHROMED.includes(location.pathname)
+
+  // Route-aware Suspense fallback: app (shell) routes show the app-shell skeleton
+  // on refresh; public/auth/landing routes show a clean branded splash. We treat
+  // the self-chromed public paths + the public portal as "public"; everything
+  // else is an in-app (shell) route.
+  const isPublicRoute =
+    isPublicPortal ||
+    SELF_CHROMED.includes(location.pathname) ||
+    location.pathname === "/onboarding" ||
+    location.pathname === "/accept-invite" ||
+    location.pathname === "/health" ||
+    location.pathname === "/verify-email" ||
+    location.pathname === "/style-guide"
+  const SuspenseFallback = isPublicRoute ? <BrandedSplash /> : <AppShellSkeleton />
 
   return (
     <div className="min-h-screen">
@@ -130,7 +155,7 @@ export default function App() {
       {/* Public nav for logged-out auth/landing pages */}
       {showPublicNav && !isPublicPortal && <PublicNav />}
 
-      <Suspense fallback={<div className="p-8 text-muted-foreground">Loading…</div>}>
+      <Suspense fallback={SuspenseFallback}>
         <Routes>
           {/* Public portal — no shell, no nav */}
           <Route path="/r/:slug" element={<PublicResult />} />
@@ -155,6 +180,14 @@ export default function App() {
           <Route path="/reset-password" element={<main id="main"><ResetPassword /></main>} />
           <Route path="/terms" element={<main id="main"><Terms /></main>} />
           <Route path="/privacy" element={<main id="main"><Privacy /></main>} />
+
+          {/* Public marketing pages — ship their own PublicLayout (landing nav +
+              footer + <main id="main">), so they render bare like the landing,
+              with no AppShell and no extra <main> wrapper. */}
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/features" element={<Features />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
 
           {/* Onboarding — full-screen wizard, no AppShell (login required) */}
           <Route

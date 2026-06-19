@@ -4,9 +4,13 @@ import MaterialIcon from "./MaterialIcon"
 import { Reveal, RevealItem } from "./motion/reveal"
 
 // ── Real content only — no invented pages, no fake social, no fake newsletter ──
+// Anchors are root-anchored (`/#…`) so they resolve from any public page.
 const PRODUCT_LINKS = [
-  { label: "How it works", to: "#how-it-works", anchor: true },
-  { label: "Features", to: "#features", anchor: true },
+  { label: "Features", to: "/features" },
+  { label: "Pricing", to: "/pricing" },
+  { label: "How it works", to: "/#how-it-works", anchor: true },
+  { label: "About", to: "/about" },
+  { label: "Contact", to: "/contact" },
   { label: "Sign in", to: "/login" },
   { label: "Create account", to: "/register" },
 ]
@@ -47,13 +51,13 @@ function ColHeading({ children }) {
   )
 }
 
-// Plain capability/mode entry — anchors to #features (a real destination).
+// Plain capability/mode entry — routes to the Features page (a real destination).
 function FeatureItem({ children }) {
   return (
     <li>
-      <a href="#features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+      <Link to="/features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
         {children}
-      </a>
+      </Link>
     </li>
   )
 }
