@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { getClass, listTests, retest } from "@/api/assessments"
 import { listSubjects, createSubject, deleteSubject } from "@/api/subjects"
-import { listRosters, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
+import { listRosters, createRoster, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -72,7 +72,7 @@ function StatusBadge({ status }) {
 
 // ─── Generate Sheets Dialog ────────────────────────
 
-function GenerateSheetsDialog({ test, open, onOpenChange }) {
+function GenerateSheetsDialog({ test, classId, open, onOpenChange }) {
   const [rosters, setRosters] = useState([])
   const [rosterId, setRosterId] = useState("")
   const [shuffleQuestions, setShuffleQuestions] = useState(true)
@@ -88,10 +88,10 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
     setDownloadUrl(null)
     setPaperBatchUrl(null)
     setRosterId("")
-    listRosters()
+    listRosters({ class_group: classId })
       .then((data) => setRosters(data.results ?? data))
       .catch(() => toast.error("Failed to load rosters"))
-  }, [open])
+  }, [open, classId])
 
   async function handleGenerate() {
     if (!rosterId) {
@@ -154,10 +154,9 @@ function GenerateSheetsDialog({ test, open, onOpenChange }) {
             <Label>Roster</Label>
             {rosters.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No rosters found.{" "}
-                <Link to="/rosters" className="underline hover:text-foreground">
-                  Create one first.
-                </Link>
+                This class has no rosters yet. Add one in the{" "}
+                <span className="font-medium text-foreground">Rosters</span> section
+                of this class, then come back to generate.
               </p>
             ) : (
               <Select value={rosterId} onValueChange={setRosterId}>
@@ -431,6 +430,115 @@ function SubjectsSection({ classId }) {
   )
 }
 
+// ─── Rosters section (per class) ───────────────────
+//
+// The class's student lists. Add a roster (stamped with this class_group) then
+// manage its students on the roster page. Rosters created here belong to the
+// class, so the Generate-sheets picker shows them automatically.
+
+function RostersSection({ classId }) {
+  const [rosters, setRosters] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [name, setName] = useState("")
+  const [adding, setAdding] = useState(false)
+
+  const fetchRosters = useCallback(async () => {
+    try {
+      const data = await listRosters({ class_group: classId })
+      setRosters(data.results ?? data)
+    } catch {
+      toast.error("Failed to load rosters")
+    } finally {
+      setLoading(false)
+    }
+  }, [classId])
+
+  useEffect(() => {
+    fetchRosters()
+  }, [fetchRosters])
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!name.trim()) {
+      toast.error("Roster name is required")
+      return
+    }
+    setAdding(true)
+    try {
+      await createRoster({ name: name.trim(), class_group: Number(classId) })
+      setName("")
+      toast.success("Roster added")
+      fetchRosters()
+    } catch (err) {
+      const msg =
+        err?.response?.data?.name?.[0] ||
+        err?.response?.data?.detail ||
+        "Failed to add roster"
+      toast.error(msg)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex-col items-start gap-1">
+        <CardTitle>Rosters</CardTitle>
+        <CardDescription>
+          The student lists for this class. Add a roster, then add students (or a
+          roll count) to it — generated OMR sheets use this class's rosters.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <form onSubmit={handleAdd} className="flex items-center gap-2">
+          <Input
+            placeholder="e.g. Section A"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="flex-1"
+            aria-label="New roster name"
+          />
+          <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
+            {adding ? "Adding…" : "Add roster"}
+          </Button>
+        </form>
+
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading rosters…</p>
+        ) : rosters.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No rosters yet. Add one to manage this class's students.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+            {rosters.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between gap-3 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <Link
+                    to={`/rosters/${r.id}`}
+                    className="font-medium hover:text-primary hover:underline"
+                  >
+                    {r.name}
+                  </Link>
+                  <span className="ml-2 text-sm text-muted-foreground tabular">
+                    {r.student_count ?? r.students_count ?? 0} students
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" asChild className="min-h-[40px]">
+                  <Link to={`/rosters/${r.id}`}>Manage students</Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Main TestList screen ──────────────────────────
 
 export default function TestList() {
@@ -559,6 +667,9 @@ export default function TestList() {
       {/* Subjects (Phase 5D) */}
       <SubjectsSection classId={id} />
 
+      {/* Rosters — the class's student lists (add roster → manage students) */}
+      <RostersSection classId={id} />
+
       {tests.length === 0 ? (
         <EmptyState
           icon={FileText}
@@ -585,6 +696,7 @@ export default function TestList() {
       {generateTest && (
         <GenerateSheetsDialog
           test={generateTest}
+          classId={id}
           open={Boolean(generateTest)}
           onOpenChange={(v) => { if (!v) setGenerateTest(null) }}
         />

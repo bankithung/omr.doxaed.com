@@ -17,9 +17,10 @@ export function mediaUrl(path) {
   return `${origin}${path.startsWith("/") ? "" : "/"}${path}`
 }
 
-// Roster API
-export const listRosters = () =>
-  api.get("/rosters/").then((r) => r.data)
+// Roster API. `params` is optional, e.g. { class_group: id } to fetch the
+// rosters that belong to one class (or { class_group: "none" } for standalone).
+export const listRosters = (params) =>
+  api.get("/rosters/", { params }).then((r) => r.data)
 
 export const createRoster = (d) =>
   api.post("/rosters/", d).then((r) => r.data)

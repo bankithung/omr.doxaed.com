@@ -34,12 +34,20 @@ class RosterViewSet(ScopedModelViewSet):
     owner_extra_fields = ("created_by",)
 
     def get_queryset(self):
-        return (
+        qs = (
             super()
             .get_queryset()
             .filter(visibility_q(self.request, "class_group__", "created_by"))
             .distinct()
         )
+        # Optional ?class_group=<id> → the rosters that belong to ONE class (the
+        # class-detail page uses this), or ?class_group=none → standalone rosters.
+        cg = self.request.query_params.get("class_group")
+        if cg == "none":
+            qs = qs.filter(class_group__isnull=True)
+        elif cg and cg.isdigit():
+            qs = qs.filter(class_group_id=int(cg))
+        return qs
 
     def perform_create(self, serializer):
         # If a class_group is given, creating a roster under it needs EDIT rights.
