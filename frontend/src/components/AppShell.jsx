@@ -17,11 +17,6 @@ import { STAGES, stageHref } from "@/components/ui/test-progress-rail"
 import { Button } from "@/components/ui/button"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import {
   Command,
@@ -203,51 +198,60 @@ function RailItem({ section, activeKey }) {
   const Icon = section.icon
   const active = section.key === activeKey
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <NavLink
-          to={section.to}
-          aria-label={section.label}
-          aria-current={active ? "page" : undefined}
-          className={cn(
-            "flex size-9 items-center justify-center rounded-md motion-safe-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-            active
-              ? "bg-nav-active-bg text-nav-active-fg"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60",
-          )}
-        >
-          <Icon className="size-5" aria-hidden="true" />
-        </NavLink>
-      </TooltipTrigger>
-      <TooltipContent side="right">{section.label}</TooltipContent>
-    </Tooltip>
+    <NavLink
+      to={section.to}
+      aria-label={section.label}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "mx-2 flex h-9 items-center gap-2.5 rounded-md px-2 motion-safe-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        active
+          ? "bg-nav-active-bg text-nav-active-fg"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60",
+      )}
+    >
+      <Icon className="size-5 shrink-0" aria-hidden="true" />
+      <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
+        {section.label}
+      </span>
+    </NavLink>
   )
 }
 
 function PrimaryRail({ activeKey }) {
   return (
-    <aside
-      aria-label="Primary"
-      className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r border-strong bg-canvas py-2 lg:flex"
-    >
-      <Link
-        to="/dashboard"
-        aria-label="DoxaEd home"
-        className="mb-1 flex size-9 items-center justify-center rounded-md text-sm font-bold text-primary"
+    // A w-14 spacer keeps the column in the flex flow; the real rail is fixed and
+    // EXPANDS on hover (overlaying content, no reflow) so the icon labels show.
+    <div className="hidden w-14 shrink-0 lg:block">
+      <aside
+        aria-label="Primary"
+        className="group/rail fixed inset-y-0 left-0 z-40 flex w-14 flex-col gap-1 overflow-hidden border-r border-strong bg-canvas py-2 transition-[width] duration-200 ease-out hover:w-56 hover:shadow-overlay"
       >
-        DX
-      </Link>
-      {NAV.filter((s) => !s.footer).map((s) => (
-        <RailItem key={s.key} section={s} activeKey={activeKey} />
-      ))}
-      <div className="mt-auto flex flex-col items-center gap-1">
-        {NAV.filter((s) => s.footer).map((s) => (
+        <Link
+          to="/dashboard"
+          aria-label="DoxaEd home"
+          className="mx-2 mb-1 flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-bold text-primary"
+        >
+          <span className="grid size-5 shrink-0 place-items-center">DX</span>
+          <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
+            DoxaEd OMR
+          </span>
+        </Link>
+        {NAV.filter((s) => !s.footer).map((s) => (
           <RailItem key={s.key} section={s} activeKey={activeKey} />
         ))}
-        <ThemeToggle />
-        <AccountMenu compact />
-      </div>
-    </aside>
+        <div className="mt-auto flex flex-col gap-1">
+          {NAV.filter((s) => s.footer).map((s) => (
+            <RailItem key={s.key} section={s} activeKey={activeKey} />
+          ))}
+          <div className="mx-2 flex h-9 items-center px-0.5">
+            <ThemeToggle />
+          </div>
+          <div className="mx-2 flex h-9 items-center px-0.5">
+            <AccountMenu compact />
+          </div>
+        </div>
+      </aside>
+    </div>
   )
 }
 
