@@ -1,5 +1,26 @@
 # Current State
 
+- 2026-06-19: **REDESIGN BUILD — Phases 1–3 + pricing SHIPPED** (on `main`, executing the locked spec
+  `docs/superpowers/specs/2026-06-19-flexible-org-taxonomy-rbac.md`; reference Supabase HTML in
+  `prompts/uiuxreference/`). **Phase 1** (`2faa6d4`): org-list **entry page** (no sidebar) — login lands on
+  `/organizations`, pick/create an org (explicit; auto-select removed; shell gate → `/organizations` when no
+  active org); create-org form with **type** (`Organization.type`) + **plan** pickers (NewOrganization.jsx,
+  OrgList.jsx). **Phase 2** (`05cbeb8`+`82062de`): `ClassGroup` is now a **self-nesting tree** (`parent` +
+  `kind_label` + `order`); class workspace gained a recursive **Sub-groups** section with type-aware labels
+  (school Class→Sections, univ Dept→Programs); `?parent=none|<id>` filter; `topKindLabel/childKindLabel`
+  presets (`frontend/src/features/class/typePresets.js`). **Phase 3 RBAC** (`4432a47`→`746bdc2`): catalog
+  (`organizations/permissions_catalog.py`, 20 codes), `Role`/`RoleBinding`(group-scoped)/`PermissionGrant`
+  models, `common.scope.has_perm()` + `accessible_group_ids()` woven ADDITIVELY into `visibility_q`/
+  `is_active_admin`/`can_edit_class` (ClassAccessGrant + folder shares still work); system roles seeded per
+  org (creator→Owner); management API (`/roles`,`/role-bindings`,`/permission-grants`,`/permissions`) +
+  **Roles & permissions UI** (`OrgRoles.jsx`, in the org panel) — permission matrix, scoped member
+  assignments. **Pricing** (`a45c327`): Free/**Pro ₹1000**/**Business ₹2000**/Enterprise across seed_plans +
+  Pricing.jsx + Billing (API-driven); plan code "team" kept, display "Pro". Also fixed a real bug — refresh
+  was wiping activeOrg (auth-loading conflation, `8c6ec01`). Each phase tested + screenshot-verified; backend
+  suites green (rbac 10, group-tree 8, org 138, etc.). **Backend restarts need `--noreload` kill+start** to
+  pick up code; **always `migrate` after `makemigrations`** (a ProgrammingError bit me). **NEXT:** Phase 4
+  (org Dashboard/Settings/Usage — Members/Billing/Roles/Audit panel already done) · Phase 5 (exam workspace:
+  Questions/Students/Marks/Analytics/Scan/Share) · Phase 7 (production polish).
 - 2026-06-19: **MAJOR redesign LOCKED — flexible orgs + nested groups + full RBAC + new plans + 4-level IA**
   (design spec `docs/superpowers/specs/2026-06-19-flexible-org-taxonomy-rbac.md`; **DESIGN ONLY, not built**).
   Owner pivoted to a Supabase-grade production product after I analysed the captured Supabase HTML in
