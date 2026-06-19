@@ -186,6 +186,23 @@ class NonMemberOrgHeaderTests(_OrgApiBase):
         r = self.client.get("/api/v1/classes/", **self._org_header(self.org))
         self.assertEqual(r.status_code, 403)
 
+    def test_malformed_header_returns_403_not_500(self):
+        """A non-numeric X-Organization-Id (e.g. a stale 'undefined' left in
+        localStorage) must NOT raise a 500 ValueError when cast to the FK int —
+        it is treated as an invalid org and returns a clean 403, on both reads
+        and writes."""
+        for bad in ("undefined", "null", "abc", "5x"):
+            with self.subTest(bad=bad):
+                r = self.client.post(
+                    "/api/v1/classes/",
+                    {"name": "Y"},
+                    format="json",
+                    HTTP_X_ORGANIZATION_ID=bad,
+                )
+                self.assertEqual(r.status_code, 403)
+        r = self.client.get("/api/v1/classes/", HTTP_X_ORGANIZATION_ID="undefined")
+        self.assertEqual(r.status_code, 403)
+
 
 # ---------------------------------------------------------------------------
 # D) Org member creates ClassGroup → org-owned → another member sees it

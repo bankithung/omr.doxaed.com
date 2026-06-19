@@ -54,6 +54,16 @@ export function OrgProvider({ children }) {
       try {
         const list = await fetchOrgsDeduped(force)
         setOrgs(list)
+        // Drop a stale/garbage stored active org: if the saved id is not one of
+        // the user's CURRENT memberships, clear it so the api interceptor never
+        // sends a stale `X-Organization-Id`. localStorage persists across logins,
+        // so a prior session's (or a deleted/removed) org id can linger and make
+        // every scoped write — e.g. "create class" — fail with 403/400.
+        const stored = localStorage.getItem(LS_KEY)
+        if (stored && !list.some((o) => String(o.id) === String(stored))) {
+          localStorage.removeItem(LS_KEY)
+          setActiveOrgId(null)
+        }
       } catch {
         setOrgs([])
       }

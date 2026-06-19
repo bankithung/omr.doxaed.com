@@ -25,6 +25,15 @@ def get_active_org(request):
         request._active_org_cache = None
         return None
 
+    # A malformed header (non-numeric / not a valid pk) is a bad request, NOT a
+    # server error: a stale or garbage `X-Organization-Id` (e.g. the string
+    # "undefined" left in localStorage) must never 500 the request — it would
+    # otherwise raise ValueError when cast to the membership FK's integer.
+    try:
+        org_id = int(org_id)
+    except (TypeError, ValueError):
+        raise PermissionDenied("Invalid organization.")
+
     m = (
         OrganizationMembership.objects.filter(
             organization_id=org_id,
