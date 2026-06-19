@@ -2,8 +2,11 @@ import { useState, useRef, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
-import { createTest, createQuestion, updateTest } from "@/api/assessments"
+import { createTest, createQuestion, updateTest, listClasses } from "@/api/assessments"
 import { listSubjects } from "@/api/subjects"
+import { useOrg } from "@/org/OrgContext"
+import { useClass } from "@/features/class/useClass"
+import { childKindLabel } from "@/features/class/typePresets"
 import { Stepper, StepperCompact } from "@/components/ui/stepper"
 import { PageShell } from "@/components/ui/page-shell"
 import { Button } from "@/components/ui/button"
@@ -308,6 +311,20 @@ function StepDetails({ classId, onNext }) {
   const [brandInheritOrg, setBrandInheritOrg] = useState(true)
   const logoInputRef = useRef(null)
 
+  // Which group this test belongs to — the class itself, or one of its sections.
+  const cls = useClass(classId)
+  const { activeOrg } = useOrg() ?? {}
+  const sectionLabel = childKindLabel(activeOrg?.type, cls?.kind_label)
+  const [groupId, setGroupId] = useState(String(classId))
+  const [sections, setSections] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    listClasses({ parent: classId })
+      .then((d) => { if (!cancelled) setSections(d.results ?? d) })
+      .catch(() => { if (!cancelled) setSections([]) })
+    return () => { cancelled = true }
+  }, [classId])
+
   // Load the class's subjects. Optional + additive — failure is silent so the
   // free-text fallback always works (E2E drives the no-subjects path).
   useEffect(() => {
@@ -349,7 +366,7 @@ function StepDetails({ classId, onNext }) {
       let test
       if (logoFile) {
         const fd = new FormData()
-        fd.append("class_group", classId)
+        fd.append("class_group", groupId)
         fd.append("title", title.trim())
         if (subject.trim()) fd.append("subject", subject.trim())
         fd.append("mode", mode)
@@ -367,7 +384,7 @@ function StepDetails({ classId, onNext }) {
         test = await createTest(fd)
       } else {
         const payload = {
-          class_group: classId,
+          class_group: Number(groupId),
           title: title.trim(),
           ...(subject.trim() && { subject: subject.trim() }),
           mode,
@@ -410,6 +427,28 @@ function StepDetails({ classId, onNext }) {
             autoFocus
           />
         </div>
+
+        {sections.length > 0 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="test-section">{sectionLabel}</Label>
+            <Select value={groupId} onValueChange={setGroupId}>
+              <SelectTrigger id="test-section" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(classId)}>
+                  Whole class (all {sectionLabel.toLowerCase()}s)
+                </SelectItem>
+                {sections.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Which {sectionLabel.toLowerCase()} this test is for.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="test-subject">Subject</Label>

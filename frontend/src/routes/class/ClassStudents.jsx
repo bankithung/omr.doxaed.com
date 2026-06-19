@@ -27,6 +27,7 @@ import {
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 
 const NEW = "__new__"
 
@@ -137,6 +138,7 @@ export default function ClassStudents() {
   const [blocks, setBlocks] = useState([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
+  const [filter, setFilter] = useState("all")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -172,8 +174,14 @@ export default function ClassStudents() {
     load()
   }, [load])
 
-  const total = blocks.reduce((s, b) => s + b.students.length, 0)
-  const visible = blocks.filter((b) => !b.isClass || b.students.length > 0)
+  const allStudents = blocks.flatMap((b) =>
+    b.students.map((s) => ({ ...s, _section: b.isClass ? null : b.name, _sid: String(b.id) })),
+  )
+  const sectionOptions = blocks.map((b) => ({
+    value: String(b.id),
+    label: b.isClass ? "Direct (no section)" : b.name,
+  }))
+  const filtered = filter === "all" ? allStudents : allStudents.filter((s) => s._sid === filter)
   const lower = childLabel.toLowerCase()
 
   return (
@@ -189,10 +197,8 @@ export default function ClassStudents() {
       />
 
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
-        </div>
-      ) : total === 0 && sections.length === 0 ? (
+        <Skeleton className="h-64 w-full rounded-xl" />
+      ) : allStudents.length === 0 && sections.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <Users className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
           <p className="mt-3 font-medium">No students yet</p>
@@ -204,34 +210,42 @@ export default function ClassStudents() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-5">
-          {visible.map((b) => (
-            <section key={b.id} className="overflow-hidden rounded-xl border border-border bg-surface-1">
-              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold">{b.name}</p>
-                  {b.kind && <span className="text-xs text-muted-foreground">{b.kind}</span>}
-                </div>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {b.students.length} student{b.students.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              {b.students.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-muted-foreground">No students in this {lower} yet.</p>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {b.students.map((s) => (
-                    <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-                      <span className="w-12 shrink-0 font-mono text-xs font-medium tabular-nums">{s.roll_number}</span>
-                      <span className="truncate">
-                        {s.full_name || <span className="italic text-muted-foreground">—</span>}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
+        <div className="space-y-3">
+          {/* Filter by section */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="min-h-[40px] w-full sm:w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All {lower}s</SelectItem>
+                {sectionOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {filtered.length} student{filtered.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No students {filter === "all" ? "yet" : `in this ${lower}`}.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-1">
+              {filtered.map((s) => (
+                <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className="w-12 shrink-0 font-mono text-xs font-medium tabular-nums">{s.roll_number}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {s.full_name || <span className="italic text-muted-foreground">—</span>}
+                  </span>
+                  {s._section && <Badge variant="neutral">{s._section}</Badge>}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

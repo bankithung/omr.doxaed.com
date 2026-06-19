@@ -10,7 +10,7 @@ import {
   FileText,
   X as XIcon,
 } from "lucide-react"
-import { listTests, retest } from "@/api/assessments"
+import { listTests, retest, listClasses } from "@/api/assessments"
 import { listSubjects, createSubject, deleteSubject } from "@/api/subjects"
 import { listRosters, createRoster } from "@/api/omr"
 import {
@@ -21,6 +21,8 @@ import {
   deleteClassGrant,
 } from "@/api/orgs"
 import { useOrg } from "@/org/OrgContext"
+import { useClass } from "@/features/class/useClass"
+import { childKindLabel } from "@/features/class/typePresets"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,7 +61,7 @@ const STATUS_LABELS = {
   closed: "Closed",
 }
 
-function StatusBadge({ status }) {
+export function StatusBadge({ status }) {
   return (
     <Badge variant={STATUS_VARIANT[status] ?? "neutral"}>
       {STATUS_LABELS[status] ?? status}
@@ -73,7 +75,7 @@ function StatusBadge({ status }) {
 // for tests that haven't been generated yet (status = draft/ready with no sheets).
 // Scan / Results / Review / Analytics / Retest go into the ActionMenu overflow.
 
-function TestActions({ test, onRetest, retestingId }) {
+export function TestActions({ test, onRetest, retestingId }) {
   const navigate = useNavigate()
 
   const menuItems = [
@@ -658,17 +660,38 @@ export function AccessSection({ classId }) {
 
 export function ExamsSection({ classId }) {
   const navigate = useNavigate()
+  const cls = useClass(classId)
+  const { activeOrg } = useOrg() ?? {}
+  const childLabel = childKindLabel(activeOrg?.type, cls?.kind_label)
+  const lower = childLabel.toLowerCase()
   const [tests, setTests] = useState([])
+  const [sections, setSections] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [retestingId, setRetestingId] = useState(null)
+  const [filter, setFilter] = useState("all")
 
+  // Exams can live on the class itself OR on any of its sections (the wizard lets
+  // you pick). Pull them all so the class page is the single place to see them.
   const fetchTests = useCallback(async () => {
     setLoading(true)
     setError(false)
     try {
-      const data = await listTests(classId)
-      setTests(data.results ?? data)
+      const secD = await listClasses({ parent: classId })
+      const secs = secD.results ?? secD
+      setSections(secs)
+      const groups = [
+        { id: Number(classId), label: null },
+        ...secs.map((s) => ({ id: s.id, label: s.name })),
+      ]
+      const perGroup = await Promise.all(
+        groups.map(async (g) => {
+          const data = await listTests(g.id)
+          const rows = data.results ?? data
+          return rows.map((t) => ({ ...t, _section: g.label, _gid: String(g.id) }))
+        }),
+      )
+      setTests(perGroup.flat())
     } catch {
       setError(true)
       toast.error("Failed to load exams")
@@ -694,6 +717,9 @@ export function ExamsSection({ classId }) {
     }
   }
 
+  const hasSections = sections.length > 0
+  const filtered = filter === "all" ? tests : tests.filter((t) => t._gid === filter)
+
   const columns = [
     {
       key: "title",
@@ -710,6 +736,20 @@ export function ExamsSection({ classId }) {
           <span className="italic text-muted-foreground">—</span>
         ),
     },
+    ...(hasSections
+      ? [
+          {
+            key: "section",
+            header: childLabel,
+            cell: (test) =>
+              test._section ? (
+                <Badge variant="neutral">{test._section}</Badge>
+              ) : (
+                <span className="text-xs text-muted-foreground">Whole class</span>
+              ),
+          },
+        ]
+      : []),
     {
       key: "status",
       header: "Status",
@@ -758,5 +798,32 @@ export function ExamsSection({ classId }) {
     )
   }
 
-  return <DataTable columns={columns} rows={tests} getRowKey={(test) => test.id} />
+  return (
+    <div className="space-y-3">
+      {hasSections && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="min-h-[40px] w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All {lower}s</SelectItem>
+              <SelectItem value={String(classId)}>Whole class</SelectItem>
+              {sections.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {filtered.length} exam{filtered.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      )}
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No exams in this {lower}.</p>
+      ) : (
+        <DataTable columns={columns} rows={filtered} getRowKey={(test) => test.id} />
+      )}
+    </div>
+  )
 }
