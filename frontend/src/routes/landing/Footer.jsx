@@ -15,6 +15,15 @@ const PRODUCT_LINKS = [
   { label: "Create account", to: "/register" },
 ]
 
+// Resources / trust pages — real, navigable destinations.
+const RESOURCE_LINKS = [
+  { label: "Getting started", to: "/help" },
+  { label: "FAQ", to: "/faq" },
+  { label: "Security", to: "/security" },
+  { label: "Terms", to: "/terms" },
+  { label: "Privacy", to: "/privacy" },
+]
+
 const OMR_MODES = [
   "Standard MCQ",
   "Roster pre-bubbled roll (auto-identify)",
@@ -77,7 +86,7 @@ export default function Footer() {
   return (
     <footer className="border-t border-border px-6 pb-10 pt-16 lg:px-16 xl:px-20">
       <Reveal className="mx-auto max-w-[90rem]">
-        <div className="grid gap-x-8 gap-y-10 lg:grid-cols-[1.6fr_1fr_1.3fr_1.3fr_1fr_1fr]">
+        <div className="grid gap-x-8 gap-y-10 lg:grid-cols-[1.6fr_1fr_1fr_1.3fr_1.3fr_1fr_1fr]">
           {/* brand block */}
           <RevealItem className="max-w-sm lg:pr-6">
             <Link to="/" className="flex items-baseline gap-1.5 text-foreground" aria-label="DoxaEd OMR — home">
@@ -100,6 +109,18 @@ export default function Footer() {
               {PRODUCT_LINKS.map((l) => (
                 <li key={l.label}>
                   <FooterLink to={l.to} anchor={l.anchor}>{l.label}</FooterLink>
+                </li>
+              ))}
+            </ul>
+          </RevealItem>
+
+          {/* resources column */}
+          <RevealItem as="nav" aria-label="Resources" className="lg:border-l lg:border-border lg:pl-6">
+            <ColHeading>Resources</ColHeading>
+            <ul className="mt-4 space-y-2.5">
+              {RESOURCE_LINKS.map((l) => (
+                <li key={l.label}>
+                  <FooterLink to={l.to}>{l.label}</FooterLink>
                 </li>
               ))}
             </ul>

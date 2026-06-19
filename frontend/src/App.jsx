@@ -24,6 +24,10 @@ const Pricing = lazy(() => import("@/routes/Pricing"))
 const Features = lazy(() => import("@/routes/Features"))
 const About = lazy(() => import("@/routes/About"))
 const Contact = lazy(() => import("@/routes/Contact"))
+const Security = lazy(() => import("@/routes/Security"))
+const FAQ = lazy(() => import("@/routes/FAQ"))
+const Help = lazy(() => import("@/routes/Help"))
+const NotFound = lazy(() => import("@/routes/NotFound"))
 const Profile = lazy(() => import("@/routes/Profile"))
 const Classes = lazy(() => import("@/routes/Classes"))
 const Folders = lazy(() => import("@/routes/Folders"))
@@ -100,6 +104,9 @@ export default function App() {
     "/features",
     "/about",
     "/contact",
+    "/security",
+    "/faq",
+    "/help",
   ]
 
   // Route-aware Suspense fallback: app (shell) routes show the app-shell skeleton
@@ -159,6 +166,9 @@ export default function App() {
           <Route path="/features" element={<Features />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/security" element={<Security />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/help" element={<Help />} />
 
           {/* Onboarding — full-screen wizard, no AppShell (login required) */}
           <Route
@@ -335,6 +345,9 @@ export default function App() {
               </ShellProtectedRoute>
             }
           />
+
+          {/* Catch-all 404 — MUST be last. Branded NotFound in PublicLayout. */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </div>
