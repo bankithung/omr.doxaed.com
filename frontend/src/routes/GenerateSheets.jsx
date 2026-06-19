@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { ArrowLeft, Printer, Download, FileText } from "lucide-react"
-import { getTest, updateTest } from "@/api/assessments"
+import { getTest, updateTest, listClasses } from "@/api/assessments"
 import { listRosters, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -98,8 +98,22 @@ export default function GenerateSheets() {
       setLogoPosition(t.logo_position ?? "left")
       setLogoFile(null)
       setLogoRemoved(false)
-      const r = await listRosters({ class_group: t.class_group })
-      setRosters(r.results ?? r)
+      // Rosters can live on the exam's group OR (for a whole-class exam) on any
+      // of its sections — gather them all, labelled by section, so you can print
+      // per-section sheets from one place.
+      const secD = await listClasses({ parent: t.class_group })
+      const secs = secD.results ?? secD
+      const groups = [
+        { id: t.class_group, label: null },
+        ...secs.map((s) => ({ id: s.id, label: s.name })),
+      ]
+      const perGroup = await Promise.all(
+        groups.map(async (g) => {
+          const r = await listRosters({ class_group: g.id })
+          return (r.results ?? r).map((ro) => ({ ...ro, _section: g.label }))
+        }),
+      )
+      setRosters(perGroup.flat())
     } catch {
       setError(true)
     } finally {
@@ -387,7 +401,7 @@ export default function GenerateSheets() {
               <SelectContent>
                 {rosters.map((r) => (
                   <SelectItem key={r.id} value={String(r.id)}>
-                    {r.name}
+                    {r._section ? `${r._section} · ${r.name}` : r.name}
                   </SelectItem>
                 ))}
               </SelectContent>
