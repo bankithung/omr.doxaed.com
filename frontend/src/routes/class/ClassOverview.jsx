@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import { FileText, Users, BookOpen, CircleCheck, Plus } from "lucide-react"
-import { listTests } from "@/api/assessments"
+import { FileText, Users, BookOpen, Layers, Plus } from "lucide-react"
+import { listTests, listClasses } from "@/api/assessments"
 import { listSubjects } from "@/api/subjects"
 import { listRosters } from "@/api/omr"
 import { useClass } from "@/features/class/useClass"
+import { useOrg } from "@/org/OrgContext"
+import { childKindLabel, pluralize } from "@/features/class/typePresets"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { PageShell } from "@/components/ui/page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -29,29 +32,54 @@ export default function ClassOverview() {
   const { id } = useParams()
   const navigate = useNavigate()
   const cls = useClass(id)
+  const { activeOrg } = useOrg() ?? {}
+  const childLabel = childKindLabel(activeOrg?.type, cls?.kind_label)
   const [stats, setStats] = useState(null)
   const [recent, setRecent] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Counts span the whole subtree — exams and students can live on the class
+  // itself OR on any of its sections, so summing only the class would lie.
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [testsD, subjectsD, rostersD] = await Promise.all([
-        listTests(id),
+      const secD = await listClasses({ parent: id })
+      const secs = secD.results ?? secD
+      const groups = [
+        { id: Number(id), label: null },
+        ...secs.map((s) => ({ id: s.id, label: s.name })),
+      ]
+      const [perGroupTests, perGroupRosters, subjectsD] = await Promise.all([
+        Promise.all(
+          groups.map(async (g) => {
+            const d = await listTests(g.id)
+            return (d.results ?? d).map((t) => ({ ...t, _section: g.label }))
+          }),
+        ),
+        Promise.all(
+          groups.map(async (g) => {
+            const d = await listRosters({ class_group: g.id })
+            return d.results ?? d
+          }),
+        ),
         listSubjects(id),
-        listRosters({ class_group: id }),
       ])
-      const tests = testsD.results ?? testsD
+      const tests = perGroupTests.flat()
+      const rosters = perGroupRosters.flat()
       const subjects = subjectsD.results ?? subjectsD
-      const rosters = rostersD.results ?? rostersD
       const students = rosters.reduce(
         (sum, r) => sum + (r.student_count ?? r.students_count ?? 0),
         0,
       )
-      setStats({ exams: tests.length, students, subjects: subjects.length })
-      setRecent(tests.slice(0, 5))
+      setStats({
+        exams: tests.length,
+        students,
+        subjects: subjects.length,
+        sections: secs.length,
+      })
+      setRecent([...tests].sort((a, b) => b.id - a.id).slice(0, 5))
     } catch {
-      setStats({ exams: 0, students: 0, subjects: 0 })
+      setStats({ exams: 0, students: 0, subjects: 0, sections: 0 })
     } finally {
       setLoading(false)
     }
@@ -79,12 +107,8 @@ export default function ClassOverview() {
           <>
             <StatTile icon={FileText} label="Exams" value={stats.exams} />
             <StatTile icon={Users} label="Students" value={stats.students} />
+            <StatTile icon={Layers} label={pluralize(childLabel)} value={stats.sections} />
             <StatTile icon={BookOpen} label="Subjects" value={stats.subjects} />
-            <StatTile
-              icon={CircleCheck}
-              label="Status"
-              value={<span className="text-base font-medium">Active</span>}
-            />
           </>
         )}
       </div>
@@ -127,7 +151,10 @@ export default function ClassOverview() {
             {recent.map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{t.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium">{t.title}</p>
+                    {t._section && <Badge variant="neutral">{t._section}</Badge>}
+                  </div>
                   <p className="truncate text-xs text-muted-foreground">
                     {t.subject || "No subject"} · attempt #{t.attempt_number}
                   </p>
