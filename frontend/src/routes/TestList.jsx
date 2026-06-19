@@ -13,6 +13,7 @@ import {
 import { getClass, listTests, retest } from "@/api/assessments"
 import { listSubjects, createSubject, deleteSubject } from "@/api/subjects"
 import { listRosters, createRoster, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,13 +41,6 @@ import { ActionMenu } from "@/components/ui/action-menu"
 import { Badge } from "@/components/ui/badge"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card"
 
 // ─── Status badge ─────────────────────────────────
 
@@ -362,52 +356,47 @@ function SubjectsSection({ classId }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex-col items-start gap-1">
-        <CardTitle>Subjects</CardTitle>
-        <CardDescription>
-          Define subjects for this class to pick them quickly when creating tests.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <form onSubmit={handleAdd} className="flex items-center gap-2">
-          <Input
-            placeholder="e.g. Mathematics"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="flex-1"
-            aria-label="New subject name"
-          />
-          <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
-            {adding ? "Adding…" : "Add subject"}
-          </Button>
-        </form>
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Define subjects for this class to pick them quickly when creating tests.
+      </p>
+      <form onSubmit={handleAdd} className="flex items-center gap-2">
+        <Input
+          placeholder="e.g. Mathematics"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="flex-1"
+          aria-label="New subject name"
+        />
+        <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
+          {adding ? "Adding…" : "Add subject"}
+        </Button>
+      </form>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading subjects…</p>
-        ) : subjects.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No subjects yet.</p>
-        ) : (
-          <ul className="flex flex-wrap gap-2">
-            {subjects.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-3 pr-1.5 text-sm"
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading subjects…</p>
+      ) : subjects.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No subjects yet.</p>
+      ) : (
+        <ul className="flex flex-wrap gap-2">
+          {subjects.map((s) => (
+            <li
+              key={s.id}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-3 pr-1.5 text-sm"
+            >
+              <span>{s.name}</span>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(s)}
+                aria-label={`Remove subject ${s.name}`}
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
               >
-                <span>{s.name}</span>
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget(s)}
-                  aria-label={`Remove subject ${s.name}`}
-                  className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-                >
-                  <XIcon className="size-3.5" aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
+                <XIcon className="size-3.5" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {/* Delete confirm (custom — never window.confirm) */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !deleting && !o && setDeleteTarget(null)}>
@@ -426,7 +415,7 @@ function SubjectsSection({ classId }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   )
 }
 
@@ -481,65 +470,66 @@ function RostersSection({ classId }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex-col items-start gap-1">
-        <CardTitle>Rosters</CardTitle>
-        <CardDescription>
-          The student lists for this class. Add a roster, then add students (or a
-          roll count) to it — generated OMR sheets use this class's rosters.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <form onSubmit={handleAdd} className="flex items-center gap-2">
-          <Input
-            placeholder="e.g. Section A"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="flex-1"
-            aria-label="New roster name"
-          />
-          <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
-            {adding ? "Adding…" : "Add roster"}
-          </Button>
-        </form>
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        The student lists for this class. Add a roster, then add students (or a
+        roll count) to it — generated OMR sheets use this class's rosters.
+      </p>
+      <form onSubmit={handleAdd} className="flex items-center gap-2">
+        <Input
+          placeholder="e.g. Section A"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="flex-1"
+          aria-label="New roster name"
+        />
+        <Button type="submit" size="sm" className="min-h-[40px]" disabled={adding}>
+          {adding ? "Adding…" : "Add roster"}
+        </Button>
+      </form>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading rosters…</p>
-        ) : rosters.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No rosters yet. Add one to manage this class's students.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-            {rosters.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center justify-between gap-3 px-3 py-2.5"
-              >
-                <div className="min-w-0">
-                  <Link
-                    to={`/rosters/${r.id}`}
-                    className="font-medium hover:text-primary hover:underline"
-                  >
-                    {r.name}
-                  </Link>
-                  <span className="ml-2 text-sm text-muted-foreground tabular">
-                    {r.student_count ?? r.students_count ?? 0} students
-                  </span>
-                </div>
-                <Button variant="outline" size="sm" asChild className="min-h-[40px]">
-                  <Link to={`/rosters/${r.id}`}>Manage students</Link>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading rosters…</p>
+      ) : rosters.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No rosters yet. Add one to manage this class's students.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+          {rosters.map((r) => (
+            <li
+              key={r.id}
+              className="flex items-center justify-between gap-3 px-3 py-2.5"
+            >
+              <div className="min-w-0">
+                <Link
+                  to={`/rosters/${r.id}`}
+                  className="font-medium hover:text-primary hover:underline"
+                >
+                  {r.name}
+                </Link>
+                <span className="ml-2 text-sm text-muted-foreground tabular">
+                  {r.student_count ?? r.students_count ?? 0} students
+                </span>
+              </div>
+              <Button variant="outline" size="sm" asChild className="min-h-[40px]">
+                <Link to={`/rosters/${r.id}`}>Manage students</Link>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
 // ─── Main TestList screen ──────────────────────────
+
+const CLASS_TABS = [
+  { key: "tests", label: "Tests" },
+  { key: "rosters", label: "Rosters" },
+  { key: "subjects", label: "Subjects" },
+]
 
 export default function TestList() {
   const { id } = useParams()
@@ -550,6 +540,7 @@ export default function TestList() {
   const [error, setError] = useState(false)
   const [retestingId, setRetestingId] = useState(null)
   const [generateTest, setGenerateTest] = useState(null)
+  const [tab, setTab] = useState("tests")
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -664,33 +655,52 @@ export default function TestList() {
         }
       />
 
-      {/* Subjects (Phase 5D) */}
-      <SubjectsSection classId={id} />
+      {/* Tabs — Tests / Rosters / Subjects (refined, single home for the class) */}
+      <div>
+        <div
+          role="tablist"
+          aria-label="Class sections"
+          className="flex gap-1 overflow-x-auto border-b border-border"
+        >
+          {CLASS_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "relative -mb-px min-h-[40px] whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+                tab === t.key
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Rosters — the class's student lists (add roster → manage students) */}
-      <RostersSection classId={id} />
-
-      {tests.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="No tests yet"
-          description="Create the first test for this class."
-          action={
-            <Button onClick={() => navigate(`/classes/${id}/tests/new`)}>
-              Create test
-            </Button>
-          }
-        />
-      ) : (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground">Tests</h2>
-          <DataTable
-            columns={columns}
-            rows={tests}
-            getRowKey={(test) => test.id}
-          />
-        </section>
-      )}
+        <div role="tabpanel" className="pt-5">
+          {tab === "tests" &&
+            (tests.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="No tests yet"
+                description="Create the first test for this class."
+                action={
+                  <Button onClick={() => navigate(`/classes/${id}/tests/new`)}>
+                    Create test
+                  </Button>
+                }
+              />
+            ) : (
+              <DataTable columns={columns} rows={tests} getRowKey={(test) => test.id} />
+            ))}
+          {tab === "rosters" && <RostersSection classId={id} />}
+          {tab === "subjects" && <SubjectsSection classId={id} />}
+        </div>
+      </div>
 
       {/* Generate sheets dialog */}
       {generateTest && (
