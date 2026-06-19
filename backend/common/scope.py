@@ -244,3 +244,57 @@ def can_edit_test(request, test):
     if is_active_admin(request):
         return True
     return test.created_by_id == request.user.id
+
+
+def _group_ancestor_ids(group):
+    """Ids of `group` and all its ancestors (walk the parent chain, cycle-guarded)."""
+    ids = set()
+    g = group
+    seen = 0
+    while g is not None and seen < 64:
+        ids.add(g.id)
+        g = g.parent if getattr(g, "parent_id", None) else None
+        seen += 1
+    return ids
+
+
+def has_perm(request, org, code, group=None):
+    """RBAC check: does request.user hold permission `code` in `org`, optionally
+    within the subtree of `group`?
+
+    - SOLO scope → True (ownership already enforced by scope_filter).
+    - Active-org ADMIN (membership admin, or an Owner/Admin role binding) → True.
+    - Otherwise True iff a RoleBinding whose role includes `code` covers the scope,
+      OR a matching PermissionGrant does. Org-wide permissions ignore `group` and
+      are satisfied only by org-wide (scope_group=null) bindings/grants. A scoped
+      binding/grant on group X covers X and its descendants.
+    """
+    if org is None:
+        return True
+    from organizations.models import RoleBinding, PermissionGrant
+    from organizations.permissions_catalog import ORG_WIDE, ADMIN_ROLE_NAMES
+
+    user = request.user
+    if is_active_admin(request):
+        return True
+
+    org_wide = code in ORG_WIDE
+    ancestor_ids = set() if (org_wide or group is None) else _group_ancestor_ids(group)
+
+    for b in RoleBinding.objects.filter(organization=org.id, user=user).select_related("role"):
+        if b.scope_group_id is None and b.role.name in ADMIN_ROLE_NAMES:
+            return True  # an org-wide admin/owner role
+        if code not in (b.role.permissions or []):
+            continue
+        if b.scope_group_id is None:
+            return True  # org-wide binding
+        if not org_wide and b.scope_group_id in ancestor_ids:
+            return True  # scoped binding covering this group's subtree
+
+    for gr in PermissionGrant.objects.filter(organization=org.id, user=user, permission=code):
+        if gr.scope_group_id is None:
+            return True
+        if not org_wide and gr.scope_group_id in ancestor_ids:
+            return True
+
+    return False

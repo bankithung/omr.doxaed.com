@@ -175,3 +175,74 @@ class ClassAccessGrant(models.Model):
     def __str__(self):
         scope = "all subjects" if self.all_subjects else "narrowed"
         return f"{self.user} → {self.class_group} ({scope})"
+
+
+class Role(models.Model):
+    """An org-scoped named bundle of permission codes. System roles (Owner / Admin
+    / Teacher / Viewer) are seeded per org; admins may add custom roles."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="roles")
+    name = models.CharField(max_length=80)
+    is_system = models.BooleanField(default=False)
+    permissions = models.JSONField(default=list)  # list of permission codes
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "name"], name="uniq_role_org_name")
+        ]
+
+    def __str__(self):
+        return f"{self.name} @ org {self.organization_id}"
+
+
+class RoleBinding(models.Model):
+    """Assigns a Role to a user, optionally SCOPED to a group subtree
+    (scope_group=null → org-wide). The generalized per-class teacher grant."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="role_bindings")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="role_bindings")
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="bindings")
+    scope_group = models.ForeignKey(
+        "assessments.ClassGroup", null=True, blank=True, on_delete=models.CASCADE, related_name="role_bindings"
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "user", "role", "scope_group"],
+                name="uniq_rolebinding",
+                nulls_distinct=False,
+            )
+        ]
+        indexes = [models.Index(fields=["organization", "user"], name="rolebinding_org_user_idx")]
+
+
+class PermissionGrant(models.Model):
+    """Grants a single permission code to an INDIVIDUAL, optionally scoped to a
+    group subtree (scope_group=null → org-wide)."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="permission_grants")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="permission_grants")
+    permission = models.CharField(max_length=64)
+    scope_group = models.ForeignKey(
+        "assessments.ClassGroup", null=True, blank=True, on_delete=models.CASCADE, related_name="permission_grants"
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "user", "permission", "scope_group"],
+                name="uniq_permgrant",
+                nulls_distinct=False,
+            )
+        ]
+        indexes = [models.Index(fields=["organization", "user"], name="permgrant_org_user_idx")]

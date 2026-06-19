@@ -114,6 +114,11 @@ class OrganizationListCreateView(APIView):
             role=OrganizationMembership.ADMIN,
             status=OrganizationMembership.ACTIVE,
         )
+        # Seed the org's system roles (Owner/Admin/Teacher/Viewer) + bind the
+        # creator to Owner so RBAC checks resolve from day one.
+        from organizations.role_seed import seed_org_roles
+
+        seed_org_roles(org, request.user)
         _log(org, request.user, "org.created", target_type="organization", target_id=org.id)
         out = OrganizationSerializer(org).data
         out["role"] = OrganizationMembership.ADMIN
