@@ -1,8 +1,7 @@
 import { Link } from "react-router-dom"
-import { BarChart3, ScanLine, ShieldCheck } from "lucide-react"
 
-// Wordmark shared by the branded aside and the mobile header. Uses only the
-// flat app design tokens (no marketing-page theme).
+// Wordmark — the DoxaEd OMR lockup at the top of the centered auth column.
+// Flat app design tokens only (no marketing-page theme).
 function Wordmark({ className = "" }) {
   return (
     <Link
@@ -18,69 +17,46 @@ function Wordmark({ className = "" }) {
   )
 }
 
-const FEATURES = [
-  { icon: ScanLine, title: "Scan & auto-grade", desc: "Upload sheets from any phone or scanner." },
-  { icon: BarChart3, title: "Instant analytics", desc: "Item analysis and report cards per test." },
-  { icon: ShieldCheck, title: "Private by design", desc: "Encrypted student data, owner-scoped." },
-]
-
-function FeatureList() {
-  return (
-    <ul className="space-y-5">
-      {FEATURES.map(({ icon: Icon, title, desc }) => (
-        <li key={title} className="flex gap-3">
-          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-primary">
-            <Icon className="size-4" aria-hidden="true" />
-          </span>
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium text-sidebar-foreground">{title}</p>
-            <p className="text-sm text-muted-foreground">{desc}</p>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 /**
- * Branded split auth layout (spec §5). Left: a branded aside (hidden on mobile);
- * right: a centered max-w-sm form column. Flat, dark-mode correct, app tokens.
+ * Centered Supabase-style auth layout (spec §5). A single centered max-w-sm
+ * column on the dark gunmetal `bg-background`: the DoxaEd OMR wordmark, the
+ * heading + subtitle, the form on a flat `rounded-xl border bg-card p-6` panel,
+ * then the footer. A faint brand radial sits behind the card (the one allowed
+ * subtle glow). Flat, theme-aware, app tokens. Used by Login / Register /
+ * Forgot / Reset / VerifyEmail / AcceptInvite.
+ *
+ * Frozen E2E names live in the page content (title/heading props), not here:
+ * restyling never touches them.
  */
-export default function AuthLayout({ title, subtitle, children, footer, aside }) {
+export default function AuthLayout({ title, subtitle, children, footer }) {
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      {/* Branded aside — desktop only */}
-      <aside className="relative hidden flex-col justify-between border-r border-border bg-sidebar p-10 lg:flex">
-        <Wordmark className="text-lg" />
-        <div className="max-w-sm space-y-8">
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight text-sidebar-foreground">
-              OMR exams, graded in minutes.
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Generate shuffled answer sheets, scan them back in, and get auditable
-              results with full analytics.
-            </p>
-          </div>
-          {aside ?? <FeatureList />}
-        </div>
-        <p className="text-xs text-muted-foreground">© DoxaEd</p>
-      </aside>
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12">
+      {/* Faint brand radial behind the card — the single allowed subtle glow. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px]"
+        style={{
+          background:
+            "radial-gradient(50% 60% at 50% 0%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 72%)",
+        }}
+      />
 
-      {/* Form column */}
-      <main className="flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm space-y-6">
-          <Wordmark className="text-lg lg:hidden" />
-          <div className="space-y-1.5">
-            {title ? (
-              <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-            ) : null}
-            {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
-          </div>
-          {children}
-          {footer}
+      <div className="w-full max-w-sm space-y-6">
+        <div className="flex justify-center">
+          <Wordmark className="text-lg" />
         </div>
-      </main>
+
+        <div className="space-y-1.5 text-center">
+          {title ? (
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+          ) : null}
+          {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{children}</div>
+
+        {footer}
+      </div>
     </div>
   )
 }

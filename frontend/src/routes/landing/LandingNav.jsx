@@ -1,69 +1,70 @@
 import { Link } from "react-router-dom"
-import { motion, useScroll, useSpring, useTransform } from "framer-motion"
-import { MagneticButton } from "./Micro"
-import MaterialIcon from "./MaterialIcon"
-import { palette } from "./motion/tokens"
+import { Button } from "@/components/ui/button"
 
-function LogoMark() {
+/**
+ * DoxaEd OMR wordmark — premium two-part lockup (brand name + OMR eyebrow) on a
+ * small brand glyph. Flat, app-token-driven.
+ */
+function Wordmark() {
   return (
-    <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500">
-      <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-        {[6, 12, 18].map((cy) => (
-          <circle key={cy} cx="8" cy={cy} r="2.4" fill="none" stroke="#fff" strokeWidth="1.6" />
-        ))}
-        <circle cx="16" cy="12" r="2.4" fill="#fff" />
-      </svg>
-    </span>
-  )
-}
-
-// Fixed top scroll-progress rail (the spine of the 4-act narrative).
-export function ScrollRail() {
-  const { scrollYProgress } = useScroll()
-  const scaleX = useSpring(scrollYProgress, { stiffness: 90, damping: 30, restDelta: 0.001, mass: 0.4 })
-  return (
-    <motion.div
-      aria-hidden
-      style={{ scaleX, transformOrigin: "left" }}
-      className="fixed inset-x-0 top-0 z-[60] h-0.5 bg-gradient-to-r from-indigo-500 via-cyan-400 to-teal-400"
-    />
-  )
-}
-
-export default function LandingNav() {
-  const { scrollY } = useScroll()
-  const bg = useTransform(scrollY, [0, 80], ["rgba(5,6,10,0)", "rgba(8,10,18,0.72)"])
-  const borderColor = useTransform(scrollY, [0, 80], ["rgba(255,255,255,0)", palette.border])
-  const blur = useTransform(scrollY, [0, 80], ["blur(0px)", "blur(12px)"])
-
-  return (
-    <motion.header
-      style={{ backgroundColor: bg, borderBottomColor: borderColor, backdropFilter: blur, WebkitBackdropFilter: blur }}
-      className="fixed inset-x-0 top-0 z-50 border-b border-transparent"
+    <Link
+      to="/"
+      className="flex items-center gap-2 text-foreground"
+      aria-label="DoxaEd OMR — home"
     >
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-        <Link to="/" className="flex items-center gap-2 text-base text-white" aria-label="DoxaEd OMR — home">
-          <LogoMark />
-          <span className="flex items-baseline gap-1.5">
-            <span className="font-semibold tracking-tight">DoxaEd</span>
-            <span className="font-mono-data text-[11px] font-medium uppercase tracking-[0.28em] text-cyan-300">OMR</span>
-          </span>
-        </Link>
-        <nav className="ml-auto hidden items-center gap-7 text-sm sm:flex">
-          <a href="#how-it-works" className="text-neutral-300 transition-colors hover:text-white">How it works</a>
-          <a href="#features" className="text-neutral-300 transition-colors hover:text-white">Features</a>
-          <Link to="/login" className="text-neutral-300 transition-colors hover:text-white">Sign in</Link>
+      <span className="flex size-7 items-center justify-center rounded-md bg-primary">
+        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+          {[6, 12, 18].map((cy) => (
+            <circle key={cy} cx="8" cy={cy} r="2.4" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="1.6" />
+          ))}
+          <circle cx="16" cy="12" r="2.4" fill="var(--color-primary-foreground)" />
+        </svg>
+      </span>
+      <span className="flex items-baseline gap-1.5">
+        <span className="font-semibold tracking-tight">DoxaEd</span>
+        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
+      </span>
+    </Link>
+  )
+}
+
+const NAV_LINKS = [
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Features", href: "#features" },
+]
+
+/**
+ * LandingNav — sticky, translucent + backdrop-blur header with a hairline bottom
+ * border (the Supabase nav). Ghost links collapse on mobile; the "Get started"
+ * CTA + "Sign in" stay. h-16 (64px) bar. All flat, app tokens, theme-aware.
+ */
+export default function LandingNav() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-[90rem] items-center justify-between px-6 lg:px-16 xl:px-20">
+        <Wordmark />
+
+        <nav className="hidden items-center gap-7 text-sm sm:flex" aria-label="Primary">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {l.label}
+            </a>
+          ))}
         </nav>
-        <MagneticButton className="ml-auto p-1.5 sm:ml-0" strength={0.25} labelStrength={0.45}>
-          <Link
-            to="/register"
-            className="group inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-neutral-950 shadow-[0_0_30px_-6px_rgba(99,102,241,0.7)] transition-colors hover:bg-neutral-100"
-          >
-            Get started
-            <MaterialIcon name="arrow" className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
-        </MagneticButton>
+
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild className="hidden h-9 px-3 sm:inline-flex">
+            <Link to="/login">Sign in</Link>
+          </Button>
+          <Button size="sm" asChild className="h-9 px-3.5">
+            <Link to="/register">Get started</Link>
+          </Button>
+        </div>
       </div>
-    </motion.header>
+    </header>
   )
 }

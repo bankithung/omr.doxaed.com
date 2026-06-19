@@ -51,7 +51,7 @@ export default function AcceptInvite() {
   return (
     <AuthLayout title="Accept invitation" subtitle={subtitle}>
       {status === "loading" && (
-        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+        <div className="flex flex-col items-center gap-4 py-4 text-center">
           <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
           <div className="space-y-1">
             <h2 className="text-base font-semibold">Accepting…</h2>
@@ -63,8 +63,8 @@ export default function AcceptInvite() {
       )}
 
       {status === "success" && (
-        <div className="space-y-4">
-          <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+        <div className="space-y-5">
+          <div className="flex flex-col items-center gap-4 py-2 text-center">
             <span className="flex size-12 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--color-success)_14%,transparent)]">
               <CheckCircle2 className="size-7 text-[var(--color-success)]" aria-hidden="true" />
             </span>
@@ -84,8 +84,8 @@ export default function AcceptInvite() {
       )}
 
       {status === "error" && (
-        <div className="space-y-4">
-          <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card px-6 py-10 text-center">
+        <div className="space-y-5">
+          <div className="flex flex-col items-center gap-4 py-2 text-center">
             <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10">
               <XCircle className="size-7 text-destructive" aria-hidden="true" />
             </span>
