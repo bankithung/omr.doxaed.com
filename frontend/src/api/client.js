@@ -7,8 +7,11 @@ export const api = axios.create({ baseURL })
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access")
   if (token) config.headers.Authorization = `Bearer ${token}`
+  // Only ever send a NUMERIC org id. A stale/garbage activeOrg (e.g. the string
+  // "undefined"/"null" left in localStorage) must never reach the server as a
+  // header — it would otherwise break every scoped write ("could not create…").
   const org = localStorage.getItem("activeOrg")
-  if (org) config.headers["X-Organization-Id"] = org
+  if (org && /^[0-9]+$/.test(org)) config.headers["X-Organization-Id"] = org
   return config
 })
 
