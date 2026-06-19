@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { getClass, listTests, retest } from "@/api/assessments"
 import { listSubjects, createSubject, deleteSubject } from "@/api/subjects"
-import { listRosters, createRoster, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
+import { listRosters, createRoster } from "@/api/omr"
 import {
   getMembers,
   listClassGrants,
@@ -24,8 +24,6 @@ import { useOrg } from "@/org/OrgContext"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -72,181 +70,13 @@ function StatusBadge({ status }) {
   )
 }
 
-// ─── Generate Sheets Dialog ────────────────────────
-
-function GenerateSheetsDialog({ test, classId, open, onOpenChange }) {
-  const [rosters, setRosters] = useState([])
-  const [rosterId, setRosterId] = useState("")
-  const [shuffleQuestions, setShuffleQuestions] = useState(true)
-  const [shuffleOptions, setShuffleOptions] = useState(true)
-  const [loading, setLoading] = useState(false)
-  const [downloadUrl, setDownloadUrl] = useState(null)
-  // batch_paper_url is an AUTHED API endpoint (not a /media/ link)
-  const [paperBatchUrl, setPaperBatchUrl] = useState(null)
-  const [downloadingPaper, setDownloadingPaper] = useState(false)
-
-  useEffect(() => {
-    if (!open) return
-    setDownloadUrl(null)
-    setPaperBatchUrl(null)
-    setRosterId("")
-    listRosters({ class_group: classId })
-      .then((data) => setRosters(data.results ?? data))
-      .catch(() => toast.error("Failed to load rosters"))
-  }, [open, classId])
-
-  async function handleGenerate() {
-    if (!rosterId) {
-      toast.error("Please select a roster")
-      return
-    }
-    setLoading(true)
-    setDownloadUrl(null)
-    setPaperBatchUrl(null)
-    try {
-      const resp = await generateSheets({
-        test: test.id,
-        roster: Number(rosterId),
-        shuffle_questions: shuffleQuestions,
-        shuffle_options: shuffleOptions,
-      })
-      const url = mediaUrl(resp.batch_pdf_url)
-      setDownloadUrl(url)
-      // batch_paper_url present when shuffle was on → question papers were emitted
-      if (resp.batch_paper_url) {
-        setPaperBatchUrl(resp.batch_paper_url)
-      }
-      toast.success(`Generated ${resp.count ?? resp.sheets?.length ?? ""} sheet(s)`)
-    } catch (err) {
-      const detail =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        "Failed to generate sheets"
-      toast.error(detail)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleDownloadPapers() {
-    if (!paperBatchUrl) return
-    setDownloadingPaper(true)
-    try {
-      await downloadAuthedBlob(paperBatchUrl, "question-papers.pdf")
-    } catch {
-      toast.error("Failed to download question papers")
-    } finally {
-      setDownloadingPaper(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Generate OMR sheets</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Test: <span className="font-medium text-foreground">{test.title}</span>
-        </p>
-
-        <div className="flex flex-col gap-4">
-          {/* Roster picker */}
-          <div className="flex flex-col gap-1.5">
-            <Label>Roster</Label>
-            {rosters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                This class has no rosters yet. Add one in the{" "}
-                <span className="font-medium text-foreground">Rosters</span> section
-                of this class, then come back to generate.
-              </p>
-            ) : (
-              <Select value={rosterId} onValueChange={setRosterId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a roster…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rosters.map((r) => (
-                    <SelectItem key={r.id} value={String(r.id)}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          {/* Shuffle toggles */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="shuffle-questions" className="cursor-pointer">
-                Shuffle questions
-              </Label>
-              <Switch
-                id="shuffle-questions"
-                checked={shuffleQuestions}
-                onCheckedChange={setShuffleQuestions}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="shuffle-options" className="cursor-pointer">
-                Shuffle options
-              </Label>
-              <Switch
-                id="shuffle-options"
-                checked={shuffleOptions}
-                onCheckedChange={setShuffleOptions}
-              />
-            </div>
-          </div>
-
-          {/* Download links after success */}
-          {downloadUrl && (
-            <div className="rounded-lg border border-[var(--color-success)]/40 bg-[color-mix(in_oklch,var(--color-success)_10%,transparent)] p-3">
-              <p className="mb-2 text-sm font-medium text-[var(--color-success)]">
-                Sheets generated successfully!
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-                    Download sheets PDF
-                  </a>
-                </Button>
-                {paperBatchUrl && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleDownloadPapers}
-                    disabled={downloadingPaper}
-                  >
-                    {downloadingPaper ? "Downloading…" : "Download question papers"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            onClick={handleGenerate}
-            disabled={loading || !rosterId}
-          >
-            {loading ? "Generating…" : "Generate"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 // ─── Test row actions ──────────────────────────────
 //
 // E2E SAFETY: "Generate sheets" stays a DIRECT visible Button (not in a menu)
 // for tests that haven't been generated yet (status = draft/ready with no sheets).
 // Scan / Results / Review / Analytics / Retest go into the ActionMenu overflow.
 
-function TestActions({ test, onGenerate, onRetest, retestingId }) {
+function TestActions({ test, onRetest, retestingId }) {
   const navigate = useNavigate()
 
   const menuItems = [
@@ -281,12 +111,12 @@ function TestActions({ test, onGenerate, onRetest, retestingId }) {
 
   return (
     <div className="flex items-center justify-end gap-2">
-      {/* Generate sheets — direct button, always visible */}
+      {/* Generate sheets — direct button → dedicated Generate & Print page */}
       <Button
         variant="outline"
         size="sm"
         className="min-h-[40px]"
-        onClick={() => onGenerate(test)}
+        onClick={() => navigate(`/tests/${test.id}/sheets`)}
       >
         Generate sheets
       </Button>
@@ -845,7 +675,6 @@ export default function TestList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [retestingId, setRetestingId] = useState(null)
-  const [generateTest, setGenerateTest] = useState(null)
   const [tab, setTab] = useState("tests")
 
   const fetchData = useCallback(async () => {
@@ -915,7 +744,6 @@ export default function TestList() {
       cell: (test) => (
         <TestActions
           test={test}
-          onGenerate={setGenerateTest}
           onRetest={handleRetest}
           retestingId={retestingId}
         />
@@ -1009,15 +837,6 @@ export default function TestList() {
         </div>
       </div>
 
-      {/* Generate sheets dialog */}
-      {generateTest && (
-        <GenerateSheetsDialog
-          test={generateTest}
-          classId={id}
-          open={Boolean(generateTest)}
-          onOpenChange={(v) => { if (!v) setGenerateTest(null) }}
-        />
-      )}
     </PageShell>
   )
 }

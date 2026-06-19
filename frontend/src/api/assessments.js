@@ -17,6 +17,9 @@ export const createClass = (d) =>
 export const listTests = (classId) =>
   api.get("/tests/", { params: { class_group: classId } }).then((r) => r.data)
 
+export const getTest = (id) =>
+  api.get(`/tests/${id}/`).then((r) => r.data)
+
 /**
  * Create a test. Accepts plain objects (JSON) or FormData (multipart, for logo upload).
  */

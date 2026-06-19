@@ -42,6 +42,7 @@ const Scan = lazy(() => import("@/routes/Scan"))
 const Results = lazy(() => import("@/routes/Results"))
 const ReviewQueue = lazy(() => import("@/routes/ReviewQueue"))
 const Analytics = lazy(() => import("@/routes/Analytics"))
+const GenerateSheets = lazy(() => import("@/routes/GenerateSheets"))
 const Organizations = lazy(() => import("@/routes/Organizations"))
 const OrgMembers = lazy(() => import("@/routes/OrgMembers"))
 const OrgAudit = lazy(() => import("@/routes/OrgAudit"))
@@ -266,6 +267,14 @@ export default function App() {
             element={
               <ShellProtectedRoute>
                 <Scan />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/tests/:testId/sheets"
+            element={
+              <ShellProtectedRoute>
+                <GenerateSheets />
               </ShellProtectedRoute>
             }
           />

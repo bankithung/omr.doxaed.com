@@ -210,15 +210,17 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
       await shot(page, browserName, "06-roster")
     })
 
-    // 7. Generate OMR sheets
+    // 7. Generate OMR sheets — now a DEDICATED PAGE (not a modal): the class-page
+    // row button navigates to /tests/:id/sheets, where the roster picker + generate
+    // live alongside the branding editor.
     await step("generate-sheets", async () => {
       await page.goto(`${FRONTEND}/classes/${classId}`)
       await page.getByRole("button", { name: "Generate sheets" }).first().click()
-      // pick the roster in the shadcn Select (dialog-scoped trigger; options render in a portal)
-      const dlg = page.getByRole("dialog")
-      await dlg.getByText("Select a roster…").click()
+      await page.waitForURL("**/tests/*/sheets", { timeout: 20000 })
+      // pick the roster in the shadcn Select (options render in a portal)
+      await page.getByText("Select a roster…").click()
       await page.getByRole("option", { name: `E2E Roster ${RUN_ID}` }).click()
-      await dlg.getByRole("button", { name: "Generate", exact: true }).click()
+      await page.getByRole("button", { name: "Generate sheets", exact: true }).click()
       await page.getByText("Sheets generated successfully!", { exact: false }).first().waitFor({ timeout: 60000 })
       await shot(page, browserName, "07-generated")
     })
