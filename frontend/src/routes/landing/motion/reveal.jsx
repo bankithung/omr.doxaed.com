@@ -1,4 +1,5 @@
-import { motion, useReducedMotion } from "framer-motion"
+import { motion, useReducedMotion, useInView } from "framer-motion"
+import { useRef } from "react"
 
 /**
  * Supabase motion language — the `fadeInUp` scroll-reveal that runs throughout
@@ -96,6 +97,27 @@ export function RevealItem({ as = "div", className = "", children, ...rest }) {
   }
   return (
     <Tag variants={itemVariants} className={className} {...rest}>
+      {children}
+    </Tag>
+  )
+}
+
+/**
+ * InViewAnim — toggles the `landing-anim` class on its wrapper the first time it
+ * scrolls into view, which is what arms the flat CSS product-graphic animations
+ * (scan sweep, bar/line growth, deal-out) defined in index.css. The CSS itself
+ * collapses to the finished frame under prefers-reduced-motion, so this is safe
+ * to always render; we still gate the class so animations don't run off-screen.
+ *
+ * Renders a plain element (no framer-motion), so it composes inside SVG/HTML
+ * freely and never warns about unknown DOM props.
+ */
+export function InViewAnim({ as: Tag = "div", className = "", children, ...rest }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, margin: "0px 0px -15% 0px" })
+  const cls = [inView ? "landing-anim" : "", className].filter(Boolean).join(" ")
+  return (
+    <Tag ref={ref} className={cls} {...rest}>
       {children}
     </Tag>
   )

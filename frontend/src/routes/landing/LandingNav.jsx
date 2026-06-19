@@ -2,35 +2,28 @@ import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 
 /**
- * DoxaEd OMR wordmark — premium two-part lockup (brand name + OMR eyebrow) on a
- * small brand glyph. Flat, app-token-driven.
+ * DoxaEd OMR wordmark — a clean, text-only typographic lockup (brand name +
+ * refined OMR accent eyebrow). No logo glyph — the wordmark alone carries it.
+ * Flat, app-token-driven.
  */
 function Wordmark() {
   return (
     <Link
       to="/"
-      className="flex items-center gap-2 text-foreground"
+      className="flex items-baseline gap-1.5 text-foreground"
       aria-label="DoxaEd OMR — home"
     >
-      <span className="flex size-7 items-center justify-center rounded-md bg-primary">
-        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-          {[6, 12, 18].map((cy) => (
-            <circle key={cy} cx="8" cy={cy} r="2.4" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="1.6" />
-          ))}
-          <circle cx="16" cy="12" r="2.4" fill="var(--color-primary-foreground)" />
-        </svg>
-      </span>
-      <span className="flex items-baseline gap-1.5">
-        <span className="font-semibold tracking-tight">DoxaEd</span>
-        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
-      </span>
+      <span className="text-[1.05rem] font-semibold tracking-tight">DoxaEd</span>
+      <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
     </Link>
   )
 }
 
 const NAV_LINKS = [
-  { label: "How it works", href: "#how-it-works" },
   { label: "Features", href: "#features" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Built for", href: "#use-cases" },
+  { label: "Why", href: "#why" },
 ]
 
 /**
