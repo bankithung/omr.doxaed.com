@@ -104,6 +104,7 @@ class OrganizationListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         org = Organization.objects.create(
             name=serializer.validated_data["name"],
+            type=serializer.validated_data.get("type", Organization.OTHER),
             owner=request.user,
         )
         # Creator becomes an active admin.

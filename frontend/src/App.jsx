@@ -50,7 +50,7 @@ const Analytics = lazy(() => import("@/routes/Analytics"))
 const GenerateSheets = lazy(() => import("@/routes/GenerateSheets"))
 const NewClass = lazy(() => import("@/routes/NewClass"))
 const NewOrganization = lazy(() => import("@/routes/NewOrganization"))
-const Organizations = lazy(() => import("@/routes/Organizations"))
+const OrgList = lazy(() => import("@/routes/OrgList"))
 const OrgMembers = lazy(() => import("@/routes/OrgMembers"))
 const OrgAudit = lazy(() => import("@/routes/OrgAudit"))
 const AcceptInvite = lazy(() => import("@/routes/AcceptInvite"))
@@ -75,10 +75,10 @@ function ShellProtectedRoute({ children }) {
     return <Navigate to="/login" replace />
   }
 
-  // Org-first (Supabase-style): a signed-in user with NO organization is sent to
-  // create one before they can use the app.
-  if (loaded && orgs.length === 0) {
-    return <Navigate to="/organizations/new" replace />
+  // Org-first: shell routes need an ACTIVE organization. With none selected (or
+  // none at all), send the user to the Organizations list to pick or create one.
+  if (loaded && !activeOrg) {
+    return <Navigate to="/organizations" replace />
   }
 
   // Determine if the current user is admin in the active org.
@@ -135,6 +135,7 @@ export default function App() {
     isPublicPortal ||
     SELF_CHROMED.includes(location.pathname) ||
     location.pathname === "/onboarding" ||
+    location.pathname === "/organizations" ||
     location.pathname === "/organizations/new" ||
     location.pathname === "/accept-invite" ||
     location.pathname === "/health" ||
@@ -387,9 +388,11 @@ export default function App() {
           <Route
             path="/organizations"
             element={
-              <ShellProtectedRoute>
-                <Organizations />
-              </ShellProtectedRoute>
+              <ProtectedRoute>
+                <main id="main">
+                  <OrgList />
+                </main>
+              </ProtectedRoute>
             }
           />
           <Route

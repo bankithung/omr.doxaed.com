@@ -16,10 +16,10 @@ export default function RootRoute() {
     return <BrandedSplash />
   }
 
-  // Redirect logged-in users to the org home (Classes = the "projects" grid).
-  // The shell's org-first gate sends users with no organization to create one.
+  // Logged-in users land on the Organizations list (the entry — pick or create
+  // an org). Selecting one enters the org workspace.
   if (user) {
-    return <Navigate to="/classes" replace />
+    return <Navigate to="/organizations" replace />
   }
 
   return (

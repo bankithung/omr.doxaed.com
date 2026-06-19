@@ -68,14 +68,10 @@ export function OrgProvider({ children }) {
           localStorage.removeItem(LS_KEY)
           setActiveOrgId(null)
         }
-        // Org-first (Supabase-style): never run in loose/personal scope when the
-        // user belongs to an org — auto-select one so the app always has an
-        // active organization. Users with NO org are routed to create one.
-        const after = localStorage.getItem(LS_KEY)
-        if (!after && list.length > 0) {
-          localStorage.setItem(LS_KEY, String(list[0].id))
-          setActiveOrgId(String(list[0].id))
-        }
+        // Org selection is EXPLICIT (the user picks an org on the /organizations
+        // list, the Supabase "choose an org" entry). We no longer auto-select an
+        // org here; a valid saved org is honored, otherwise the shell gate routes
+        // the user to the org list to choose or create one.
       } catch {
         setOrgs([])
       } finally {

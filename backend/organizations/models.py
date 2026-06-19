@@ -10,7 +10,25 @@ class Organization(models.Model):
     """Phase 0 skeleton. Membership, invitations, roles, audit log arrive in Phase 6.
     Exists now because the owner-scope foundation references this table."""
 
+    PERSONAL = "personal"
+    SCHOOL = "school"
+    COLLEGE = "college"
+    UNIVERSITY = "university"
+    COACHING = "coaching"
+    OTHER = "other"
+    TYPE_CHOICES = [
+        (PERSONAL, "Personal"),
+        (SCHOOL, "School"),
+        (COLLEGE, "College"),
+        (UNIVERSITY, "University"),
+        (COACHING, "Coaching"),
+        (OTHER, "Other"),
+    ]
+
     name = models.CharField(max_length=255)
+    # Org type seeds the default level labels for the nested-group tree
+    # (school → Class/Section, university → Department/Program/Batch, …).
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=OTHER)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

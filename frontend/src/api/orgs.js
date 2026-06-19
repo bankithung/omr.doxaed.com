@@ -3,8 +3,11 @@ import { api } from "@/api/client"
 export const listOrgs = () =>
   api.get("/organizations/").then((r) => r.data)
 
-export const createOrg = (name) =>
-  api.post("/organizations/", { name }).then((r) => r.data)
+// Accepts a name string (back-compat) or an object { name, type }.
+export const createOrg = (data) =>
+  api
+    .post("/organizations/", typeof data === "string" ? { name: data } : data)
+    .then((r) => r.data)
 
 export const getMembers = (orgId) =>
   api.get(`/organizations/${orgId}/members/`).then((r) => r.data)
