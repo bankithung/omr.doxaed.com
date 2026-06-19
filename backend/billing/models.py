@@ -10,7 +10,7 @@ class Plan(models.Model):
     ENTERPRISE = "enterprise"
     CODE_CHOICES = [
         (FREE, "Free"),
-        (TEAM, "Team"),
+        (TEAM, "Pro"),  # display name "Pro"; internal code stays "team"
         (BUSINESS, "Business"),
         (ENTERPRISE, "Enterprise"),
     ]

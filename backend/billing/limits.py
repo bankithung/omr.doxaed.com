@@ -26,7 +26,7 @@ def _get_free_plan() -> Plan:
             "seat_limit": 1,
             "students_per_generation_limit": 10,
             "generations_per_day_limit": 5,
-            "monthly_scan_limit": 50,
+            "monthly_scan_limit": 100,
         },
     )
     return plan

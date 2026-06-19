@@ -44,7 +44,7 @@ const PLANS = [
       seats: "1 seat",
       studentsPerGen: "Up to 10 students / sheet generation",
       gensPerDay: "5 sheet generations / day",
-      monthlyScans: "50 scans / month",
+      monthlyScans: "100 scans / month",
     },
     features: [
       "All OMR modes (standard, sectional, per-student shuffle)",
@@ -56,21 +56,21 @@ const PLANS = [
   },
   {
     code: "team",
-    name: "Team",
-    priceInr: 500,
+    name: "Pro",
+    priceInr: 1000,
     tagline: "For a coaching centre grading whole batches.",
     cta: { label: "Get started", to: "/register" },
     popular: true,
     limits: {
-      seats: "Up to 50 seats",
+      seats: "Up to 5 seats",
       studentsPerGen: "Unlimited students / generation",
       gensPerDay: "Unlimited generations / day",
-      monthlyScans: "5,000 scans / month",
+      monthlyScans: "2,000 scans / month",
     },
     features: [
       "Everything in Free",
       "Organisations, roles & member invites",
-      "Folders & sharing across your team",
+      "Per-teacher class & subject access",
       "Higher generation + scan throughput",
       "Audit log of grading actions",
     ],
@@ -78,20 +78,20 @@ const PLANS = [
   {
     code: "business",
     name: "Business",
-    priceInr: 1000,
+    priceInr: 2000,
     tagline: "For a school standardising tests across sections.",
     cta: { label: "Get started", to: "/register" },
     limits: {
-      seats: "Up to 200 seats",
+      seats: "Up to 20 seats",
       studentsPerGen: "Unlimited students / generation",
       gensPerDay: "Unlimited generations / day",
-      monthlyScans: "20,000 scans / month",
+      monthlyScans: "10,000 scans / month",
     },
     features: [
-      "Everything in Team",
-      "200 seats for large departments",
-      "20,000 scans / month headroom",
-      "Organisation-wide folders & roles",
+      "Everything in Pro",
+      "20 seats for larger teams",
+      "10,000 scans / month headroom",
+      "Organisation-wide roles & permissions",
       "Priority email support",
     ],
   },
@@ -123,10 +123,10 @@ const COMPARE = [
   {
     group: "Limits",
     rows: [
-      { label: "Seats", values: ["1", "50", "200", "Unlimited"] },
+      { label: "Seats", values: ["1", "5", "20", "Unlimited"] },
       { label: "Students per generation", values: ["10", "Unlimited", "Unlimited", "Unlimited"] },
       { label: "Generations per day", values: ["5", "Unlimited", "Unlimited", "Unlimited"] },
-      { label: "Scans per month", values: ["50", "5,000", "20,000", "Unlimited"] },
+      { label: "Scans per month", values: ["100", "2,000", "10,000", "Unlimited"] },
     ],
   },
   {
@@ -163,11 +163,11 @@ const COMPARE = [
 const FAQ = [
   {
     q: "Is there a free plan?",
-    a: "Yes. The Free plan is genuinely free (₹0), with 1 seat, up to 10 students per sheet generation, 5 generations a day and 50 scans a month — enough for a single tutor to run weekly tests. No card is required to start.",
+    a: "Yes. The Free plan is genuinely free (₹0), with 1 seat, up to 10 students per sheet generation, 5 generations a day and 100 scans a month — enough for a single tutor to run weekly tests. No card is required to start.",
   },
   {
     q: "What counts as a scan?",
-    a: "One scan is one answer sheet processed by the grader. Your monthly scan allowance (50 on Free, 5,000 on Team, 20,000 on Business, unlimited on Enterprise) counts each sheet you scan and auto-grade within the calendar month.",
+    a: "One scan is one answer sheet processed by the grader. Your monthly scan allowance (100 on Free, 2,000 on Pro, 10,000 on Business, unlimited on Enterprise) counts each sheet you scan and auto-grade within the calendar month.",
   },
   {
     q: "Can I change plans?",
