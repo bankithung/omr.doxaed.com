@@ -511,3 +511,99 @@ class ClassAccessGrantViewSet(viewsets.ModelViewSet):
              target_type="class_grant", target_id=instance.id,
              metadata={"user_id": instance.user_id, "class_group_id": instance.class_group_id})
         instance.delete()
+
+
+# ─── RBAC management (roles, scoped bindings, individual grants) ───────────────
+# Gate: active-org admin OR a holder of the role.manage permission.
+
+
+class _RbacAdminMixin:
+    permission_classes = [IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        from common.scope import has_perm
+        from organizations.permissions_catalog import ROLE_MANAGE
+
+        org = get_active_org(request)
+        if org is None:
+            raise PermissionDenied("Switch to an organization first.")
+        if not (is_active_admin(request) or has_perm(request, org, ROLE_MANAGE)):
+            raise PermissionDenied("You do not have permission to manage roles.")
+
+    def _org(self):
+        return get_active_org(self.request)
+
+
+class RoleViewSet(_RbacAdminMixin, viewsets.ModelViewSet):
+    def get_serializer_class(self):
+        from organizations.serializers import RoleSerializer
+
+        return RoleSerializer
+
+    def get_queryset(self):
+        from organizations.models import Role
+
+        return Role.objects.filter(organization=self._org()).order_by("name")
+
+    def perform_create(self, serializer):
+        serializer.save(organization=self._org(), is_system=False)
+
+    def perform_update(self, serializer):
+        if serializer.instance.is_system:
+            raise PermissionDenied("System roles can't be edited.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.is_system:
+            raise PermissionDenied("System roles can't be deleted.")
+        instance.delete()
+
+
+class RoleBindingViewSet(_RbacAdminMixin, viewsets.ModelViewSet):
+    def get_serializer_class(self):
+        from organizations.serializers import RoleBindingSerializer
+
+        return RoleBindingSerializer
+
+    def get_queryset(self):
+        from organizations.models import RoleBinding
+
+        qs = RoleBinding.objects.filter(organization=self._org()).select_related("user", "role")
+        user = self.request.query_params.get("user")
+        if user and user.isdigit():
+            qs = qs.filter(user_id=user)
+        return qs.order_by("-created_at")
+
+    def perform_create(self, serializer):
+        serializer.save(organization=self._org(), granted_by=self.request.user)
+
+
+class PermissionGrantViewSet(_RbacAdminMixin, viewsets.ModelViewSet):
+    def get_serializer_class(self):
+        from organizations.serializers import PermissionGrantSerializer
+
+        return PermissionGrantSerializer
+
+    def get_queryset(self):
+        from organizations.models import PermissionGrant
+
+        qs = PermissionGrant.objects.filter(organization=self._org()).select_related("user")
+        user = self.request.query_params.get("user")
+        if user and user.isdigit():
+            qs = qs.filter(user_id=user)
+        return qs.order_by("-created_at")
+
+    def perform_create(self, serializer):
+        serializer.save(organization=self._org(), granted_by=self.request.user)
+
+
+class PermissionCatalogView(APIView):
+    """GET /api/v1/permissions/ — the permission catalog for the Roles UI matrix."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from organizations.permissions_catalog import CATALOG
+
+        return Response([{"code": c, "label": label, "group": group} for c, label, group in CATALOG])

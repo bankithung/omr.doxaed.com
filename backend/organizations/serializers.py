@@ -2,7 +2,16 @@ from rest_framework import serializers
 
 from common.logo_validators import validate_logo_image
 
-from .models import AuditLog, ClassAccessGrant, Invitation, Organization, OrganizationMembership
+from .models import (
+    AuditLog,
+    ClassAccessGrant,
+    Invitation,
+    Organization,
+    OrganizationMembership,
+    PermissionGrant,
+    Role,
+    RoleBinding,
+)
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -132,4 +141,84 @@ class ClassAccessGrantSerializer(serializers.ModelSerializer):
         subs = attrs.get("subjects")
         if subs and any(s.class_group_id != cg.id for s in subs):
             raise serializers.ValidationError({"subjects": "Subjects must belong to this class."})
+        return attrs
+
+
+def _active_org(context):
+    from common.scope import get_active_org
+
+    org = get_active_org(context["request"])
+    if org is None:
+        raise serializers.ValidationError("Switch to an organization first.")
+    return org
+
+
+def _assert_active_member(org, user):
+    if user is None or not OrganizationMembership.objects.filter(
+        organization=org, user=user, status=OrganizationMembership.ACTIVE
+    ).exists():
+        raise serializers.ValidationError({"user": "Not an active member of this organization."})
+
+
+def _assert_scope_in_org(org, scope_group):
+    if scope_group is not None and scope_group.organization_id != org.id:
+        raise serializers.ValidationError({"scope_group": "Group is not in this organization."})
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ["id", "name", "is_system", "permissions", "created_at"]
+        read_only_fields = ["id", "is_system", "created_at"]
+
+    def validate_permissions(self, value):
+        from organizations.permissions_catalog import VALID_CODES
+
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Permissions must be a list of codes.")
+        bad = [c for c in value if c not in VALID_CODES]
+        if bad:
+            raise serializers.ValidationError(f"Unknown permission codes: {bad}")
+        return value
+
+
+class RoleBindingSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    role_name = serializers.CharField(source="role.name", read_only=True)
+
+    class Meta:
+        model = RoleBinding
+        fields = ["id", "user", "user_email", "role", "role_name", "scope_group", "created_at"]
+        read_only_fields = ["id", "user_email", "role_name", "created_at"]
+
+    def validate(self, attrs):
+        org = _active_org(self.context)
+        user = attrs.get("user") or getattr(self.instance, "user", None)
+        role = attrs.get("role") or getattr(self.instance, "role", None)
+        _assert_active_member(org, user)
+        if role is None or role.organization_id != org.id:
+            raise serializers.ValidationError({"role": "Role is not in this organization."})
+        _assert_scope_in_org(org, attrs.get("scope_group"))
+        return attrs
+
+
+class PermissionGrantSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = PermissionGrant
+        fields = ["id", "user", "user_email", "permission", "scope_group", "created_at"]
+        read_only_fields = ["id", "user_email", "created_at"]
+
+    def validate_permission(self, value):
+        from organizations.permissions_catalog import VALID_CODES
+
+        if value not in VALID_CODES:
+            raise serializers.ValidationError("Unknown permission code.")
+        return value
+
+    def validate(self, attrs):
+        org = _active_org(self.context)
+        _assert_active_member(org, attrs.get("user") or getattr(self.instance, "user", None))
+        _assert_scope_in_org(org, attrs.get("scope_group"))
         return attrs

@@ -10,10 +10,17 @@ from .views import (
     MemberListView,
     OrgBrandingView,
     OrganizationListCreateView,
+    PermissionCatalogView,
+    PermissionGrantViewSet,
+    RoleBindingViewSet,
+    RoleViewSet,
 )
 
 router = DefaultRouter()
 router.register("class-grants", ClassAccessGrantViewSet, basename="class-grant")
+router.register("roles", RoleViewSet, basename="role")
+router.register("role-bindings", RoleBindingViewSet, basename="role-binding")
+router.register("permission-grants", PermissionGrantViewSet, basename="permission-grant")
 
 urlpatterns = [
     # Organization CRUD
@@ -36,4 +43,7 @@ urlpatterns = [
 
     # Branding (Phase 3c)
     path("organizations/<int:org_id>/branding/", OrgBrandingView.as_view(), name="org-branding"),
+
+    # RBAC permission catalog (for the Roles UI matrix)
+    path("permissions/", PermissionCatalogView.as_view(), name="permissions-catalog"),
 ] + router.urls

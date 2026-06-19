@@ -145,3 +145,28 @@ class RbacApiIntegrationTests(APITestCase):
         self.assertEqual(self.client.get(f"/api/v1/classes/{self.a.id}/", **self._h()).status_code, 200)
         r = self.client.post("/api/v1/tests/", {"class_group": self.a.id, "title": "T"}, format="json", **self._h())
         self.assertEqual(r.status_code, 403)
+
+    def test_admin_manages_roles_member_cannot(self):
+        # member without role.manage → 403 on the roles endpoint
+        self._login(self.teacher)
+        self.assertEqual(self.client.get("/api/v1/roles/", **self._h()).status_code, 403)
+        # admin creates a custom role + assigns a scoped binding
+        self._login(self.admin)
+        self.assertEqual(self.client.get("/api/v1/roles/", **self._h()).status_code, 200)
+        cr = self.client.post(
+            "/api/v1/roles/",
+            {"name": "Grader", "permissions": ["exam.grade", "exam.results.view"]},
+            format="json", **self._h(),
+        )
+        self.assertEqual(cr.status_code, 201, cr.data)
+        rb = self.client.post(
+            "/api/v1/role-bindings/",
+            {"user": self.teacher.id, "role": cr.data["id"], "scope_group": self.a.id},
+            format="json", **self._h(),
+        )
+        self.assertEqual(rb.status_code, 201, rb.data)
+        # the permission catalog is available to any member
+        self._login(self.teacher)
+        cat = self.client.get("/api/v1/permissions/")
+        self.assertEqual(cat.status_code, 200)
+        self.assertTrue(any(item["code"] == "exam.grade" for item in cat.data))
