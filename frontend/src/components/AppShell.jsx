@@ -207,6 +207,7 @@ function usePanel(section) {
     if (role === "admin") {
       items.push({ label: "Roles & permissions", to: `/organizations/${orgScope.orgId}/roles`, end: true })
       items.push({ label: "Audit", to: `/organizations/${orgScope.orgId}/audit`, end: true })
+      items.push({ label: "Settings", to: `/organizations/${orgScope.orgId}/settings`, end: true })
     }
     return {
       title: activeOrg?.name ?? "Organization",

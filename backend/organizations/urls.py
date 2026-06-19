@@ -9,6 +9,7 @@ from .views import (
     MemberDetailView,
     MemberListView,
     OrgBrandingView,
+    OrgDetailView,
     OrganizationListCreateView,
     PermissionCatalogView,
     PermissionGrantViewSet,
@@ -25,6 +26,7 @@ router.register("permission-grants", PermissionGrantViewSet, basename="permissio
 urlpatterns = [
     # Organization CRUD
     path("organizations/", OrganizationListCreateView.as_view(), name="org-list-create"),
+    path("organizations/<int:org_id>/", OrgDetailView.as_view(), name="org-detail"),
 
     # Invitation
     path("organizations/<int:org_id>/invite/", InviteView.as_view(), name="org-invite"),

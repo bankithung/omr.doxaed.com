@@ -9,6 +9,12 @@ export const createOrg = (data) =>
     .post("/organizations/", typeof data === "string" ? { name: data } : data)
     .then((r) => r.data)
 
+export const updateOrg = (orgId, body) =>
+  api.patch(`/organizations/${orgId}/`, body).then((r) => r.data)
+
+export const deleteOrg = (orgId) =>
+  api.delete(`/organizations/${orgId}/`).then((r) => r.data)
+
 export const getMembers = (orgId) =>
   api.get(`/organizations/${orgId}/members/`).then((r) => r.data)
 

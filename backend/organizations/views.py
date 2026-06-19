@@ -125,6 +125,35 @@ class OrganizationListCreateView(APIView):
         return Response(out, status=status.HTTP_201_CREATED)
 
 
+class OrgDetailView(APIView):
+    """PATCH /api/v1/organizations/<id>/ — admin renames the org / changes its type.
+    DELETE — the OWNER permanently deletes the organization (cascades its data)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, org_id):
+        membership = require_membership(request, org_id, role=OrganizationMembership.ADMIN)
+        org = membership.organization
+        serializer = OrganizationSerializer(org, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        if "name" in serializer.validated_data:
+            org.name = serializer.validated_data["name"]
+        if "type" in serializer.validated_data:
+            org.type = serializer.validated_data["type"]
+        org.save()
+        _log(org, request.user, "org.updated", target_type="organization", target_id=org.id)
+        out = OrganizationSerializer(org).data
+        out["role"] = membership.role
+        return Response(out)
+
+    def delete(self, request, org_id):
+        org = get_object_or_404(Organization, pk=org_id)
+        if org.owner_id != request.user.id:
+            raise PermissionDenied("Only the organization owner can delete it.")
+        org.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # ---------------------------------------------------------------------------
 # Invite
 # ---------------------------------------------------------------------------
