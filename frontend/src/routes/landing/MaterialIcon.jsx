@@ -8,7 +8,7 @@
  * sized, consistently styled, and cost zero network. This is the cohesive icon
  * language for the landing — there is ZERO emoji anywhere on the page.
  *
- * Usage: <MaterialIcon name="trophy" className="size-5 text-amber-300" />
+ * Usage: <MaterialIcon name="trophy" className="size-5 text-primary" />
  */
 
 const PATHS = {
@@ -52,7 +52,8 @@ const PATHS = {
   devices:
     "M80-160v-80h80v-440q0-33 23.5-56.5T240-760h600v80H240v440h240v80H80Zm560 0q-17 0-28.5-11.5T600-200v-360q0-17 11.5-28.5T640-600h200q17 0 28.5 11.5T880-560v360q0 17-11.5 28.5T840-160H640Zm40-120h120v-240H680v240Z",
   // bolt — fast / minutes
-  bolt: "M422-232 instead",
+  bolt:
+    "M421-80q-9 0-15.5-6T399-103l37-220-148-49q-9-3-14-10.5t-5-16.5q0-3 7-19l266-396q5-7 12.5-11.5T577-836q9 0 16 6.5t6 16.5l-37 220 148 49q9 3 14 10.5t5 16.5q0 3-7 19L460-102q-5 7-12.5 11.5T421-80Z",
   // east — arrow
   arrow: "M647-440H160v-80h487L423-744l57-56 320 320-320 320-57-56 224-224Z",
   // layers — stack
@@ -65,10 +66,6 @@ const PATHS = {
   percent:
     "M300-520q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600Zm360 440q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T720-300q0-25-17.5-42.5T660-360q-25 0-42.5 17.5T600-300q0 25 17.5 42.5T660-240Zm-444 80-56-56 584-584 56 56-584 584Z",
 }
-
-// bolt needs a clean glyph (the source above is a guard placeholder).
-PATHS.bolt =
-  "M421-80q-9 0-15.5-6T399-103l37-220-148-49q-9-3-14-10.5t-5-16.5q0-3 7-19l266-396q5-7 12.5-11.5T577-836q9 0 16 6.5t6 16.5l-37 220 148 49q9 3 14 10.5t5 16.5q0 3-7 19L460-102q-5 7-12.5 11.5T421-80Z"
 
 export default function MaterialIcon({ name, className = "", title, ...rest }) {
   const d = PATHS[name]

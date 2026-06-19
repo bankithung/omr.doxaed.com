@@ -13,7 +13,7 @@ import { Reveal, RevealItem, FadeInUp } from "@/routes/landing/motion/reveal"
  * governance). Each section pairs short benefit copy with the landing's animated
  * product graphics (DealOut / ScanSheet / AnalyticsChart) where they fit, then a
  * grid of the concrete capabilities. Real content only — every capability listed
- * exists in the product (per the landing + app surfaces). Supabase-flat, green
+ * exists in the product (per the landing + app surfaces). Flat, amber brand
  * accent, fadeInUp reveals, mobile-first.
  */
 

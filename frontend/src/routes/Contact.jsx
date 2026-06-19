@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -212,7 +213,7 @@ export default function Contact() {
                     </p>
                     <a
                       href={c.href}
-                      {...(c.external ? { rel: "noreferrer" } : {})}
+                      {...(c.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                       className="block truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
                     >
                       {c.value}
@@ -225,13 +226,13 @@ export default function Contact() {
               <RevealItem className="rounded-xl border border-border bg-surface-1 p-4">
                 <p className="text-sm text-muted-foreground">
                   Already have an account?{" "}
-                  <a href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+                  <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
                     Sign in
-                  </a>{" "}
+                  </Link>{" "}
                   or{" "}
-                  <a href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+                  <Link to="/register" className="font-medium text-primary underline-offset-4 hover:underline">
                     start free
-                  </a>
+                  </Link>
                   .
                 </p>
               </RevealItem>

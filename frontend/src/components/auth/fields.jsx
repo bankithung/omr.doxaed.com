@@ -28,11 +28,16 @@ export function FormBanner({ children }) {
 }
 
 // Labelled text input with inline error wiring (aria-invalid + describedby).
-export function TextField({ id, label, error, className, ...props }) {
+// `labelRight` renders an optional accessory (e.g. a link) on the label row,
+// right-aligned — the Supabase "Forgot password?" pattern.
+export function TextField({ id, label, labelRight, error, className, ...props }) {
   const errorId = error ? `${id}-error` : undefined
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-baseline justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        {labelRight}
+      </div>
       <Input
         id={id}
         className={cn("h-11", className)}
@@ -45,13 +50,18 @@ export function TextField({ id, label, error, className, ...props }) {
   )
 }
 
-// Password input with an Eye/EyeOff visibility toggle.
-export function PasswordField({ id, label, error, value, onChange, ...props }) {
+// Password input with an Eye/EyeOff visibility toggle. `labelRight` renders an
+// optional accessory (e.g. a "Forgot password?" link) right-aligned on the label
+// row — the Supabase auth pattern.
+export function PasswordField({ id, label, labelRight, error, value, onChange, ...props }) {
   const [show, setShow] = useState(false)
   const errorId = error ? `${id}-error` : undefined
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-baseline justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        {labelRight}
+      </div>
       <div className="relative">
         <Input
           id={id}

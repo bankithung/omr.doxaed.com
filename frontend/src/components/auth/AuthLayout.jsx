@@ -19,7 +19,7 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
       {/* The exact same sticky header as the home page, shared site-wide. */}
       <LandingNav />
 
-      <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-12">
+      <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-12 sm:py-16">
         {/* Faint brand radial behind the card — the single allowed subtle glow. */}
         <div
           aria-hidden
@@ -30,17 +30,21 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
           }}
         />
 
-        <div className="w-full max-w-sm space-y-6">
-          <div className="space-y-1.5 text-center">
+        <div className="w-full max-w-[400px]">
+          <div className="space-y-2 text-center">
             {title ? (
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+              <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight text-foreground">
+                {title}
+              </h1>
             ) : null}
-            {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
+            {subtitle ? <p className="text-[0.95rem] text-muted-foreground">{subtitle}</p> : null}
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{children}</div>
+          <div className="mt-7 rounded-2xl border border-border bg-card p-6 sm:p-7">
+            <div className="space-y-5">{children}</div>
+          </div>
 
-          {footer}
+          {footer ? <div className="mt-6">{footer}</div> : null}
         </div>
       </div>
     </div>

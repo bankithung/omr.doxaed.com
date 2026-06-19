@@ -55,6 +55,14 @@ export default function Login() {
         <PasswordField
           id="password"
           label="Password"
+          labelRight={
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          }
           autoComplete="current-password"
           placeholder="••••••••"
           required
@@ -68,19 +76,12 @@ export default function Login() {
         </Button>
       </form>
 
-      <div className="space-y-2 text-center text-sm">
-        <p>
-          <Link to="/forgot-password" className="text-primary underline-offset-4 hover:underline">
-            Forgot password?
-          </Link>
-        </p>
-        <p className="text-muted-foreground">
-          No account?{" "}
-          <Link to="/register" className="text-primary underline-offset-4 hover:underline">
-            Register
-          </Link>
-        </p>
-      </div>
+      <p className="text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <Link to="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+          Sign up
+        </Link>
+      </p>
     </AuthLayout>
   )
 }

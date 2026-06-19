@@ -17,7 +17,7 @@ import Footer from "./landing/Footer"
  * Page order (Supabase architecture): Nav → centered Hero + product visual →
  * trust strip → Bento feature grid → "How it works" deep-dive (animated
  * graphics) → "Built for" use-cases → "Why DoxaEd OMR" trust band → CTA band →
- * Footer. Surfaces + 1px hairline borders + one brand accent (Supabase green) +
+ * Footer. Surfaces + 1px hairline borders + one brand accent (amber/gold) +
  * restraint carry the premium look; the only subtle gradients are faint brand
  * glows behind the hero / CTA headings + mask-fades.
  *
