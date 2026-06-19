@@ -152,3 +152,9 @@
   roll_mismatch, widened reason 20→32; 1C: wizard mode picker + writable mode + review labels).
   E2E: standard 15/15 on Chromium/Chrome/Edge + Mode-B 16/16 (auto-identify + tamper flag). Not yet
   merged. Next: Phase 2 (analytics core).
+
+- 2026-06-19 — **Section-awareness sweep** (`738098b`→`0ac99e9`, main). Owner: "when starting a class
+  test there is NO option to select for which section." Test wizard now has a type-aware Section Select
+  → sets Test.class_group to the chosen tree node; class Exams list, class Overview counts, and the
+  Generate roster picker all aggregate the class+section subtree (section badges/labels + filters).
+  Students page → single filterable list; Subjects page polished. Screenshot-verified; lint/build clean.

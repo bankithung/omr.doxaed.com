@@ -1,5 +1,26 @@
 # Current State
 
+- 2026-06-19: **Section-awareness sweep — exams can now target a section, and every roll-up spans the
+  subtree** (on `main`, `738098b`→`0ac99e9`). Owner hit a real logical gap: "when starting a class test
+  there is NO option to select for which section." With `ClassGroup` now a self-nesting tree and
+  `Test.class_group` a nullable FK to ANY node, the create-test wizard hard-coded `class_group=classId`
+  (the class root) so a test could never be scoped to a section. **Fixes (all frontend, additive):**
+  (1) **TestWizard** StepDetails gained a type-aware **Section** Select (Whole class / each section,
+  loaded via `listClasses({parent})`) → sets `class_group` to the chosen node (`TestWizard.jsx`).
+  (2) Since section exams attach to the sub-group, they'd vanish from the class Exams list — made
+  **`ExamsSection`** (the only consumer, in `TestList.jsx`) aggregate the whole subtree, tag rows with a
+  Section badge, add a section filter; exported `StatusBadge`/`TestActions`. (3) **ClassOverview** summed
+  only the class's DIRECT roster+exams → showed "0 students" when students live in sections → now
+  aggregates exams+students across class+sections, swaps the dead "Status: Active" tile for a live
+  section count, badges section exams. (4) **GenerateSheets** roster picker only saw the exam group's
+  roster → a whole-class roster-mode exam showed "no rosters"; now gathers rosters across the subtree,
+  labelled `"Section A · Students"`, so you can print per-section sheets. Also (earlier this session)
+  **ClassStudents** → single **filterable** list (roll · name · section badge; add-student picks/creates a
+  section inline) and **ClassSubjects** → polished self-contained page. Each verified by screenshot
+  (`e2e/shoot-wizard-section.mjs`, `shoot-overview.mjs`, `shoot-generate-sections.mjs`, `shoot-students.mjs`);
+  lint 0 errors (only the repo-wide `set-state-in-effect` warnings), build clean. NOTE: `useClass` has a
+  ~1s cold-load name flash (`?? "Class"` fallback) — cosmetic, pre-existing. **NEXT:** Phase 5 exam
+  workspace deepening (Questions/Students/Marks/Analytics/Scan/Share) · Phase 7 production polish.
 - 2026-06-19: **REDESIGN BUILD — Phases 1–3 + pricing SHIPPED** (on `main`, executing the locked spec
   `docs/superpowers/specs/2026-06-19-flexible-org-taxonomy-rbac.md`; reference Supabase HTML in
   `prompts/uiuxreference/`). **Phase 1** (`2faa6d4`): org-list **entry page** (no sidebar) — login lands on
