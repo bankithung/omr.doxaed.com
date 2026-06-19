@@ -1,5 +1,21 @@
 # Current State
 
+- 2026-06-19: **Dedicated "Generate & Print" page — first of the modals→pages conversion** (on `main`,
+  `bc3dcb1`). The owner's vision is dedicated pages instead of modals for the whole OMR flow; this ships
+  the first one. The class-page "Generate sheets" button now NAVIGATES to `/tests/:testId/sheets`
+  (`frontend/src/routes/GenerateSheets.jsx`) instead of opening `GenerateSheetsDialog` (deleted). The
+  page also adds **post-creation sheet-branding editing** — previously heading/logo were settable ONLY
+  in the creation wizard; `updateTest` already supported PATCH+FormData, so the page hosts a real editor
+  (edit heading, upload/replace/remove logo w/ live preview, position picker, or inherit org branding) +
+  roster pick + shuffle + generate + open/print/download. New API `getTest(id)`. Branding save uses a
+  FormData/JSON fork (multipart only for a NEW logo; `logo:null` only on explicit removal; inherit-on
+  sends just `{brand_inherit_org:true}` so a hidden heading is never clobbered). Built with an Explore
+  agent (mapped current code) + a **4-lens adversarial review Workflow** (ui-rules/wiring/edge/a11y) that
+  found 10 issues (2 high, 5 med, 3 low) — ALL fixed: roster Select label-wiring + ≥40px height, logo
+  group/position aria-labels, client-side 2MB logo check, success-only-when-PDF-url guard, inherit-save
+  no-clobber. E2E `run.mjs` generate-sheets step updated (was dialog-based). Lint+build clean; **E2E
+  Chromium/Chrome/Edge 16/16 + modeB 17/17 green.** NEXT dedicated pages: OMR edit (mostly folded into
+  this page now), scan auto-detect flow, results/analytics/share; + teacher self-service.
 - 2026-06-19: **RBAC — per-teacher class + subject access control COMPLETE & E2E-verified** (on `main`,
   `76afe5d`; plan `docs/superpowers/plans/2026-06-19-class-subject-access-control.md`). The first slice of
   the owner's "org → classes → subjects → members → assign access" setup vision. **Model:** `ClassAccessGrant`
