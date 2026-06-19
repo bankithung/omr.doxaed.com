@@ -464,7 +464,7 @@ export default function OrgMembers() {
           <DialogFooter showCloseButton>
             <Button
               variant="destructive"
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className="bg-destructive text-primary-foreground hover:bg-destructive/90"
               onClick={handleRemove}
               disabled={removing}
             >
