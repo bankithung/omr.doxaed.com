@@ -103,7 +103,7 @@ export default function App() {
 
   // Show the minimal public nav only for logged-out users on non-portal pages.
   // The landing page ("/") ships its own sticky hero nav, and the auth pages
-  // (branded split AuthLayout) + legal pages ship their own headers, so skip
+  // (centered AuthLayout) + legal pages ship their own headers, so skip
   // the public nav on all of them to render them full-screen and clean.
   const SELF_CHROMED = [
     "/",

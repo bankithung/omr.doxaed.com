@@ -1,96 +1,78 @@
-import {
-  motion,
-  useMotionValue,
-  useMotionTemplate,
-  useReducedMotion,
-} from "framer-motion"
+import { useReducedMotion } from "framer-motion"
 import MaterialIcon from "./MaterialIcon"
-import { usePointerFine } from "./Micro"
-import { ease, dur, stagger } from "./motion/tokens"
+import SectionContainer from "./SectionContainer"
+import { Reveal, RevealItem, FadeInUp } from "./motion/reveal"
 
 const FEATURES = [
-  { icon: "shuffle", title: "Per-student shuffle", body: "Question and option order shuffled uniquely per student; every sheet stores its own answer key so grading stays exact.", span: "sm:col-span-2 sm:row-span-2", big: true },
-  { icon: "groups", title: "Roster-native", body: "Start from a class list — name students or just pick a count." },
-  { icon: "checklist", title: "One question bank", body: "Write MCQs once; reuse across tests and sections." },
-  { icon: "scan", title: "Scan from any device", body: "Phone, scanner, or a stack of photos — auto-aligned by fiducials + QR." },
-  { icon: "shield", title: "Never guessed", body: "Faint, double-marked or missing reads go to a review queue — not a guess." },
-  { icon: "analytics", title: "Analytics profile", body: "Distributions, toppers, hardest questions, per-student improvement over time." },
+  {
+    icon: "shuffle",
+    title: "Per-student shuffle",
+    body: "Question and option order is shuffled uniquely per student; every sheet stores its own answer key, so grading stays exact.",
+    className: "md:col-span-12 xl:col-span-6 xl:row-span-2",
+    big: true,
+  },
+  { icon: "groups", title: "Roster-native", body: "Start from a class list — name students or just pick a count.", className: "md:col-span-6 xl:col-span-3" },
+  { icon: "checklist", title: "One question bank", body: "Write MCQs once; reuse across tests and sections.", className: "md:col-span-6 xl:col-span-3" },
+  { icon: "scan", title: "Scan from any device", body: "Phone, scanner, or a stack of photos — auto-aligned by fiducials + QR.", className: "md:col-span-6 xl:col-span-3" },
+  { icon: "shield", title: "Never guessed", body: "Faint, double-marked or missing reads go to a review queue — not a guess.", className: "md:col-span-6 xl:col-span-3" },
+  { icon: "analytics", title: "Analytics profile", body: "Distributions, toppers, hardest questions, and per-student improvement over time.", className: "md:col-span-12 xl:col-span-6" },
 ]
 
-const container = { hidden: {}, show: { transition: { staggerChildren: stagger.base, delayChildren: 0.05 } } }
-const item = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: dur.enter, ease: ease.out } },
+// Restrained hover lift (compositor-only y), gated off reduced motion.
+function FeatureCard({ icon, title, body, className, big }) {
+  const reduce = useReducedMotion()
+  return (
+    <RevealItem
+      className={className}
+      whileHover={reduce ? undefined : { y: -2 }}
+      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+    >
+      <div className="group/tile flex h-full flex-col rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong hover:shadow-md">
+        <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+          <MaterialIcon name={icon} className="size-5" />
+        </span>
+        <div className="mt-4 flex items-start justify-between gap-3">
+          <h3 className={["font-medium text-foreground", big ? "text-xl" : "text-base"].join(" ")}>{title}</h3>
+          <MaterialIcon
+            name="arrow"
+            className="size-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition-all duration-200 group-hover/tile:translate-x-0 group-hover/tile:opacity-100"
+          />
+        </div>
+        <p className={["mt-1.5 text-muted-foreground", big ? "text-base" : "text-sm"].join(" ")}>{body}</p>
+      </div>
+    </RevealItem>
+  )
 }
 
+/**
+ * Bento — a 12-col feature grid of flat Panels (Supabase bento). fadeInUp
+ * staggered reveal as the grid scrolls in; restrained per-card hover lift +
+ * border-strengthen. All app tokens, theme-aware, flat (no gradients).
+ */
 export default function Bento() {
-  const fine = usePointerFine()
-  const reduce = useReducedMotion()
-  const mx = useMotionValue(-9999)
-  const my = useMotionValue(-9999)
-  const spotlight = useMotionTemplate`radial-gradient(380px circle at ${mx}px ${my}px, rgba(99,102,241,0.16), transparent 78%)`
-  const active = fine && !reduce
-
-  function onMove(e) {
-    const r = e.currentTarget.getBoundingClientRect()
-    mx.set(e.clientX - r.left)
-    my.set(e.clientY - r.top)
-  }
-  function onLeave() {
-    mx.set(-9999)
-    my.set(-9999)
-  }
-
   return (
-    <section id="features" className="px-4 py-24 sm:px-6 sm:py-32">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="font-mono-data text-xs font-medium uppercase tracking-[0.18em] text-cyan-300">Why DoxaEd OMR</p>
-        <h2 className="text-display-sm mt-3 text-3xl font-semibold text-white sm:text-[2.6rem]">
-          Everything you need to grade <span className="font-serif-accent text-[1.15em] text-cyan-200">faster</span> — and{" "}
-          <span className="font-serif-accent text-[1.15em] text-cyan-200">fairer</span>
+    <SectionContainer id="features">
+      <FadeInUp className="mx-auto max-w-2xl text-center">
+        <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Why DoxaEd OMR
+        </span>
+        <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
+          Everything you need to grade faster — and fairer
         </h2>
-      </div>
+        <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+          From a class list to a graded, analysed exam — every step is shuffled, scanned,
+          and auditable.
+        </p>
+      </FadeInUp>
 
-      <motion.div
-        onMouseMove={active ? onMove : undefined}
-        onMouseLeave={active ? onLeave : undefined}
-        variants={container}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: false, amount: 0.2, margin: "0px 0px -10% 0px" }}
-        className="group relative mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3"
+      <Reveal
+        as="div"
+        className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-12"
       >
-        {/* shared cursor spotlight across the whole grid */}
-        {active && (
-          <motion.div
-            aria-hidden
-            style={{ background: spotlight }}
-            className="pointer-events-none absolute inset-0 z-0 rounded-3xl"
-          />
-        )}
-
-        {FEATURES.map(({ icon, title, body, span, big }) => (
-          <motion.div
-            key={title}
-            variants={item}
-            whileHover={active ? { y: -4 } : undefined}
-            transition={{ type: "spring", stiffness: 300, damping: 22 }}
-            className={[
-              "group/tile glass relative z-10 overflow-hidden rounded-2xl p-5",
-              span ?? "",
-            ].join(" ")}
-          >
-            <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300">
-              <MaterialIcon name={icon} className="size-[22px]" />
-            </span>
-            <div className="mt-4 flex items-start justify-between gap-3">
-              <h3 className={["font-semibold text-white", big ? "text-xl" : "text-lg"].join(" ")}>{title}</h3>
-              <MaterialIcon name="arrow" className="size-4 shrink-0 -translate-x-1 -rotate-45 text-neutral-500 opacity-0 transition-all duration-200 group-hover/tile:translate-x-0 group-hover/tile:opacity-100" />
-            </div>
-            <p className={["mt-1.5 text-neutral-300", big ? "text-base" : "text-sm"].join(" ")}>{body}</p>
-          </motion.div>
+        {FEATURES.map((f) => (
+          <FeatureCard key={f.title} {...f} />
         ))}
-      </motion.div>
-    </section>
+      </Reveal>
+    </SectionContainer>
   )
 }

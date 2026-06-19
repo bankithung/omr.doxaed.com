@@ -241,199 +241,32 @@
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
-   CINEMATIC LANDING — scoped to the `.landing-cinematic` wrapper ONLY.
-   Gradients/glow/marquee live here exclusively; the rest of the app stays flat
-   and uses the light theme tokens above. Nothing here leaks outside this class.
+   LANDING MARQUEE — the trust strip (Supabase logo/trust marquee). Flat: a CSS
+   keyframe scroll + an edge-fade MASK (opacity feather, tints nothing) +
+   pause-on-hover. Used only by the landing's TrustStrip; nothing here is a
+   colored gradient surface, so the flat/no-gradient rule holds.
    ─────────────────────────────────────────────────────────────────────────── */
-
-/* infinite marquee tracks (duplicated, translateX -50% via -100% of a clone pair) */
 @keyframes landing-marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-100%); }
 }
-@keyframes landing-marquee-rev {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(0); }
+.landing-marquee {
+  animation: landing-marquee 40s linear infinite;
 }
-.landing-cinematic .marquee {
-  animation: landing-marquee 38s linear infinite;
-}
-.landing-cinematic .marquee-rev {
-  animation: landing-marquee-rev 38s linear infinite;
-}
-.landing-cinematic .marquee:hover,
-.landing-cinematic .marquee-rev:hover {
+.landing-marquee-mask:hover .landing-marquee {
   animation-play-state: paused;
 }
-
-/* conic border beam for the CTA (Variant A accent) */
-@property --landing-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-@keyframes landing-spin {
-  to { --landing-angle: 360deg; }
-}
-.landing-cinematic .landing-beam::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(
-    from var(--landing-angle),
-    rgba(99, 102, 241, 0) 0%,
-    #6366f1 18%,
-    #2dd4bf 32%,
-    rgba(99, 102, 241, 0) 50%
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask-composite: exclude;
-  animation: landing-spin 4s linear infinite;
-  pointer-events: none;
+/* edge fade — pure alpha mask (no color), so both light + dark read cleanly */
+.landing-marquee-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+          mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
 }
 
-/* ───────────────────────────────────────────────────────────────────────────
-   LANDING TYPE SYSTEM — self-hosted fonts, scoped to `.landing-cinematic` ONLY.
-   The app's global font (set in @theme inline / @layer base) is left untouched.
-   Font CSS is imported from Landing.jsx so it ships in the lazy landing chunk.
-   ─────────────────────────────────────────────────────────────────────────── */
-
-/* The landing speaks Geist (variable grotesque). Geist Variable is already
-   @font-face'd globally; here we only RE-POINT the family inside the wrapper and
-   add the serif accent + mono-data faces (loaded via Landing.jsx imports). */
-.landing-cinematic {
-  font-family: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  font-feature-settings: "cv01" 1, "ss03" 1;
-  letter-spacing: -0.011em;
-  text-rendering: optimizeLegibility;
-}
-
-/* Instrument Serif italic — THE expensive accent for 1–2 emphasis words. */
-.landing-cinematic .font-serif-accent {
-  font-family: "Instrument Serif", ui-serif, Georgia, serif;
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: -0.005em;
-}
-
-/* Geist Mono with tabular figures — every number / counter / data label. */
-.landing-cinematic .font-mono-data {
-  font-family: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
-  font-feature-settings: "tnum" 1, "zero" 1;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Confident display headlines: tight tracking, optical leading. */
-.landing-cinematic .text-display {
-  letter-spacing: -0.035em;
-  line-height: 0.98;
-}
-.landing-cinematic .text-display-sm {
-  letter-spacing: -0.028em;
-  line-height: 1.02;
-}
-
-/* Glass material — real depth: backdrop blur + hairline + inner top highlight. */
-.landing-cinematic .glass {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(14px) saturate(1.3);
-  -webkit-backdrop-filter: blur(14px) saturate(1.3);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
-    0 18px 50px -22px rgba(0, 0, 0, 0.85);
-}
-.landing-cinematic .glass-strong {
-  background: rgba(15, 17, 32, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
-    0 30px 80px -30px rgba(0, 0, 0, 0.9);
-}
-
-/* Film grain — fixed, ~4% opacity, mix-blend-overlay, never intercepts input. */
-.landing-cinematic .landing-grain {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 160px 160px;
-}
-
-/* Vignette — soft darkening at the canvas edges for a filmic frame. */
-.landing-cinematic .landing-vignette {
-  position: fixed;
-  inset: 0;
-  z-index: 65;
-  pointer-events: none;
-  background: radial-gradient(
-    120% 100% at 50% 42%,
-    transparent 58%,
-    rgba(0, 0, 0, 0.28) 88%,
-    rgba(0, 0, 0, 0.55) 100%
-  );
-}
-
-/* Optional desktop cursor glow — only where a real cursor exists. */
-.landing-cinematic .landing-cursor {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 64;
-  height: 420px;
-  width: 420px;
-  margin: -210px 0 0 -210px;
-  border-radius: 9999px;
-  pointer-events: none;
-  background: radial-gradient(
-    circle,
-    rgba(99, 102, 241, 0.1),
-    rgba(56, 189, 248, 0.05) 40%,
-    transparent 70%
-  );
-  will-change: transform;
-}
-@media (hover: none), (pointer: coarse) {
-  .landing-cinematic .landing-cursor {
-    display: none;
-  }
-}
-
-/* Travelling-dot glow used by the analytics trend line. */
-@keyframes landing-pulse-soft {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* reduced-motion backstop: kill the scroll-jack + all landing motion */
 @media (prefers-reduced-motion: reduce) {
-  .landing-cinematic [data-scrolljack] {
-    position: static !important;
-    height: auto !important;
-    transform: none !important;
-  }
-  .landing-cinematic .marquee,
-  .landing-cinematic .marquee-rev,
-  .landing-cinematic .landing-beam::before {
+  .landing-marquee {
     animation: none !important;
-  }
-  .landing-cinematic .landing-grain,
-  .landing-cinematic .landing-cursor {
-    display: none !important;
+    transform: none !important;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
