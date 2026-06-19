@@ -130,6 +130,10 @@ def visibility_q(request, class_prefix="", row_creator_prefix="created_by"):
         q |= (Q(**{f"{cp}isnull": True}) & Q(**{row_creator_prefix: user}))
     else:
         q |= (Q(**{"folder__isnull": True}) & Q(**{"created_by": user}))
+    # Direct per-teacher access grant — an admin granted this member the governing
+    # class (Phase: class+subject access control). The class is already org-scoped
+    # by scope_filter, so a grant on it can only come from THIS org.
+    q |= Q(**{f"{cp}access_grants__user": user})
     return q
 
 
@@ -166,6 +170,13 @@ def can_edit_class(request, class_group):
     if org is None:
         return True  # solo: scope_filter already proved ownership
     if is_active_admin(request):
+        return True
+    # A direct per-teacher access grant in the active org = edit rights on that
+    # class (create/update tests, rosters, subjects under it).
+    from organizations.models import ClassAccessGrant
+    if class_group is not None and ClassAccessGrant.objects.filter(
+        organization=org.id, user=request.user, class_group=class_group
+    ).exists():
         return True
     if class_group is None:
         return False
