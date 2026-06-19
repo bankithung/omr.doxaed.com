@@ -134,18 +134,40 @@ def visibility_q(request, class_prefix="", row_creator_prefix="created_by"):
     # class (Phase: class+subject access control). The class is already org-scoped
     # by scope_filter, so a grant on it can only come from THIS org.
     q |= Q(**{f"{cp}access_grants__user": user})
+    # RBAC: classes reachable via role bindings / permission grants (each scoped
+    # group + its descendants). None → an org-wide binding → full visibility.
+    accessible = accessible_group_ids(request, org)
+    if accessible is None:
+        return Q()
+    if accessible:
+        q |= Q(**{f"{cp}id__in": accessible}) if cp else Q(id__in=accessible)
     return q
 
 
 def is_active_admin(request):
-    """True if the request is in org scope AND the requester is an ACTIVE ADMIN of
-    the active org (bounded to the active X-Organization-Id via request._membership).
+    """True if the requester is an ACTIVE ADMIN of the active org — via the org
+    membership role OR an org-wide Owner/Admin RBAC role binding. Cached on the
+    request to keep repeated checks cheap.
     """
     org = get_active_org(request)
     if org is None:
         return False
     membership = getattr(request, "_membership", None)
-    return membership is not None and membership.role == OrganizationMembership.ADMIN
+    if membership is not None and membership.role == OrganizationMembership.ADMIN:
+        return True
+    cached = getattr(request, "_admin_role_cache", None)
+    if cached is None:
+        from organizations.models import RoleBinding
+        from organizations.permissions_catalog import ADMIN_ROLE_NAMES
+
+        cached = RoleBinding.objects.filter(
+            organization=org.id,
+            user=request.user,
+            scope_group__isnull=True,
+            role__name__in=ADMIN_ROLE_NAMES,
+        ).exists()
+        request._admin_role_cache = cached
+    return cached
 
 
 def narrowed_subject_names(request, class_group_id):
@@ -204,6 +226,13 @@ def can_edit_class(request, class_group):
         organization=org.id, user=request.user, class_group=class_group
     ).exists():
         return True
+    # RBAC: an edit-capable role binding / grant on this class's subtree (Teacher,
+    # or a custom role with create/edit permissions). Viewer-only roles fail here.
+    if class_group is not None and (
+        has_perm(request, org, "exam.create", class_group)
+        or has_perm(request, org, "group.edit", class_group)
+    ):
+        return True
     if class_group is None:
         return False
     user = request.user
@@ -244,6 +273,44 @@ def can_edit_test(request, test):
     if is_active_admin(request):
         return True
     return test.created_by_id == request.user.id
+
+
+def accessible_group_ids(request, org):
+    """The set of ClassGroup ids the active member can reach via RBAC role bindings
+    + permission grants — each scoped group PLUS all its descendants. Returns None
+    when the user has an ORG-WIDE binding/grant (→ all groups), or an empty set
+    when they have no group-scoped access."""
+    from organizations.models import RoleBinding, PermissionGrant
+
+    user = request.user
+    roots = set()
+    for sg in RoleBinding.objects.filter(organization=org.id, user=user).values_list(
+        "scope_group_id", flat=True
+    ):
+        if sg is None:
+            return None
+        roots.add(sg)
+    for sg in PermissionGrant.objects.filter(organization=org.id, user=user).values_list(
+        "scope_group_id", flat=True
+    ):
+        if sg is None:
+            return None
+        roots.add(sg)
+    if not roots:
+        return set()
+    from assessments.models import ClassGroup
+
+    children = {}
+    for cid, pid in ClassGroup.objects.filter(organization=org.id).values_list("id", "parent_id"):
+        children.setdefault(pid, []).append(cid)
+    result, stack = set(), list(roots)
+    while stack:
+        cur = stack.pop()
+        if cur in result:
+            continue
+        result.add(cur)
+        stack.extend(children.get(cur, []))
+    return result
 
 
 def _group_ancestor_ids(group):
