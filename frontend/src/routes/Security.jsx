@@ -237,9 +237,9 @@ export default function Security() {
                 </p>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Button asChild className="h-10 px-5 text-sm">
-                    <a href="mailto:security@doxaed.com?subject=Security%20disclosure">
+                    <a href="mailto:doxaed@gmail.com?subject=Security%20disclosure">
                       <MaterialIcon name="arrow" className="size-4" />
-                      Email security@doxaed.com
+                      Email doxaed@gmail.com
                     </a>
                   </Button>
                   <p className="font-mono text-[11px] text-muted-foreground">

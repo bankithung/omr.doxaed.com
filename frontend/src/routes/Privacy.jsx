@@ -92,7 +92,7 @@ export default function Privacy() {
           Depending on your jurisdiction, you may have rights to access, correct, export,
           or delete your personal information, to object to or restrict certain
           processing, and to withdraw consent. To exercise these rights with respect to
-          your own account data, contact us at hello@doxaed.com. For student data we hold
+          your own account data, contact us at doxaed@gmail.com. For student data we hold
           on your behalf, requests from students, parents, or guardians should be directed
           to you as the controller; we will assist you in responding to such requests.
         </P>
@@ -132,10 +132,10 @@ export default function Privacy() {
           Questions about this Policy or our handling of personal information? Contact us
           at{" "}
           <a
-            href="mailto:hello@doxaed.com"
+            href="mailto:doxaed@gmail.com"
             className="text-primary underline-offset-4 hover:underline"
           >
-            hello@doxaed.com
+            doxaed@gmail.com
           </a>
           .
         </P>

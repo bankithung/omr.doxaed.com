@@ -164,15 +164,9 @@ export default function Footer() {
             <ColHeading>Get in touch</ColHeading>
             <ul className="mt-4 space-y-2.5">
               <li>
-                <a href="mailto:hello@doxaed.com" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                <a href="mailto:doxaed@gmail.com" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   <MaterialIcon name="task" className="size-3.5 shrink-0 text-primary" />
-                  hello@doxaed.com
-                </a>
-              </li>
-              <li>
-                <a href="mailto:support@doxaed.com" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-                  <MaterialIcon name="task" className="size-3.5 shrink-0 text-primary" />
-                  support@doxaed.com
+                  doxaed@gmail.com
                 </a>
               </li>
               <li>

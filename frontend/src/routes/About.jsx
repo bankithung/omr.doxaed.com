@@ -182,7 +182,7 @@ export default function About() {
               </Button>
             </RevealItem>
             <RevealItem as="p" className="mt-5 font-mono text-xs text-muted-foreground">
-              hello@doxaed.com · doxaed.com
+              doxaed@gmail.com · doxaed.com
             </RevealItem>
           </Reveal>
         </SectionContainer>

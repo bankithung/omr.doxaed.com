@@ -73,13 +73,12 @@ function GoogleGSvg({ className }) {
 }
 
 /**
- * "Continue with Google" — env-gated social sign-in.
- *
- * Renders NOTHING when VITE_GOOGLE_CLIENT_ID is unset, so the auth pages stay
- * fully functional (and error-free) until the owner configures Google. When
- * configured it uses Google Identity Services: clicking initialises GIS with the
- * client ID and opens the One Tap / account-chooser prompt; the credential JWT
- * is exchanged for our own session via authApi.googleLogin().
+ * "Continue with Google" — social sign-in, always shown on the auth pages so the
+ * option is visible. When VITE_GOOGLE_CLIENT_ID is set it uses Google Identity
+ * Services (clicking opens the One Tap / account-chooser prompt; the credential
+ * JWT is exchanged for our session via authApi.googleLogin()). When the client
+ * id is not configured yet the button still renders and a click explains that
+ * Google sign-in needs setup — it never silently does nothing.
  */
 export default function GoogleButton({ label = "Continue with Google" }) {
   const { loginWithGoogle } = useAuth()
@@ -102,9 +101,6 @@ export default function GoogleButton({ label = "Continue with Google" }) {
     [loginWithGoogle, navigate],
   )
 
-  // Gate the WHOLE feature behind the env var — no client id, no button.
-  if (!CLIENT_ID) return null
-
   function ensureInit() {
     if (initialised.current) return true
     const idApi = window.google?.accounts?.id
@@ -119,6 +115,12 @@ export default function GoogleButton({ label = "Continue with Google" }) {
 
   function handleClick() {
     if (loading) return
+    if (!CLIENT_ID) {
+      toast.error(
+        "Google sign-in isn't configured yet — add your Google client ID (VITE_GOOGLE_CLIENT_ID) to enable it.",
+      )
+      return
+    }
     if (!ensureInit()) {
       toast.error("Google sign-in is still loading. Please try again.")
       return
@@ -138,7 +140,7 @@ export default function GoogleButton({ label = "Continue with Google" }) {
       type="button"
       variant="outline"
       className="h-11 w-full justify-center gap-2.5"
-      disabled={loading || !ready}
+      disabled={CLIENT_ID ? loading || !ready : loading}
       onClick={handleClick}
     >
       {loading ? (
@@ -151,11 +153,9 @@ export default function GoogleButton({ label = "Continue with Google" }) {
   )
 }
 
-// A simple "or continue with email" divider, used between the Google button and
-// the email form on Login / Register. Renders nothing when Google sign-in is not
-// configured (no CLIENT_ID) so the divider never appears orphaned above the form.
+// A simple "or continue with email" divider, shown between the Google button and
+// the email form on Login / Register.
 export function OrDivider({ children = "or continue with email" }) {
-  if (!CLIENT_ID) return null
   return (
     <div className="flex items-center gap-3" role="separator" aria-label={children}>
       <span className="h-px flex-1 bg-border" />

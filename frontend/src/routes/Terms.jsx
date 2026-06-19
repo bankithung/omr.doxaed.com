@@ -27,7 +27,7 @@ export default function Terms() {
           items={[
             "You are responsible for the accuracy of the information you provide and for keeping your account credentials confidential.",
             "You are responsible for all activity that occurs under your account, including activity by members you invite to your organisation.",
-            "You must notify us promptly at hello@doxaed.com of any unauthorised use of your account or any other security incident you become aware of.",
+            "You must notify us promptly at doxaed@gmail.com of any unauthorised use of your account or any other security incident you become aware of.",
             "We may suspend or disable accounts that we reasonably believe have been compromised or are being used in violation of these Terms.",
           ]}
         />
@@ -146,10 +146,10 @@ export default function Terms() {
         <P>
           Questions about these Terms? Contact us at{" "}
           <a
-            href="mailto:hello@doxaed.com"
+            href="mailto:doxaed@gmail.com"
             className="text-primary underline-offset-4 hover:underline"
           >
-            hello@doxaed.com
+            doxaed@gmail.com
           </a>
           .
         </P>

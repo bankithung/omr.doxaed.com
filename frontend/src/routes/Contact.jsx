@@ -14,7 +14,7 @@ import { Reveal, RevealItem, FadeInUp } from "@/routes/landing/motion/reveal"
 /**
  * Contact — an honest contact section. There is NO contact backend, so the form
  * does NOT fake a submission/success: on submit it composes a real prefilled
- * `mailto:hello@doxaed.com` and hands off to the user's mail client. A copy
+ * `mailto:doxaed@gmail.com` and hands off to the user's mail client. A copy
  * button puts the address on the clipboard. Real channels only (hello@ /
  * support@ / doxaed.com). No fabricated phone numbers, addresses or SLAs.
  */
@@ -22,17 +22,10 @@ import { Reveal, RevealItem, FadeInUp } from "@/routes/landing/motion/reveal"
 const CHANNELS = [
   {
     icon: "task",
-    label: "General & sales",
-    value: "hello@doxaed.com",
-    href: "mailto:hello@doxaed.com",
-    copy: "hello@doxaed.com",
-  },
-  {
-    icon: "shield",
-    label: "Support",
-    value: "support@doxaed.com",
-    href: "mailto:support@doxaed.com",
-    copy: "support@doxaed.com",
+    label: "Email us",
+    value: "doxaed@gmail.com",
+    href: "mailto:doxaed@gmail.com",
+    copy: "doxaed@gmail.com",
   },
   {
     icon: "devices",
@@ -89,9 +82,9 @@ function ContactForm() {
       form.email ? `Email: ${form.email}` : null,
     ].filter(Boolean)
     const body = encodeURIComponent(bodyLines.join("\n"))
-    window.location.href = `mailto:hello@doxaed.com?subject=${subject}&body=${body}`
+    window.location.href = `mailto:doxaed@gmail.com?subject=${subject}&body=${body}`
     toast.message("Opening your email app", {
-      description: "We've prefilled a message to hello@doxaed.com.",
+      description: "We've prefilled a message to doxaed@gmail.com.",
     })
   }
 
