@@ -205,6 +205,7 @@ function usePanel(section) {
       { label: "Billing", to: `/organizations/${orgScope.orgId}/billing`, end: true },
     ]
     if (role === "admin") {
+      items.push({ label: "Roles & permissions", to: `/organizations/${orgScope.orgId}/roles`, end: true })
       items.push({ label: "Audit", to: `/organizations/${orgScope.orgId}/audit`, end: true })
     }
     return {

@@ -42,6 +42,31 @@ export const updateClassGrant = (id, body) =>
 export const deleteClassGrant = (id) =>
   api.delete(`/class-grants/${id}/`).then((r) => r.data)
 
+// RBAC — roles, scoped role bindings, the permission catalog.
+export const getPermissionCatalog = () =>
+  api.get("/permissions/").then((r) => r.data)
+
+export const listRoles = () =>
+  api.get("/roles/").then((r) => r.data)
+
+export const createRole = (body) =>
+  api.post("/roles/", body).then((r) => r.data)
+
+export const updateRole = (id, body) =>
+  api.patch(`/roles/${id}/`, body).then((r) => r.data)
+
+export const deleteRole = (id) =>
+  api.delete(`/roles/${id}/`).then((r) => r.data)
+
+export const listRoleBindings = (params) =>
+  api.get("/role-bindings/", { params }).then((r) => r.data)
+
+export const createRoleBinding = (body) =>
+  api.post("/role-bindings/", body).then((r) => r.data)
+
+export const deleteRoleBinding = (id) =>
+  api.delete(`/role-bindings/${id}/`).then((r) => r.data)
+
 // Phase 3c: branding
 export const getOrgBranding = (orgId) =>
   api.get(`/organizations/${orgId}/branding/`).then((r) => r.data)

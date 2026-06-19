@@ -54,6 +54,7 @@ const NewOrganization = lazy(() => import("@/routes/NewOrganization"))
 const OrgList = lazy(() => import("@/routes/OrgList"))
 const OrgMembers = lazy(() => import("@/routes/OrgMembers"))
 const OrgAudit = lazy(() => import("@/routes/OrgAudit"))
+const OrgRoles = lazy(() => import("@/routes/OrgRoles"))
 const AcceptInvite = lazy(() => import("@/routes/AcceptInvite"))
 const Billing = lazy(() => import("@/routes/Billing"))
 const StudentDetail = lazy(() => import("@/routes/StudentDetail"))
@@ -427,6 +428,14 @@ export default function App() {
             element={
               <ShellProtectedRoute>
                 <Billing />
+              </ShellProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/:id/roles"
+            element={
+              <ShellProtectedRoute>
+                <OrgRoles />
               </ShellProtectedRoute>
             }
           />
