@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from common.logo_validators import validate_logo_image
 
-from .models import AuditLog, Invitation, Organization, OrganizationMembership
+from .models import AuditLog, ClassAccessGrant, Invitation, Organization, OrganizationMembership
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -94,3 +94,42 @@ class OrgBrandingSerializer(serializers.ModelSerializer):
             setattr(instance, k, v)
         instance.save(update_fields=list(validated_data.keys()))
         return instance
+
+
+class ClassAccessGrantSerializer(serializers.ModelSerializer):
+    """Admin-managed grant of a class (and optionally only some subjects) to a
+    member. Validates that the class, user and subjects all belong to the ACTIVE
+    organization (read from the X-Organization-Id header via common.scope)."""
+
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    subject_names = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ClassAccessGrant
+        fields = [
+            "id", "user", "user_email", "class_group",
+            "all_subjects", "subjects", "subject_names", "created_at",
+        ]
+        read_only_fields = ["id", "user_email", "subject_names", "created_at"]
+
+    def get_subject_names(self, obj):
+        return list(obj.subjects.values_list("name", flat=True))
+
+    def validate(self, attrs):
+        from common.scope import get_active_org  # lazy: avoid app-load cycle
+
+        org = get_active_org(self.context["request"])
+        if org is None:
+            raise serializers.ValidationError("Switch to an organization to manage access grants.")
+        cg = attrs.get("class_group") or getattr(self.instance, "class_group", None)
+        if cg is None or cg.organization_id != org.id:
+            raise serializers.ValidationError({"class_group": "Class is not in this organization."})
+        user = attrs.get("user") or getattr(self.instance, "user", None)
+        if user is None or not OrganizationMembership.objects.filter(
+            organization=org, user=user, status=OrganizationMembership.ACTIVE
+        ).exists():
+            raise serializers.ValidationError({"user": "Not an active member of this organization."})
+        subs = attrs.get("subjects")
+        if subs and any(s.class_group_id != cg.id for s in subs):
+            raise serializers.ValidationError({"subjects": "Subjects must belong to this class."})
+        return attrs

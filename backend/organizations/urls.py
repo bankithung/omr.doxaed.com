@@ -1,14 +1,19 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
 from .views import (
     AcceptInviteView,
     AuditLogView,
+    ClassAccessGrantViewSet,
     InviteView,
     MemberDetailView,
     MemberListView,
     OrgBrandingView,
     OrganizationListCreateView,
 )
+
+router = DefaultRouter()
+router.register("class-grants", ClassAccessGrantViewSet, basename="class-grant")
 
 urlpatterns = [
     # Organization CRUD
@@ -31,4 +36,4 @@ urlpatterns = [
 
     # Branding (Phase 3c)
     path("organizations/<int:org_id>/branding/", OrgBrandingView.as_view(), name="org-branding"),
-]
+] + router.urls

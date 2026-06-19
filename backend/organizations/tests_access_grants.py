@@ -47,3 +47,69 @@ class ClassAccessGrantModelTests(TestCase):
         g.subjects.add(math)
         self.assertFalse(g.all_subjects)
         self.assertEqual(list(g.subjects.values_list("name", flat=True)), ["Math"])
+
+
+class ClassAccessGrantApiTests(APITestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.admin = User.objects.create_user(email="adm@o.com", password="Str0ng!pass")
+        self.teacher = User.objects.create_user(email="tch@o.com", password="Str0ng!pass")
+        self.outsider = User.objects.create_user(email="out@o.com", password="Str0ng!pass")
+        self.org = Organization.objects.create(name="O", owner=self.admin)
+        OrganizationMembership.objects.create(organization=self.org, user=self.admin, role="admin", status="active")
+        OrganizationMembership.objects.create(organization=self.org, user=self.teacher, role="member", status="active")
+        self.cls = ClassGroup.objects.create(organization=self.org, created_by=self.admin, name="10A")
+        self.math = Subject.objects.create(class_group=self.cls, name="Math")
+        # Second org + class — for cross-org isolation.
+        self.org2 = Organization.objects.create(name="O2", owner=self.outsider)
+        OrganizationMembership.objects.create(organization=self.org2, user=self.outsider, role="admin", status="active")
+        self.cls2 = ClassGroup.objects.create(organization=self.org2, created_by=self.outsider, name="X")
+
+    def _login(self, user):
+        r = self.client.post("/api/v1/auth/login/", {"email": user.email, "password": "Str0ng!pass"}, format="json")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
+
+    def _h(self, org=None):
+        return {"HTTP_X_ORGANIZATION_ID": str((org or self.org).id)}
+
+    def _post(self, body, h=None):
+        return self.client.post("/api/v1/class-grants/", body, format="json", **(h or self._h()))
+
+    def test_member_cannot_create_grant(self):
+        self._login(self.teacher)
+        self.assertEqual(self._post({"user": self.teacher.id, "class_group": self.cls.id}).status_code, 403)
+
+    def test_solo_no_header_cannot_create_grant(self):
+        self._login(self.admin)
+        r = self.client.post("/api/v1/class-grants/", {"user": self.teacher.id, "class_group": self.cls.id}, format="json")
+        self.assertEqual(r.status_code, 403)
+
+    def test_admin_creates_grant_all_subjects(self):
+        self._login(self.admin)
+        r = self._post({"user": self.teacher.id, "class_group": self.cls.id})
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertTrue(r.data["all_subjects"])
+
+    def test_admin_cannot_grant_cross_org_class(self):
+        self._login(self.admin)
+        self.assertEqual(self._post({"user": self.teacher.id, "class_group": self.cls2.id}).status_code, 400)
+
+    def test_admin_cannot_grant_non_member(self):
+        self._login(self.admin)
+        self.assertEqual(self._post({"user": self.outsider.id, "class_group": self.cls.id}).status_code, 400)
+
+    def test_list_filters_by_class_group(self):
+        self._login(self.admin)
+        self._post({"user": self.teacher.id, "class_group": self.cls.id})
+        r = self.client.get(f"/api/v1/class-grants/?class_group={self.cls.id}", **self._h())
+        self.assertEqual(r.status_code, 200)
+        data = r.data["results"] if isinstance(r.data, dict) else r.data
+        self.assertEqual(len(data), 1)
+
+    def test_narrowed_grant_with_subjects(self):
+        self._login(self.admin)
+        r = self._post({"user": self.teacher.id, "class_group": self.cls.id, "all_subjects": False, "subjects": [self.math.id]})
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertFalse(r.data["all_subjects"])
+        self.assertEqual(r.data["subject_names"], ["Math"])

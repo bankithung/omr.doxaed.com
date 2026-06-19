@@ -2,19 +2,21 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 import billing.limits as billing_limits
+from common.scope import get_active_org, is_active_admin
 
 from .emails import send_invitation_email
-from .models import AuditLog, Invitation, Organization, OrganizationMembership
+from .models import AuditLog, ClassAccessGrant, Invitation, Organization, OrganizationMembership
 from .serializers import (
     AcceptInviteSerializer,
     AuditLogSerializer,
+    ClassAccessGrantSerializer,
     InviteSerializer,
     MemberRoleSerializer,
     MembershipSerializer,
@@ -453,3 +455,53 @@ class OrgBrandingView(APIView):
             target_id=org.id,
         )
         return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# Class access grants (per-teacher class + subject access control)
+# ---------------------------------------------------------------------------
+
+class ClassAccessGrantViewSet(viewsets.ModelViewSet):
+    """Admin-only CRUD for per-teacher class+subject access grants in the ACTIVE
+    org (resolved from the X-Organization-Id header). Members / solo users → 403.
+    Filter with ?class_group=<id> or ?user=<id>."""
+
+    serializer_class = ClassAccessGrantSerializer
+    permission_classes = [IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # Every grant operation requires being an ACTIVE ADMIN of the active org.
+        if not is_active_admin(request):
+            raise PermissionDenied("Only an organization admin can manage access grants.")
+
+    def get_queryset(self):
+        org = get_active_org(self.request)  # guaranteed non-None by initial()
+        qs = (
+            ClassAccessGrant.objects.filter(organization=org)
+            .select_related("user", "class_group")
+            .prefetch_related("subjects")
+            .order_by("class_group_id", "id")
+        )
+        cg = self.request.query_params.get("class_group")
+        if cg and cg.isdigit():
+            qs = qs.filter(class_group_id=int(cg))
+        u = self.request.query_params.get("user")
+        if u and u.isdigit():
+            qs = qs.filter(user_id=int(u))
+        return qs
+
+    def perform_create(self, serializer):
+        org = get_active_org(self.request)
+        serializer.save(organization=org, granted_by=self.request.user)
+        _log(org, self.request.user, "access.granted",
+             target_type="class_grant", target_id=serializer.instance.id,
+             metadata={"user_id": serializer.instance.user_id,
+                       "class_group_id": serializer.instance.class_group_id})
+
+    def perform_destroy(self, instance):
+        org = get_active_org(self.request)
+        _log(org, self.request.user, "access.revoked",
+             target_type="class_grant", target_id=instance.id,
+             metadata={"user_id": instance.user_id, "class_group_id": instance.class_group_id})
+        instance.delete()
