@@ -25,11 +25,28 @@ class ClassGroupSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    parent = serializers.PrimaryKeyRelatedField(
+        queryset=ClassGroup.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = ClassGroup
-        fields = ("id", "name", "description", "folder", "created_at", "updated_at")
+        fields = (
+            "id", "name", "description", "folder",
+            "parent", "kind_label", "order",
+            "created_at", "updated_at",
+        )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_parent(self, value):
+        if value is None:
+            return value
+        request = self.context["request"]
+        if not parent_in_scope(value, request):
+            raise serializers.ValidationError("Parent group not found in your account.")
+        return value
 
     def validate_folder(self, value):
         if value is None:

@@ -31,7 +31,23 @@ class ClassGroupViewSet(ScopedModelViewSet):
             visibility_q(self.request, "", "created_by")
         ).distinct()
         folder = self.request.query_params.get("folder")
-        return qs.filter(folder_id=folder) if folder else qs
+        if folder:
+            qs = qs.filter(folder_id=folder)
+        # Nested-group tree: ?parent=<id> → that node's children; ?parent=none →
+        # top-level groups (the org "classes" grid).
+        parent = self.request.query_params.get("parent")
+        if parent == "none":
+            qs = qs.filter(parent__isnull=True)
+        elif parent:
+            qs = qs.filter(parent_id=parent)
+        return qs
+
+    def perform_create(self, serializer):
+        # Creating a sub-group requires EDIT rights on the parent group.
+        parent = serializer.validated_data.get("parent")
+        if parent is not None and not can_edit_class(self.request, parent):
+            raise PermissionDenied(_EDIT_DENIED)
+        super().perform_create(serializer)
 
     def perform_update(self, serializer):
         # EDIT-rights gate: the class is itself the governing class.

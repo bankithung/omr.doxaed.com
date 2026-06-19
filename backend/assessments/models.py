@@ -17,9 +17,17 @@ class ClassGroup(OwnerScopedModel):
         on_delete=models.SET_NULL,
         related_name="class_groups",
     )
+    # Nested-group tree: a group can contain sub-groups to any depth (Class →
+    # Section → …). `kind_label` is the display type of THIS node (default seeded
+    # from the org type, e.g. "Class"/"Section"); `order` orders siblings.
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="children"
+    )
+    kind_label = models.CharField(max_length=50, blank=True, default="")
+    order = models.PositiveIntegerField(default=0)
 
     class Meta(OwnerScopedModel.Meta):
-        ordering = ["name", "id"]
+        ordering = ["order", "name", "id"]
 
     def __str__(self):
         return self.name
@@ -33,6 +41,14 @@ class ClassGroup(OwnerScopedModel):
             ):
                 raise ValidationError(
                     {"folder": "Folder must share the class's owner scope."}
+                )
+        if self.parent_id is not None:
+            if (
+                self.parent.organization_id != self.organization_id
+                or self.parent.user_id != self.user_id
+            ):
+                raise ValidationError(
+                    {"parent": "Parent group must share the class's owner scope."}
                 )
 
 
