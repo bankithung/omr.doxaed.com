@@ -1,5 +1,25 @@
 # Current State
 
+- 2026-06-19: **MAJOR redesign LOCKED — flexible orgs + nested groups + full RBAC + new plans + 4-level IA**
+  (design spec `docs/superpowers/specs/2026-06-19-flexible-org-taxonomy-rbac.md`; **DESIGN ONLY, not built**).
+  Owner pivoted to a Supabase-grade production product after I analysed the captured Supabase HTML in
+  `prompts/uiuxreference/` (org "Projects" page + a Project page; build-ready specs extracted). **Locked
+  decisions:** (D1) `Organization.type` ∈ personal/school/college/university/coaching/other seeds default
+  level labels; **`ClassGroup` becomes a SELF-NESTING tree** (`parent` self-FK + `kind_label` + `order`) →
+  infinite, renamable nesting (School Class→Section, Univ Dept→Program→Batch, Coaching Batch→Section, …);
+  Subjects/Students(rosters)/Exams attach to any node; `folder` retired. (D2) **FULL RBAC v1:**
+  `Role`(custom+system) + `RoleBinding`(scoped to a group subtree OR org-wide) + `PermissionGrant`
+  (individuals) → a real `has_perm(user,org,code,group)`; `common/scope.py` rebuilt on it; today's
+  `ClassAccessGrant` generalizes into a scoped Teacher binding (subject-narrowing kept). (D3) Plans re-seed
+  **Free / Pro ₹1000 / Business ₹2000 / Enterprise** (default limits in spec §3). (D5) clean rebuild (tenant
+  data already wiped). **4-level IA:** Organizations LIST (no sidebar) → Org workspace (Dashboard · Members ·
+  Roles & Permissions · Usage · Billing · Settings) → Group workspace (recursive, type-aware: sub-groups ·
+  students · subjects · exams · settings) → Exam workspace (Questions · Students · Marks · Analytics · Scan ·
+  Share · Settings). **§8 production gaps folded in:** bulk CSV student import, audit log, exam lifecycle
+  (Draft→Ready→Live→Closed), question bank, notifications, student profiles, class/org analytics rollups,
+  guided onboarding, invoices. Build order = spec §6 (7 phases). **NEXT:** Phase 1 = org-list entry page
+  (no sidebar) + create-org (name/type/plan) — awaiting go. This builds ON the org-first + class-workspace
+  work already shipped below.
 - 2026-06-19: **Dedicated "Generate & Print" page — first of the modals→pages conversion** (on `main`,
   `bc3dcb1`). The owner's vision is dedicated pages instead of modals for the whole OMR flow; this ships
   the first one. The class-page "Generate sheets" button now NAVIGATES to `/tests/:testId/sheets`

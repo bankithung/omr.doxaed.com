@@ -24,3 +24,4 @@
 - [brand-accent-color](brand-accent-color.md) — brand accent is amber/gold #F5A623 (was green); app-wide, defuse the warning-amber collision
 - [phase5-visibility-decisions](phase5-visibility-decisions.md) — owner-approved folders/sharing visibility + admin-override choices (gate Phase 5B/5C)
 - [rbac-class-subject-access](rbac-class-subject-access.md) — per-teacher class+subject grants; how scope.py enforces it; the re-parent hole that was fixed
+- [flexible-org-rbac-design](flexible-org-rbac-design.md) — LOCKED Supabase-grade redesign: org types, nested-group tree, full RBAC, new plans, 4-level IA (design only)
