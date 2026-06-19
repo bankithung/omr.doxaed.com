@@ -1,5 +1,27 @@
 # Current State
 
+- 2026-06-19: **RBAC — per-teacher class + subject access control COMPLETE & E2E-verified** (on `main`,
+  `76afe5d`; plan `docs/superpowers/plans/2026-06-19-class-subject-access-control.md`). The first slice of
+  the owner's "org → classes → subjects → members → assign access" setup vision. **Model:** `ClassAccessGrant`
+  (`organizations`) links `(organization, user, class_group)` + `all_subjects` (default True) + `subjects` M2M;
+  unique per (org,user,class). **API:** admin-only `/api/v1/class-grants/` CRUD (gated by `is_active_admin`;
+  serializer validates class/user/subjects all in the active org). **Enforcement (all in `common/scope.py`):**
+  `visibility_q` ORs in a grant predicate (`{cp}access_grants__user=user`) so a member sees a class only with a
+  grant (folder-sharing path kept, additive); `can_edit_class` treats a grant as edit rights; new
+  `narrowed_subject_names(request, class_group_id)` returns the allowed subject-name set (None = unrestricted)
+  and the Subject viewset filters `name__in`, the Test viewset filters `Q(subject__in=names)|Q(subject="")`
+  (blank tests stay visible). Admins early-return full access; solo scope unaffected. **UI:** admin-only
+  "Teacher access" tab on the class page (`TestList.jsx`) — grant a member (custom `Select`), narrow via a
+  chip multi-select (select none = all subjects), remove via custom confirm; `Classes.jsx` shows members with
+  zero classes "Ask an admin to grant you access, or create your own." **Adversarial sweep (Task 7) FOUND+FIXED
+  a real hole:** `class_group` is a writable FK and `perform_update` only gated the SOURCE class → a member
+  could re-parent a Test/Subject into an ungranted class (200, should be 403). Both viewsets now gate the
+  destination too (mirrors Question/Section). Also asserted: removed member's lingering grant doesn't resurrect
+  access (403); generate-sheets under a non-granted class → 403. **24 access tests (incl. 4 adversarial) +
+  949 total backend tests green; frontend lint+build clean; E2E Chromium/Chrome/Edge 16/16 + modeB 17/17.**
+  **NEXT (owner's dedicated-pages vision, modals → pages):** generate OMR as a dedicated page (currently the
+  `GenerateSheetsDialog` modal in `TestList.jsx`) → edit page (heading/logo/save/print, branding fields already
+  on `Test`) → scan auto-detect → results/analytics/share; + teacher self-service (add students, own classes).
 - 2026-06-18: **PRODUCT V2 in progress — Phases 0–4b merged to `main`** (plan +
   authoritative SECURITY corrections in `docs/superpowers/plans/2026-06-18-productv2-folders-papers-ux.md`).
   Owner UI rules now MANDATORY (in CLAUDE.md): no alert/native-select/default-styles/gradients;
