@@ -28,3 +28,6 @@ e2e/last-run.json
 # Scratch spec + ad-hoc E2E shoot script (local-only, not committed)
 appdesign-spec-tmp.md
 e2e/shoot-app.mjs
+
+# Local UI/UX reference material (saved webpages — not source)
+prompts/uiuxreference/
