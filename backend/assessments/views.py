@@ -72,7 +72,13 @@ class TestViewSet(ScopedModelViewSet):
         super().perform_create(serializer)
 
     def perform_update(self, serializer):
+        # Gate BOTH the current class AND the destination class: class_group is a
+        # writable FK, so a member with edit on the source must not re-parent a
+        # test into a class they cannot edit (or cannot see).
         if not can_edit_class(self.request, serializer.instance.class_group):
+            raise PermissionDenied(_EDIT_DENIED)
+        new_cg = serializer.validated_data.get("class_group", serializer.instance.class_group)
+        if not can_edit_class(self.request, new_cg):
             raise PermissionDenied(_EDIT_DENIED)
         serializer.save()
 

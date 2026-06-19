@@ -249,3 +249,81 @@ class ClassSubjectNarrowingTests(APITestCase):
         self.assertEqual(len(subs), 2)
         _, tests = self._rows("tests")
         self.assertEqual(len(tests), 3)
+
+
+class ClassGrantAdversarialTests(APITestCase):
+    """Write-side isolation. A granted member must not re-parent rows into a class
+    they lack a grant for; a removed member's lingering grant must not resurrect
+    access; generating sheets under a non-granted class is refused."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.admin = User.objects.create_user(email="adm4@o.com", password="Str0ng!pass")
+        self.teacher = User.objects.create_user(email="tch4@o.com", password="Str0ng!pass")
+        self.org = Organization.objects.create(name="O", owner=self.admin)
+        OrganizationMembership.objects.create(organization=self.org, user=self.admin, role="admin", status="active")
+        self.member = OrganizationMembership.objects.create(
+            organization=self.org, user=self.teacher, role="member", status="active"
+        )
+        self.cls_a = ClassGroup.objects.create(organization=self.org, created_by=self.admin, name="A")
+        self.cls_b = ClassGroup.objects.create(organization=self.org, created_by=self.admin, name="B")
+        # teacher is granted class A only — never B.
+        ClassAccessGrant.objects.create(organization=self.org, user=self.teacher, class_group=self.cls_a)
+
+    def _login(self, user):
+        r = self.client.post("/api/v1/auth/login/", {"email": user.email, "password": "Str0ng!pass"}, format="json")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
+
+    def _h(self):
+        return {"HTTP_X_ORGANIZATION_ID": str(self.org.id)}
+
+    def test_member_cannot_reparent_test_into_ungranted_class(self):
+        from assessments.models import Test
+        self._login(self.teacher)
+        r = self.client.post(
+            "/api/v1/tests/", {"class_group": self.cls_a.id, "title": "T"}, format="json", **self._h()
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        tid = r.data["id"]
+        # Re-parent into B (no grant) must be refused; the row stays in A.
+        r2 = self.client.patch(
+            f"/api/v1/tests/{tid}/", {"class_group": self.cls_b.id}, format="json", **self._h()
+        )
+        self.assertEqual(r2.status_code, 403, r2.data)
+        self.assertEqual(Test.objects.get(pk=tid).class_group_id, self.cls_a.id)
+
+    def test_member_cannot_reparent_subject_into_ungranted_class(self):
+        from assessments.models import Subject
+        self._login(self.teacher)
+        r = self.client.post(
+            "/api/v1/subjects/", {"class_group": self.cls_a.id, "name": "Math"}, format="json", **self._h()
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        sid = r.data["id"]
+        r2 = self.client.patch(
+            f"/api/v1/subjects/{sid}/", {"class_group": self.cls_b.id}, format="json", **self._h()
+        )
+        self.assertEqual(r2.status_code, 403, r2.data)
+        self.assertEqual(Subject.objects.get(pk=sid).class_group_id, self.cls_a.id)
+
+    def test_removed_member_grant_does_not_resurrect_access(self):
+        self._login(self.teacher)
+        # With grant + active membership, A is visible.
+        self.assertEqual(self.client.get(f"/api/v1/classes/{self.cls_a.id}/", **self._h()).status_code, 200)
+        # Remove the membership; the grant row remains but the org header is now
+        # unusable (not an active member) → every scoped call 403s.
+        self.member.delete()
+        self.assertEqual(self.client.get("/api/v1/classes/", **self._h()).status_code, 403)
+        self.assertEqual(self.client.get(f"/api/v1/classes/{self.cls_a.id}/", **self._h()).status_code, 403)
+
+    def test_generate_sheets_under_ungranted_class_is_forbidden(self):
+        from assessments.models import Test
+        from rosters.models import Roster
+        t = Test.objects.create(organization=self.org, created_by=self.admin, class_group=self.cls_b, title="Bt")
+        roster = Roster.objects.create(organization=self.org, created_by=self.admin, class_group=self.cls_b, name="R")
+        self._login(self.teacher)
+        r = self.client.post(
+            "/api/v1/omr/generate/", {"test": t.id, "roster": roster.id}, format="json", **self._h()
+        )
+        self.assertEqual(r.status_code, 403, getattr(r, "data", r))
