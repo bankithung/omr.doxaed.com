@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { FileTextIcon } from "lucide-react"
 import { listClasses, createClass } from "@/api/assessments"
 import { listFolders } from "@/api/folders"
+import { useOrg } from "@/org/OrgContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -67,6 +68,11 @@ const COLUMNS = [
 ]
 
 export default function Classes() {
+  const { activeOrg } = useOrg() ?? {}
+  // A non-admin org member only sees classes an admin granted them (or ones they
+  // created). When they have none, point them at the admin rather than implying
+  // the list is simply empty.
+  const isOrgMember = Boolean(activeOrg) && activeOrg.role !== "admin"
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -154,7 +160,9 @@ export default function Classes() {
         empty={{
           icon: FileTextIcon,
           title: "No classes yet",
-          description: "Create your first class to get started.",
+          description: isOrgMember
+            ? "Ask an admin to grant you access to a class, or create your own."
+            : "Create your first class to get started.",
           action: <Button onClick={openDialog}>Create class</Button>,
         }}
       />

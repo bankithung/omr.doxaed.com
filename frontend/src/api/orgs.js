@@ -24,6 +24,21 @@ export const removeMember = (orgId, userId) =>
 export const getAudit = (orgId) =>
   api.get(`/organizations/${orgId}/audit/`).then((r) => r.data)
 
+// Per-teacher class + subject access control (admin-managed grants).
+// A grant links (active org, member, class); all_subjects=true means the whole
+// class, otherwise only `subjects`. The class id scopes the list endpoint.
+export const listClassGrants = (classId) =>
+  api.get("/class-grants/", { params: { class_group: classId } }).then((r) => r.data)
+
+export const createClassGrant = (body) =>
+  api.post("/class-grants/", body).then((r) => r.data)
+
+export const updateClassGrant = (id, body) =>
+  api.patch(`/class-grants/${id}/`, body).then((r) => r.data)
+
+export const deleteClassGrant = (id) =>
+  api.delete(`/class-grants/${id}/`).then((r) => r.data)
+
 // Phase 3c: branding
 export const getOrgBranding = (orgId) =>
   api.get(`/organizations/${orgId}/branding/`).then((r) => r.data)

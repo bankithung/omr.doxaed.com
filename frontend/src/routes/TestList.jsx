@@ -13,6 +13,14 @@ import {
 import { getClass, listTests, retest } from "@/api/assessments"
 import { listSubjects, createSubject, deleteSubject } from "@/api/subjects"
 import { listRosters, createRoster, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
+import {
+  getMembers,
+  listClassGrants,
+  createClassGrant,
+  updateClassGrant,
+  deleteClassGrant,
+} from "@/api/orgs"
+import { useOrg } from "@/org/OrgContext"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -523,6 +531,299 @@ function RostersSection({ classId }) {
   )
 }
 
+// ─── Narrow-subjects dialog ────────────────────────
+//
+// Picks which of the class's subjects a teacher may access. Selecting NONE means
+// "all subjects" (all_subjects=true); selecting some narrows to those ids.
+
+function NarrowSubjectsDialog({ grant, subjects, onClose, onSaved }) {
+  const [selected, setSelected] = useState(() => new Set(grant.subjects ?? []))
+  const [saving, setSaving] = useState(false)
+
+  function toggle(id) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const ids = [...selected]
+      // No subjects chosen → grant the whole class (all_subjects=true).
+      const body = ids.length
+        ? { all_subjects: false, subjects: ids }
+        : { all_subjects: true, subjects: [] }
+      await updateClassGrant(grant.id, body)
+      toast.success("Access updated")
+      onSaved()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to update access")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !saving && !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Subjects for {grant.user_email}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Choose which subjects this teacher can access in this class. Select none
+          to grant <span className="font-medium text-foreground">all subjects</span>.
+        </p>
+        {subjects.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            This class has no subjects yet — add some in the Subjects tab to narrow
+            access.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {subjects.map((s) => {
+              const on = selected.has(s.id)
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggle(s.id)}
+                  aria-pressed={on}
+                  className={cn(
+                    "min-h-[40px] rounded-full border px-4 text-sm font-medium transition-colors",
+                    on
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-surface-2 text-foreground hover:border-primary/50",
+                  )}
+                >
+                  {s.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <DialogFooter showCloseButton>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save access"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Access section (per class, ADMIN ONLY) ────────
+//
+// An org admin grants teachers (members) access to THIS class. Grants default to
+// all subjects; the admin can narrow to specific ones. Enforcement lives in the
+// API (common/scope.py) — a member without a grant never sees the class. This UI
+// only manages the grant rows and is rendered solely for admins.
+
+function AccessSection({ classId }) {
+  const { activeOrgId } = useOrg() ?? {}
+  const [grants, setGrants] = useState([])
+  const [members, setMembers] = useState([])
+  const [subjects, setSubjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [addUserId, setAddUserId] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState(null)
+  const [removing, setRemoving] = useState(false)
+  const [narrowTarget, setNarrowTarget] = useState(null)
+
+  const fetchAll = useCallback(async () => {
+    try {
+      const [grantData, memberData, subjectData] = await Promise.all([
+        listClassGrants(classId),
+        activeOrgId ? getMembers(activeOrgId) : Promise.resolve([]),
+        listSubjects(classId),
+      ])
+      setGrants(grantData.results ?? grantData)
+      setMembers(memberData.results ?? memberData)
+      setSubjects(subjectData.results ?? subjectData)
+    } catch {
+      toast.error("Failed to load access settings")
+    } finally {
+      setLoading(false)
+    }
+  }, [classId, activeOrgId])
+
+  useEffect(() => {
+    fetchAll()
+  }, [fetchAll])
+
+  // Addable = active members, not admins (they already have full access), not
+  // already granted.
+  const grantedUserIds = new Set(grants.map((g) => g.user))
+  const addable = members.filter(
+    (m) => m.status === "active" && m.role !== "admin" && !grantedUserIds.has(m.user_id),
+  )
+
+  async function handleAdd() {
+    if (!addUserId) return
+    setAdding(true)
+    try {
+      await createClassGrant({
+        user: Number(addUserId),
+        class_group: Number(classId),
+        all_subjects: true,
+      })
+      setAddUserId("")
+      toast.success("Teacher granted access")
+      fetchAll()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to grant access")
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  async function handleRemove() {
+    if (!removeTarget) return
+    setRemoving(true)
+    try {
+      await deleteClassGrant(removeTarget.id)
+      toast.success("Access removed")
+      setRemoveTarget(null)
+      fetchAll()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to remove access")
+    } finally {
+      setRemoving(false)
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading access settings…</p>
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">
+        Grant teachers access to this class. A grant covers all subjects by default
+        — use <span className="font-medium text-foreground">Subjects</span> on a row
+        to limit a teacher to specific ones. Teachers without a grant can't see this
+        class; admins always have full access.
+      </p>
+
+      {/* Add a teacher */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Select value={addUserId} onValueChange={setAddUserId} disabled={addable.length === 0}>
+          <SelectTrigger className="w-full sm:max-w-xs">
+            <SelectValue
+              placeholder={addable.length ? "Select a teacher…" : "No teachers to add"}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {addable.map((m) => (
+              <SelectItem key={m.user_id} value={String(m.user_id)}>
+                {m.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          onClick={handleAdd}
+          size="sm"
+          className="min-h-[40px]"
+          disabled={!addUserId || adding}
+        >
+          {adding ? "Granting…" : "Grant access"}
+        </Button>
+      </div>
+
+      {/* Current grants */}
+      {grants.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No teachers have access yet.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+          {grants.map((g) => (
+            <li
+              key={g.id}
+              className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium">{g.user_email}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {g.all_subjects ? (
+                    <Badge variant="success">All subjects</Badge>
+                  ) : g.subject_names.length ? (
+                    g.subject_names.map((n) => (
+                      <Badge key={n} variant="neutral">
+                        {n}
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="warning">No subjects</Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-[40px]"
+                  onClick={() => setNarrowTarget(g)}
+                >
+                  Subjects
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-[40px]"
+                  onClick={() => setRemoveTarget(g)}
+                  aria-label={`Remove access for ${g.user_email}`}
+                >
+                  <XIcon className="size-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Narrow subjects dialog */}
+      {narrowTarget && (
+        <NarrowSubjectsDialog
+          grant={narrowTarget}
+          subjects={subjects}
+          onClose={() => setNarrowTarget(null)}
+          onSaved={() => {
+            setNarrowTarget(null)
+            fetchAll()
+          }}
+        />
+      )}
+
+      {/* Remove confirm (custom — never window.confirm) */}
+      <Dialog
+        open={!!removeTarget}
+        onOpenChange={(o) => !removing && !o && setRemoveTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove access</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remove <strong>{removeTarget?.user_email}</strong>'s access to this class?
+            They'll no longer see it or its tests.
+          </p>
+          <DialogFooter showCloseButton>
+            <Button variant="destructive" onClick={handleRemove} disabled={removing}>
+              {removing ? "Removing…" : "Remove access"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
 // ─── Main TestList screen ──────────────────────────
 
 const CLASS_TABS = [
@@ -534,6 +835,11 @@ const CLASS_TABS = [
 export default function TestList() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { activeOrg } = useOrg() ?? {}
+  const isAdmin = activeOrg?.role === "admin"
+  const tabs = isAdmin
+    ? [...CLASS_TABS, { key: "access", label: "Teacher access" }]
+    : CLASS_TABS
   const [classGroup, setClassGroup] = useState(null)
   const [tests, setTests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -662,7 +968,7 @@ export default function TestList() {
           aria-label="Class sections"
           className="flex gap-1 overflow-x-auto border-b border-border"
         >
-          {CLASS_TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
@@ -699,6 +1005,7 @@ export default function TestList() {
             ))}
           {tab === "rosters" && <RostersSection classId={id} />}
           {tab === "subjects" && <SubjectsSection classId={id} />}
+          {tab === "access" && isAdmin && <AccessSection classId={id} />}
         </div>
       </div>
 
