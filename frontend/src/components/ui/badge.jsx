@@ -16,14 +16,17 @@ const badgeVariants = cva(
         info:
           "bg-[color-mix(in_oklch,var(--color-info)_12%,transparent)] text-[var(--color-info)] dark:bg-[color-mix(in_oklch,var(--color-info)_20%,transparent)]",
         neutral:
-          "bg-muted text-muted-foreground",
+          "border border-border-strong bg-surface-1 text-muted-foreground",
+        // brand / live — pairs with StatusDot + animate-pulse for live status
+        brand:
+          "border border-primary/40 bg-primary/10 text-primary",
         // shadcn-compatible default
         default:
           "border border-transparent bg-primary text-primary-foreground",
         secondary:
           "border border-transparent bg-secondary text-secondary-foreground",
         destructive:
-          "border border-transparent bg-destructive text-white",
+          "border border-transparent bg-destructive text-primary-foreground",
         outline:
           "border border-border text-foreground",
       },

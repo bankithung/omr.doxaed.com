@@ -8,12 +8,9 @@
 /* OMRFlow design tokens (DESIGN_SYSTEM.md). shadcn init (a later task) appends its own
    :root / @theme color variables below this block — keep both. */
 @theme {
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-base: 16px;
-  --text-lg: 20px;
-  --text-xl: 24px;
-  --text-2xl: 32px;
+  /* Type scale: inherit Tailwind v4 defaults (xs…7xl + paired line-heights).
+     Supabase uses the unmodified scale; the px overrides were removed so the
+     hero's text-3xl…text-7xl and calc'd leading are available app-wide. */
 
   /* Radius is governed by shadcn's --radius (see :root below); do not redefine
      --radius-md/lg/xl here — shadcn's @theme inline would override them anyway. */
@@ -29,6 +26,8 @@
   /* heading: same Geist Variable but with tighter tracking defined at usage */
   --font-heading: 'Geist Variable', sans-serif;
   --font-sans: 'Geist Variable', sans-serif;
+  /* Mono — Geist Mono for OMR data (scores, roll numbers, exam IDs, keys) */
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   /* Elevation ladder + border ramp + nav-active + overlay shadow (App-shell v2) */
   --color-canvas: var(--canvas);
   --color-surface-1: var(--surface-1);
@@ -74,6 +73,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-foreground: var(--foreground);
+  --color-foreground-lighter: var(--foreground-lighter);
   --color-background: var(--background);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -85,67 +85,69 @@
 }
 
 :root {
-  /* Neutrals — faint cool tint (h 265), chroma ≤0.006 (never reads as color) */
-  --background: oklch(0.994 0.001 265);
-  --foreground: oklch(0.21 0.006 265);
+  /* ── LIGHT (the alternate). Supabase light: near-white #fcfcfc canvas, pure
+     achromatic gray ramp (chroma → 0). ── */
+  --background: oklch(0.985 0 0);            /* #fcfcfc page */
+  --foreground: oklch(0.205 0 0);           /* #171717 */
 
   /* Elevation ladder (flat surfaces; depth = surface step + hairline) */
-  --canvas:    oklch(0.985 0.002 265);  /* app/rail/main canvas (NOT pure white) */
-  --surface-1: oklch(0.985 0.002 265);  /* cards, secondary nav panel */
-  --surface-2: oklch(0.972 0.003 265);  /* popovers, nested panels, card footers */
-  --surface-3: oklch(0.955 0.004 265);  /* highest nested fill */
+  --canvas:    oklch(0.985 0 0);            /* app/rail/main canvas */
+  --surface-1: oklch(1 0 0);               /* #ffffff cards (surface-75) */
+  --surface-2: oklch(0.985 0 0);           /* #fcfcfc popovers (surface-100) */
+  --surface-3: oklch(0.967 0 0);           /* #f3f3f3 nested */
 
-  --card: oklch(0.985 0.002 265);            /* → --surface-1 */
-  --card-foreground: oklch(0.21 0.006 265);
-  --popover: oklch(0.972 0.003 265);         /* → --surface-2 */
-  --popover-foreground: oklch(0.21 0.006 265);
+  --card: oklch(1 0 0);                       /* → --surface-1 */
+  --card-foreground: oklch(0.205 0 0);
+  --popover: oklch(0.985 0 0);                /* → --surface-2 */
+  --popover-foreground: oklch(0.205 0 0);
 
-  /* Brand — indigo (accent ONLY: buttons, ring, links, active-nav text, dots) */
+  /* Brand — DoxaEd indigo (accent ONLY: buttons, ring, links, active-nav, dots) */
   --primary: oklch(0.488 0.243 264.376);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.968 0.004 265);
-  --secondary-foreground: oklch(0.27 0.008 265);
-  --muted: oklch(0.972 0.003 265);
-  --muted-foreground: oklch(0.55 0.012 265);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.27 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);     /* secondary text */
+  --foreground-lighter: oklch(0.65 0 0);    /* tertiary / placeholder #b2b2b2 */
 
   /* Accent — teal (secondary highlights/charts only) */
   --accent: oklch(0.9 0.04 195);
   --accent-foreground: oklch(0.3 0.06 195);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.637 0.205 25.3);   /* #e54d2e Supabase tomato */
 
-  /* Border ramp — hairlines are the primary depth tool */
-  --border: oklch(0.928 0.003 265);          /* default/subtle (inner dividers) */
-  --border-strong: oklch(0.892 0.004 265);   /* structural rails / outer card edges */
-  --border-stronger: oklch(0.85 0.005 265);  /* hover/active interactive edges */
-  --input: oklch(0.912 0.004 265);
-  --ring: oklch(0.488 0.243 264.376);        /* crisp brand focus */
+  /* Border ramp — hairlines are the primary depth tool (Supabase #dfdfdf/#d4d4d4/#8f8f8f) */
+  --border: oklch(0.9 0 0);                 /* #dfdfdf default */
+  --border-strong: oklch(0.87 0 0);         /* #d4d4d4 structural */
+  --border-stronger: oklch(0.66 0 0);       /* #8f8f8f hover/active */
+  --input: oklch(0.9 0 0);
+  --ring: oklch(0.488 0.243 264.376);       /* crisp brand focus */
 
   /* Active-nav: faint tinted fill + brand text (NOT a saturated pill) */
-  --nav-active-bg: oklch(0.958 0.012 265);
+  --nav-active-bg: oklch(0.955 0.01 264);
   --nav-active-fg: var(--primary);
 
-  /* Charts — keep existing sequential indigo→teal */
+  /* Charts — sequential indigo→teal */
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.55 0.18 230);
   --chart-3: oklch(0.56 0.16 195);
   --chart-4: oklch(0.62 0.12 160);
   --chart-5: oklch(0.70 0.10 140);
 
-  --radius: 0.5rem;  /* 8px workhorse (was 0.625rem) */
+  --radius: 0.5rem;  /* 8px workhorse — matches Supabase */
 
   /* Sidebar (rail + secondary panel) */
-  --sidebar: oklch(0.985 0.002 265);
-  --sidebar-foreground: oklch(0.27 0.006 265);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.27 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.958 0.012 265);          /* matches --nav-active-bg */
+  --sidebar-accent: oklch(0.955 0.01 264);           /* matches --nav-active-bg */
   --sidebar-accent-foreground: oklch(0.3 0.08 264.376);
-  --sidebar-border: oklch(0.892 0.004 265);          /* = --border-strong */
+  --sidebar-border: oklch(0.87 0 0);                 /* = --border-strong */
   --sidebar-ring: oklch(0.488 0.243 264.376);
 
   /* One restrained overlay shadow (dropdowns/dialogs in LIGHT only) */
-  --shadow-overlay: 0 1px 2px oklch(0.21 0.006 265 / 0.06),
-                    0 4px 12px oklch(0.21 0.006 265 / 0.08);
+  --shadow-overlay: 0 1px 2px oklch(0 0 0 / 0.05),
+                    0 4px 12px oklch(0 0 0 / 0.1);
 
   /* Motion tokens */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -155,55 +157,58 @@
 }
 
 .dark {
-  --background: oklch(0.178 0.004 265);
-  --foreground: oklch(0.93 0.004 265);
+  /* ── DARK (DEFAULT). Supabase achromatic gunmetal, chroma → 0. ── */
+  --background: oklch(0.145 0 0);            /* #0f0f0f page */
+  --foreground: oklch(0.985 0 0);           /* #fafafa */
 
-  --canvas:    oklch(0.165 0.004 265);
-  --surface-1: oklch(0.205 0.004 265);
-  --surface-2: oklch(0.235 0.005 265);
-  --surface-3: oklch(0.265 0.006 265);
+  --canvas:    oklch(0.165 0 0);            /* #121212 dash-canvas */
+  --surface-1: oklch(0.205 0 0);           /* #1f1f1f cards (surface-100) */
+  --surface-2: oklch(0.225 0 0);           /* #242424 muted/control (popovers) */
+  --surface-3: oklch(0.245 0 0);           /* #292929 surface-300 */
 
-  --card: oklch(0.205 0.004 265);
-  --card-foreground: oklch(0.93 0.004 265);
-  --popover: oklch(0.235 0.005 265);
-  --popover-foreground: oklch(0.93 0.004 265);
+  --card: oklch(0.205 0 0);                 /* #1f1f1f */
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);              /* dialog = surface, not raised */
+  --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.65 0.18 264.376);
+  --primary: oklch(0.66 0.2 264.376);       /* indigo, nudged brighter for dark canvas */
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.255 0.006 265);
-  --secondary-foreground: oklch(0.93 0.004 265);
-  --muted: oklch(0.255 0.006 265);
-  --muted-foreground: oklch(0.66 0.012 265);
-  --accent: oklch(0.28 0.04 195);
+  --secondary: oklch(0.225 0 0);            /* #242424 */
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.225 0 0);                /* #242424 control/muted */
+  --muted-foreground: oklch(0.72 0 0);      /* #b4b4b4 — NOT pure white (Supabase calm) */
+  --foreground-lighter: oklch(0.6 0 0);     /* #898989 placeholder/tertiary */
+
+  --accent: oklch(0.28 0.04 195);           /* teal — charts only */
   --accent-foreground: oklch(0.85 0.06 195);
-  --destructive: oklch(0.704 0.191 22.216);
+  --destructive: oklch(0.637 0.205 25.3);   /* #e54d2e */
 
-  /* SOLID gray borders — the single biggest dark-mode premium upgrade */
-  --border: oklch(0.27 0.005 265);
-  --border-strong: oklch(0.32 0.006 265);
-  --border-stronger: oklch(0.38 0.007 265);
-  --input: oklch(0.32 0.006 265);
-  --ring: oklch(0.62 0.17 264.376);
+  /* SOLID gunmetal borders — the single biggest premium lever (Supabase #2e2e2e/#363636/#454545) */
+  --border: oklch(0.27 0 0);                /* #2e2e2e default */
+  --border-strong: oklch(0.32 0 0);         /* #363636 strong */
+  --border-stronger: oklch(0.37 0 0);       /* #454545 stronger/hover */
+  --input: oklch(0.27 0 0);
+  --ring: oklch(0.66 0.2 264.376);
 
-  --nav-active-bg: oklch(0.255 0.02 265);
+  --nav-active-bg: oklch(0.245 0.02 264);   /* faint indigo-tinted fill */
   --nav-active-fg: oklch(0.78 0.12 264.376);
 
-  --chart-1: oklch(0.65 0.18 264.376);
+  --chart-1: oklch(0.66 0.2 264.376);
   --chart-2: oklch(0.66 0.15 230);
   --chart-3: oklch(0.67 0.13 195);
   --chart-4: oklch(0.70 0.10 160);
   --chart-5: oklch(0.75 0.09 140);
 
-  --sidebar: oklch(0.205 0.004 265);
-  --sidebar-foreground: oklch(0.85 0.004 265);
-  --sidebar-primary: oklch(0.65 0.18 264.376);
+  --sidebar: oklch(0.165 0 0);              /* #121212 dash-sidebar (≈ canvas) */
+  --sidebar-foreground: oklch(0.85 0 0);
+  --sidebar-primary: oklch(0.66 0.2 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.255 0.02 265);
+  --sidebar-accent: oklch(0.245 0.02 264);
   --sidebar-accent-foreground: oklch(0.82 0.1 264.376);
-  --sidebar-border: oklch(0.32 0.006 265);
-  --sidebar-ring: oklch(0.62 0.17 264.376);
+  --sidebar-border: oklch(0.27 0 0);        /* = --border */
+  --sidebar-ring: oklch(0.66 0.2 264.376);
 
-  --shadow-overlay: none;  /* dark relies on border-strong + surface-2 */
+  --shadow-overlay: none;  /* dark relies on border + surface step, never glow */
 }
 
 @layer base {
@@ -223,6 +228,12 @@
 
 @utility tabular { font-variant-numeric: tabular-nums; }
 @utility tracking-tight-1 { letter-spacing: -0.01em; }
+/* Supabase-style white-alpha hairline — consistent edge over any dark surface (flat) */
+@utility border-hairline { border-color: oklch(1 0 0 / 0.08); }
+/* Brand focus glow (recolored to DoxaEd indigo) — flat box-shadow, no gradient */
+@utility ring-brand-glow {
+  box-shadow: 0 0 0 1px var(--ring), 0 0 6px 0 oklch(0.66 0.2 264 / 0.4);
+}
 @utility motion-safe-card {
   transition-property: background-color, border-color, transform;
   transition-duration: var(--dur-fast);
