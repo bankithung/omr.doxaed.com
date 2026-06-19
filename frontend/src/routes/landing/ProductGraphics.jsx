@@ -357,6 +357,59 @@ export function ScanSheet({ className = "", variant = "default" }) {
 
 // ── DealOut — one bank + one roster → many shuffled sheets (fan-out) ───────────
 
+// Animated connector — amber flow lines bridging the bank+roster (left) to the
+// dealt sheets (right), filling what used to be a large empty gap. Marching
+// dashes (landing-flow) over faint static rails read as sheets streaming out.
+// Desktop only: on mobile the layout stacks, so there's no horizontal gap to
+// bridge. Reduced-motion: the dashes hold still (rails stay for structure).
+function DealConnector() {
+  const paths = [
+    "M2 78 C 48 78, 66 30, 120 30",
+    "M2 78 C 54 78, 74 78, 120 78",
+    "M2 78 C 48 78, 66 126, 120 126",
+  ]
+  return (
+    <svg
+      viewBox="0 0 120 156"
+      preserveAspectRatio="none"
+      aria-hidden
+      className="h-[140px] w-full"
+    >
+      {/* faint static amber rails — structure survives without motion */}
+      {paths.map((d, i) => (
+        <path
+          key={`rail-${i}`}
+          d={d}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth="1.25"
+          strokeOpacity="0.28"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+      {/* marching amber flow */}
+      {paths.map((d, i) => (
+        <path
+          key={`flow-${i}`}
+          className="landing-flow"
+          d={d}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth="2.25"
+          strokeOpacity="0.95"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+          style={{ animationDelay: `${i * 160}ms` }}
+        />
+      ))}
+      {/* endpoint nodes where each flow lands (one per dealt sheet) */}
+      {[30, 78, 126].map((cy, i) => (
+        <circle key={`end-${i}`} cx="119" cy={cy} r="2.4" fill="var(--color-primary)" vectorEffect="non-scaling-stroke" />
+      ))}
+    </svg>
+  )
+}
+
 export function DealOut({ className = "" }) {
   const fan = [
     { seed: 3, name: "Asha D.", roll: "101", x: "-22px", delay: 80 },
@@ -365,9 +418,9 @@ export function DealOut({ className = "" }) {
   ]
   return (
     <InViewAnim className={className}>
-      <div className="grid items-center gap-5 rounded-xl border border-border bg-card p-5 sm:grid-cols-[auto_1fr]">
+      <div className="@container flex flex-col items-center gap-6 rounded-xl border border-border bg-card p-5 sm:flex-row sm:justify-center">
         {/* source: one bank + one roster */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-none">
           <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-2 px-3 py-2.5">
             <span className="flex size-8 items-center justify-center rounded-md border border-border bg-card text-primary">
               <MaterialIcon name="checklist" className="size-4" />
@@ -392,12 +445,19 @@ export function DealOut({ className = "" }) {
           </div>
         </div>
 
-        {/* dealt-out shuffled sheets */}
-        <div className="flex items-end justify-center gap-2 sm:justify-end">
+        {/* animated connector lines bridging source → dealt sheets (fills the gap,
+            width-capped so it never stretches into a sparse empty band) */}
+        <div className="hidden max-w-[130px] flex-1 self-center sm:block @3xl:max-w-[210px]">
+          <DealConnector />
+        </div>
+
+        {/* dealt-out shuffled sheets — sized to the CONTAINER (compact in the Bento
+            tile, prominent in the full-width HowItWorks card) */}
+        <div className="flex items-end justify-center gap-2 sm:flex-none">
           {fan.map((f) => (
             <div
               key={f.seed}
-              className="landing-deal w-[28%] max-w-[110px] rounded-lg border border-border bg-surface-2 p-1.5"
+              className="landing-deal w-[58px] shrink-0 rounded-lg border border-border bg-surface-2 p-1.5 @2xl:w-[76px] @4xl:w-[94px] @5xl:w-[108px]"
               style={{ "--deal-from-x": f.x, "--deal-delay": `${f.delay}ms` }}
             >
               <ShuffledSheet seed={f.seed} name={f.name} roll={f.roll} className="aspect-[200/264]" />
@@ -443,7 +503,7 @@ export function DashboardPreview({ className = "" }) {
         {/* right: a real graded sheet + roster rows */}
         <div className="flex flex-col gap-3">
           <div className="rounded-xl border border-border bg-surface-2 p-2.5">
-            <GradedSheet seed={7} name="Asha D." roll="101" score="14/15" className="aspect-[200/264]" />
+            <GradedSheet seed={7} name="Asha D." roll="101" score="14/15" rows={14} className="aspect-[200/264]" />
           </div>
           <div className="rounded-xl border border-border bg-surface-2 p-3">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Top results</p>

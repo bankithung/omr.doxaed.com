@@ -1,34 +1,16 @@
 import { Link } from "react-router-dom"
-import { ArrowLeft } from "lucide-react"
+
+import LandingNav from "@/routes/landing/LandingNav"
 
 const LAST_UPDATED = "19 June 2026"
 
-// Clean, centered legal layout: wordmark header, back-to-home link, last-updated
-// date, review-template notice, and a readable prose body. App tokens only.
+// Clean, centered legal layout: the SAME shared home-page header (LandingNav),
+// then the title + last-updated date, review-template notice, and a readable
+// prose body. App tokens only.
 export default function LegalLayout({ title, children }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <Link
-            to="/"
-            className="inline-flex items-baseline gap-1.5 font-bold tracking-tight"
-            aria-label="DoxaEd OMR — home"
-          >
-            <span className="text-foreground">DoxaEd</span>
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              OMR
-            </span>
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Back to home
-          </Link>
-        </div>
-      </header>
+      <LandingNav />
 
       <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <div className="space-y-2">

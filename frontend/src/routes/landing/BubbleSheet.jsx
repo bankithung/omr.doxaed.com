@@ -10,7 +10,8 @@
  * Props:
  *   name      student name shown in the header
  *   roll      digit string for the pre-bubbled roll grid (e.g. "101")
- *   answers   array (len = ROWS) of filled option index 0..3, or -1 for blank
+ *   answers   array (len = rows) of filled option index 0..3, or -1 for blank
+ *   rows      number of answer rows to render (default 7; more ⇒ smaller bubbles)
  *   tint      CSS color for marked bubbles (defaults to the brand --primary)
  *   graded    show a "graded" score chip overlay
  *   score     e.g. "13/15"
@@ -32,10 +33,10 @@ const SHEET = {
 }
 
 // Deterministic seeded shuffle so each sheet looks visibly unique but stable.
-function seededAnswers(seed) {
+function seededAnswers(seed, count = ROWS) {
   let s = (seed + 1) * 2654435761
   const out = []
-  for (let i = 0; i < ROWS; i++) {
+  for (let i = 0; i < count; i++) {
     s = (s ^ (s << 13)) >>> 0
     s = (s ^ (s >> 17)) >>> 0
     s = (s ^ (s << 5)) >>> 0
@@ -49,16 +50,27 @@ export default function BubbleSheet({
   roll = "101",
   answers,
   seed = 0,
+  rows = ROWS,
   tint = "var(--color-primary)",
   graded = false,
   score = "13/15",
   gradeKey,
   className = "",
 }) {
-  const marks = answers ?? seededAnswers(seed)
+  const marks = answers ?? seededAnswers(seed, rows)
   const rollDigits = String(roll).padStart(3, "0").slice(0, 3).split("").map(Number)
   // Default correctness pattern for the graded chip checkmarks.
   const key = gradeKey ?? marks.map((_, i) => (i + seed) % 4 !== 0)
+
+  // Adaptive answer-row geometry: more rows ⇒ tighter pitch + smaller bubbles so a
+  // denser sheet (e.g. rows=14) still fits the 200×264 viewBox. At the default 7
+  // rows this reproduces the original pitch (16) and bubble radii (5.6 / 4.7).
+  const rowTop = 72
+  const rowPitch = Math.min(16, (210 - rowTop) / Math.max(rows - 1, 1))
+  const rOuter = Math.min(5.6, rowPitch * 0.36)
+  const rFill = rOuter * 0.84
+  const bubbleStroke = rOuter > 4.6 ? 1.1 : 0.9
+  const rowLabelSize = Math.min(6, rowPitch * 0.4)
 
   return (
     <div className={className}>
@@ -126,11 +138,11 @@ export default function BubbleSheet({
         )}
 
         {/* answer rows (static — lightweight for many fan instances) */}
-        {marks.slice(0, ROWS).map((marked, row) => {
-          const y = 72 + row * 16
+        {marks.slice(0, rows).map((marked, row) => {
+          const y = rowTop + row * rowPitch
           return (
             <g key={row}>
-              <text x="64" y={y + 2} fontSize="6" fill={SHEET.faint}
+              <text x="64" y={y + 2} fontSize={rowLabelSize} fill={SHEET.faint}
                 fontFamily="ui-sans-serif, system-ui" textAnchor="end">
                 {row + 1}
               </text>
@@ -139,9 +151,9 @@ export default function BubbleSheet({
                 const isMarked = opt === marked
                 return (
                   <g key={opt}>
-                    <circle cx={cx} cy={y} r="5.6" fill="none"
-                      stroke={SHEET.bubble} strokeWidth="1.1" />
-                    {isMarked && <circle cx={cx} cy={y} r="4.7" fill={tint} />}
+                    <circle cx={cx} cy={y} r={rOuter} fill="none"
+                      stroke={SHEET.bubble} strokeWidth={bubbleStroke} />
+                    {isMarked && <circle cx={cx} cy={y} r={rFill} fill={tint} />}
                   </g>
                 )
               })}
@@ -192,20 +204,21 @@ export default function BubbleSheet({
 }
 
 // ── ShuffledSheet — a BubbleSheet with a per-seed unique answer order + name ──
-export function ShuffledSheet({ seed = 0, name, roll, tint, className = "" }) {
+export function ShuffledSheet({ seed = 0, name, roll, tint, rows, className = "" }) {
   return (
     <BubbleSheet
       seed={seed}
       name={name}
       roll={roll}
       tint={tint}
+      rows={rows}
       className={className}
     />
   )
 }
 
 // ── GradedSheet — a BubbleSheet with the graded overlay ──
-export function GradedSheet({ seed = 0, name, roll, tint, score = "13/15", className = "" }) {
+export function GradedSheet({ seed = 0, name, roll, tint, score = "13/15", rows, className = "" }) {
   return (
     <BubbleSheet
       seed={seed}
@@ -214,6 +227,7 @@ export function GradedSheet({ seed = 0, name, roll, tint, score = "13/15", class
       tint={tint}
       graded
       score={score}
+      rows={rows}
       className={className}
     />
   )

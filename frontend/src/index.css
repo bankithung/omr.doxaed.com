@@ -17,7 +17,7 @@
 
   /* Semantic status tokens */
   --color-success: oklch(0.527 0.154 150.1);
-  --color-warning: oklch(0.627 0.179 55.4);
+  --color-warning: oklch(0.63 0.195 47);     /* orange — pushed redder so 'needs review' stays distinct from the amber brand */
   --color-error: oklch(0.534 0.218 27.3);
   --color-info: oklch(0.537 0.196 256.8);
 }
@@ -101,9 +101,9 @@
   --popover: oklch(0.985 0 0);                /* → --surface-2 */
   --popover-foreground: oklch(0.205 0 0);
 
-  /* Brand — Supabase green (accent ONLY: buttons, ring, links, active-nav, dots).
-     Buttons read near-black on green (Supabase). Distinct from --color-success. */
-  --primary: oklch(0.77 0.15 162);          /* ≈ #3fcf8e Supabase green */
+  /* Brand — DoxaEd amber/gold #F5A623 (accent ONLY: buttons, ring, links, active-nav, dots).
+     Buttons read near-black on amber. Distinct from --color-success (green) + --color-warning (orange). */
+  --primary: oklch(0.72 0.15 73);           /* ≈ #F5A623 DoxaEd amber/gold (brand) */
   --primary-foreground: oklch(0.205 0 0);   /* #161616 near-black on green */
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.27 0 0);
@@ -121,14 +121,14 @@
   --border-strong: oklch(0.87 0 0);         /* #d4d4d4 structural */
   --border-stronger: oklch(0.66 0 0);       /* #8f8f8f hover/active */
   --input: oklch(0.9 0 0);
-  --ring: oklch(0.77 0.15 162);             /* crisp brand focus (green) */
+  --ring: oklch(0.72 0.15 73);              /* crisp brand focus (amber) */
 
   /* Active-nav: faint tinted fill + brand text (NOT a saturated pill) */
-  --nav-active-bg: oklch(0.955 0.02 162);
+  --nav-active-bg: oklch(0.96 0.03 80);
   --nav-active-fg: var(--primary);
 
-  /* Charts — sequential green→teal */
-  --chart-1: oklch(0.77 0.15 162);
+  /* Charts — amber brand series (chart-1) + sequential teal→blue (chart-2…5) */
+  --chart-1: oklch(0.72 0.15 73);
   --chart-2: oklch(0.66 0.13 178);
   --chart-3: oklch(0.60 0.12 200);
   --chart-4: oklch(0.58 0.13 230);
@@ -139,12 +139,12 @@
   /* Sidebar (rail + secondary panel) */
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.27 0 0);
-  --sidebar-primary: oklch(0.77 0.15 162);
+  --sidebar-primary: oklch(0.72 0.15 73);
   --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.955 0.02 162);           /* matches --nav-active-bg */
-  --sidebar-accent-foreground: oklch(0.3 0.08 162);
+  --sidebar-accent: oklch(0.96 0.03 80);           /* matches --nav-active-bg */
+  --sidebar-accent-foreground: oklch(0.42 0.1 72);
   --sidebar-border: oklch(0.87 0 0);                 /* = --border-strong */
-  --sidebar-ring: oklch(0.77 0.15 162);
+  --sidebar-ring: oklch(0.72 0.15 73);
 
   /* One restrained overlay shadow (dropdowns/dialogs in LIGHT only) */
   --shadow-overlay: 0 1px 2px oklch(0 0 0 / 0.05),
@@ -172,7 +172,7 @@
   --popover: oklch(0.205 0 0);              /* dialog = surface, not raised */
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.8 0.15 162);           /* Supabase green, brighter for dark canvas (#3fcf8e family) */
+  --primary: oklch(0.8 0.155 76);           /* ≈ #F5A623 amber/gold, brighter for the dark canvas (brand) */
   --primary-foreground: oklch(0.205 0 0);   /* #161616 near-black on green (Supabase) */
   --secondary: oklch(0.225 0 0);            /* #242424 */
   --secondary-foreground: oklch(0.985 0 0);
@@ -189,12 +189,12 @@
   --border-strong: oklch(0.32 0 0);         /* #363636 strong */
   --border-stronger: oklch(0.37 0 0);       /* #454545 stronger/hover */
   --input: oklch(0.27 0 0);
-  --ring: oklch(0.8 0.15 162);
+  --ring: oklch(0.8 0.155 76);
 
-  --nav-active-bg: oklch(0.245 0.03 162);   /* faint green-tinted fill */
-  --nav-active-fg: oklch(0.82 0.13 162);
+  --nav-active-bg: oklch(0.25 0.04 75);     /* faint amber-tinted fill */
+  --nav-active-fg: oklch(0.84 0.13 78);
 
-  --chart-1: oklch(0.8 0.15 162);
+  --chart-1: oklch(0.8 0.155 76);
   --chart-2: oklch(0.7 0.13 178);
   --chart-3: oklch(0.68 0.12 200);
   --chart-4: oklch(0.67 0.13 230);
@@ -202,12 +202,12 @@
 
   --sidebar: oklch(0.165 0 0);              /* #121212 dash-sidebar (≈ canvas) */
   --sidebar-foreground: oklch(0.85 0 0);
-  --sidebar-primary: oklch(0.8 0.15 162);
+  --sidebar-primary: oklch(0.8 0.155 76);
   --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.245 0.03 162);
-  --sidebar-accent-foreground: oklch(0.82 0.13 162);
+  --sidebar-accent: oklch(0.25 0.04 75);
+  --sidebar-accent-foreground: oklch(0.84 0.13 78);
   --sidebar-border: oklch(0.27 0 0);        /* = --border */
-  --sidebar-ring: oklch(0.8 0.15 162);
+  --sidebar-ring: oklch(0.8 0.155 76);
 
   --shadow-overlay: none;  /* dark relies on border + surface step, never glow */
 }
@@ -231,9 +231,9 @@
 @utility tracking-tight-1 { letter-spacing: -0.01em; }
 /* Supabase-style white-alpha hairline — consistent edge over any dark surface (flat) */
 @utility border-hairline { border-color: oklch(1 0 0 / 0.08); }
-/* Brand focus glow (recolored to Supabase green) — flat box-shadow, no gradient */
+/* Brand focus glow (amber brand) — flat box-shadow, no gradient */
 @utility ring-brand-glow {
-  box-shadow: 0 0 0 1px var(--ring), 0 0 6px 0 oklch(0.8 0.15 162 / 0.4);
+  box-shadow: 0 0 0 1px var(--ring), 0 0 6px 0 oklch(0.8 0.155 76 / 0.45);
 }
 @utility motion-safe-card {
   transition-property: background-color, border-color, transform;
@@ -339,13 +339,24 @@
   animation: landing-pulse 2.2s var(--ease-standard) infinite;
 }
 
+/* Connector flow — marching dashes along the deal-out connector lines, so the
+   bridge between the source and the dealt sheets reads as live flow. */
+@keyframes landing-flow {
+  to { stroke-dashoffset: -20; }
+}
+.landing-anim .landing-flow {
+  stroke-dasharray: 5 5;
+  animation: landing-flow 0.85s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-anim .landing-scanline,
   .landing-anim .landing-bar,
   .landing-anim .landing-bar-x,
   .landing-anim .landing-draw,
   .landing-anim .landing-deal,
-  .landing-anim .landing-pulse {
+  .landing-anim .landing-pulse,
+  .landing-anim .landing-flow {
     animation: none !important;
   }
   /* Show the finished frame, not the empty/start state. */

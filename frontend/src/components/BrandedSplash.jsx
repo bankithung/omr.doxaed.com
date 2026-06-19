@@ -2,7 +2,7 @@
  * BrandedSplash — a minimal, clean loading fallback for PUBLIC / auth / landing
  * routes (where the app shell skeleton would be wrong). A centered "DoxaEd OMR"
  * wordmark over a subtle, reduced-motion-safe pulse — never a bare "Loading…"
- * string. Flat + on-theme (gunmetal background, green OMR accent token).
+ * string. Flat + on-theme (gunmetal background, amber OMR accent token).
  */
 export default function BrandedSplash() {
   return (

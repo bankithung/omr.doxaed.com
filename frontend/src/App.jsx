@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom"
+import { Navigate, Route, Routes, useLocation } from "react-router-dom"
 import { Toaster } from "@/components/ui/sonner"
 import { useAuth } from "@/auth/AuthContext"
 import { useOrg } from "@/org/OrgContext"
@@ -44,29 +44,6 @@ const Billing = lazy(() => import("@/routes/Billing"))
 const StudentDetail = lazy(() => import("@/routes/StudentDetail"))
 const PublicResult = lazy(() => import("@/routes/PublicResult"))
 
-// ─── Minimal public nav (logged-out chrome) ───────────────────────────────────
-
-function PublicNav() {
-  return (
-    <nav className="flex items-center gap-4 border-b px-4 py-3 text-sm">
-      <Link to="/" className="font-semibold hover:text-primary">
-        DoxaEd OMR
-      </Link>
-      <div className="ml-auto flex items-center gap-3">
-        <Link to="/login" className="hover:text-primary">
-          Sign in
-        </Link>
-        <Link
-          to="/register"
-          className="rounded-lg bg-primary px-3 py-1.5 text-primary-foreground hover:bg-primary/80 transition-colors min-h-[40px] flex items-center"
-        >
-          Register
-        </Link>
-      </div>
-    </nav>
-  )
-}
-
 // ─── ShellProtectedRoute — wraps content in AppShell ─────────────────────────
 // Reads org membership role to decide whether to surface admin nav items.
 // The membership role is derived from the active org in OrgContext + the orgs
@@ -101,17 +78,16 @@ function ShellProtectedRoute({ children }) {
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { user } = useAuth()
   const location = useLocation()
 
   // Public portal pages (/r/:slug) and onboarding render without any shell
   const isPublicPortal = location.pathname.startsWith("/r/")
 
-  // Show the minimal public nav only for logged-out users on non-portal pages.
-  // SELF_CHROMED pages ship their OWN chrome, so the minimal PublicNav above is
-  // suppressed for them: the landing ("/") + the 4 marketing pages render inside
-  // their own nav/footer (PublicLayout / landing), and the auth + legal pages
-  // ship their own headers — all rendered full-screen and clean.
+  // Public (non-app) paths that ship their OWN full-width chrome: the landing
+  // ("/"), the marketing pages (PublicLayout = LandingNav + Footer), and the
+  // auth + legal pages (the same LandingNav header, via AuthLayout / LegalLayout).
+  // Used only to pick the right refresh fallback (branded splash, not the
+  // app-shell skeleton).
   const SELF_CHROMED = [
     "/",
     "/login",
@@ -125,8 +101,6 @@ export default function App() {
     "/about",
     "/contact",
   ]
-  const showPublicNav =
-    !user && !isPublicPortal && !SELF_CHROMED.includes(location.pathname)
 
   // Route-aware Suspense fallback: app (shell) routes show the app-shell skeleton
   // on refresh; public/auth/landing routes show a clean branded splash. We treat
@@ -151,9 +125,6 @@ export default function App() {
         Skip to main content
       </a>
       <Toaster />
-
-      {/* Public nav for logged-out auth/landing pages */}
-      {showPublicNav && !isPublicPortal && <PublicNav />}
 
       <Suspense fallback={SuspenseFallback}>
         <Routes>
