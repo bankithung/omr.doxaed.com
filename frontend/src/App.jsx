@@ -24,6 +24,7 @@ const Pricing = lazy(() => import("@/routes/Pricing"))
 const Features = lazy(() => import("@/routes/Features"))
 const About = lazy(() => import("@/routes/About"))
 const Contact = lazy(() => import("@/routes/Contact"))
+const HowItWorksPage = lazy(() => import("@/routes/HowItWorksPage"))
 const Security = lazy(() => import("@/routes/Security"))
 const FAQ = lazy(() => import("@/routes/FAQ"))
 const Help = lazy(() => import("@/routes/Help"))
@@ -107,6 +108,7 @@ export default function App() {
     "/security",
     "/faq",
     "/help",
+    "/how-it-works",
   ]
 
   // Route-aware Suspense fallback: app (shell) routes show the app-shell skeleton
@@ -169,6 +171,7 @@ export default function App() {
           <Route path="/security" element={<Security />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
 
           {/* Onboarding — full-screen wizard, no AppShell (login required) */}
           <Route

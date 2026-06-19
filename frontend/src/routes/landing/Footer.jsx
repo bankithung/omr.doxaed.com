@@ -8,7 +8,7 @@ import { Reveal, RevealItem } from "./motion/reveal"
 const PRODUCT_LINKS = [
   { label: "Features", to: "/features" },
   { label: "Pricing", to: "/pricing" },
-  { label: "How it works", to: "/#how-it-works", anchor: true },
+  { label: "How it works", to: "/how-it-works" },
   { label: "About", to: "/about" },
   { label: "Contact", to: "/contact" },
   { label: "Sign in", to: "/login" },
@@ -176,7 +176,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="https://doxaed.com" rel="noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                <a href="https://doxaed.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   <MaterialIcon name="devices" className="size-3.5 shrink-0 text-primary" />
                   doxaed.com
                 </a>
