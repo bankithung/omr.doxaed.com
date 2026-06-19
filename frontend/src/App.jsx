@@ -11,7 +11,6 @@ import BrandedSplash from "@/components/BrandedSplash"
 
 const Health = lazy(() => import("@/routes/Health"))
 const StyleGuide = lazy(() => import("@/routes/StyleGuide"))
-const Dashboard = lazy(() => import("@/routes/Dashboard"))
 const Onboarding = lazy(() => import("@/routes/Onboarding"))
 const Login = lazy(() => import("@/routes/Login"))
 const Register = lazy(() => import("@/routes/Register"))
@@ -220,14 +219,8 @@ export default function App() {
           />
 
           {/* Protected routes — wrapped in AppShell */}
-          <Route
-            path="/dashboard"
-            element={
-              <ShellProtectedRoute>
-                <Dashboard />
-              </ShellProtectedRoute>
-            }
-          />
+          {/* The dashboard is retired — Classes is the workspace home. */}
+          <Route path="/dashboard" element={<Navigate to="/classes" replace />} />
           <Route
             path="/profile"
             element={

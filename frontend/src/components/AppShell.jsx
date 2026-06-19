@@ -53,8 +53,6 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle"
 import CommandMenu from "@/components/CommandMenu"
 import {
-  HomeIcon,
-  ScanLineIcon,
   FileTextIcon,
   BuildingIcon,
   SearchIcon,
@@ -71,13 +69,11 @@ import {
 
 const PANEL_COLLAPSE_KEY = "nav.panel.collapsed"
 
-// ─── Bottom tab bar items (mobile) ────────────────────────────────────────────
-// NOTE: the old "Results" → "/tests" tab was a DEAD link; repointed to "/scan".
+// ─── Bottom tab bar items (mobile) — workspace-first ──────────────────────────
 const BOTTOM_TABS = [
-  { label: "Home", to: "/dashboard", icon: HomeIcon },
   { label: "Classes", to: "/classes", icon: FileTextIcon },
-  { label: "Scan", to: "/scan", icon: ScanLineIcon },
-  { label: "Org", to: "/organizations", icon: BuildingIcon },
+  { label: "Organizations", to: "/organizations", icon: BuildingIcon },
+  { label: "Account", to: "/profile", icon: UserIcon },
 ]
 
 // ─── helpers: initials for avatar ─────────────────────────────────────────────
@@ -257,7 +253,7 @@ function PrimaryRail({ activeKey }) {
         className="group/rail fixed inset-y-0 left-0 z-40 flex w-14 flex-col gap-1 overflow-hidden border-r border-strong bg-canvas py-2 transition-[width] duration-200 ease-out hover:w-56 hover:shadow-overlay"
       >
         <Link
-          to="/dashboard"
+          to="/classes"
           aria-label="DoxaEd home"
           className="mx-2 mb-1 flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-bold text-primary"
         >
@@ -336,7 +332,7 @@ function OrgSwitcher({ compact = false }) {
   function handleSwitch(id) {
     setActiveOrg(id)
     setOpen(false)
-    navigate("/dashboard")
+    navigate("/classes")
   }
 
   return (
@@ -383,6 +379,18 @@ function OrgSwitcher({ compact = false }) {
             </CommandGroup>
           </CommandList>
           <div className="border-t border-border p-1">
+            {activeOrg && (
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  navigate(`/organizations/${activeOrg.id}/members`)
+                }}
+                className="flex w-full min-h-[40px] items-center gap-2 rounded-md px-2 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <BuildingIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+                Manage organization
+              </button>
+            )}
             <button
               onClick={() => {
                 setOpen(false)
@@ -481,7 +489,7 @@ function MobileDrawer() {
       <SheetContent side="left" className="w-72 p-0">
         <SheetHeader>
           <SheetTitle>
-            <Link to="/dashboard" onClick={close} className="text-base font-bold tracking-tight">
+            <Link to="/classes" onClick={close} className="text-base font-bold tracking-tight">
               DoxaEd OMR
             </Link>
           </SheetTitle>
@@ -595,7 +603,7 @@ function TopBar({ section, panelCollapsed, hasPanel, onExpandPanel }) {
       )}
     >
       <MobileDrawer />
-      <Link to="/dashboard" className="mr-1 text-sm font-bold tracking-tight lg:hidden">
+      <Link to="/classes" className="mr-1 text-sm font-bold tracking-tight lg:hidden">
         DoxaEd OMR
       </Link>
 

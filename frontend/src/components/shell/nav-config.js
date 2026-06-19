@@ -1,84 +1,23 @@
-import {
-  HomeIcon,
-  LayersIcon,
-  FileTextIcon,
-  ScanLineIcon,
-  BuildingIcon,
-  SettingsIcon,
-} from "lucide-react"
+import { LayersIcon, SettingsIcon } from "lucide-react"
 
 /**
- * NAV — single source of truth for the primary rail, the secondary panel,
- * the two-level mobile drawer, AND the Cmd-K "Go to" group.
+ * NAV — primary rail sections. The product is **workspace-first**: the Classes
+ * grid IS the home (no separate dashboard), and exams live inside a class (no
+ * top-level "Tests"). Organization management is reached via the org switcher.
  *
- * Each section:
- *   key     — stable id
- *   label   — rail tooltip + breadcrumb section label
- *   icon    — lucide icon component
- *   to      — default route the rail icon links to
- *   match   — (pathname) => boolean: derives the active section from the URL
- *   groups  — secondary-panel groups (null = childless section → no panel)
- *   footer  — pinned to the bottom of the rail when true
+ * Scoped panels (class / exam / organization) are resolved at runtime in
+ * AppShell.usePanel (matchClassScope / matchTestScope / matchOrgScope), not here.
  *
- * NOTE on the two FIXED dead links:
- *   - The old RUN_NAV "Results" → "/tests" (no such route) is GONE: Results now
- *     lives only in the test-scoped panel under /tests/:testId/results.
- *   - The old ORG_ADMIN_NAV items all pointed at bare "/organizations" (needs an
- *     :id); they move into the org-scoped panel under /organizations/:id.
+ * Each section: key · label · icon · to · match(pathname) · groups · footer
  */
 export const NAV = [
   {
-    key: "home",
-    label: "Home",
-    icon: HomeIcon,
-    to: "/dashboard",
-    match: (p) => p === "/" || p.startsWith("/dashboard"),
-    groups: null, // single page → no secondary panel
-  },
-  {
     key: "workspace",
-    label: "Workspace",
+    label: "Classes",
     icon: LayersIcon,
     to: "/classes",
-    match: (p) => /^\/(classes|folders|rosters)/.test(p),
-    groups: [
-      {
-        title: "Library",
-        items: [
-          { label: "Classes", to: "/classes", icon: FileTextIcon },
-        ],
-      },
-    ],
-  },
-  {
-    key: "tests",
-    label: "Tests",
-    icon: ScanLineIcon,
-    to: "/scan",
-    match: (p) => p.startsWith("/scan") || p.startsWith("/tests/"),
-    groups: [
-      {
-        title: "Run",
-        items: [{ label: "Scan", to: "/scan", icon: ScanLineIcon, end: true }],
-      },
-    ],
-    // When /tests/:testId/* is active the panel is REPLACED by the test-scoped panel.
-  },
-  {
-    key: "org",
-    label: "Organization",
-    icon: BuildingIcon,
-    to: "/organizations",
-    match: (p) => p.startsWith("/organizations"),
-    groups: [
-      {
-        title: "Organizations",
-        items: [
-          { label: "All organizations", to: "/organizations", icon: BuildingIcon, end: true },
-        ],
-      },
-    ],
-    // When /organizations/:id/* is active the panel is REPLACED by the org-scoped panel.
+    match: (p) => /^\/(classes|folders|rosters|tests)/.test(p),
+    groups: null, // the Classes grid is full-width; a class opens its own panel
   },
   {
     key: "settings",
