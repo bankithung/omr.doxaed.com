@@ -116,3 +116,44 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} by {self.actor} in {self.organization}"
+
+
+class ClassAccessGrant(models.Model):
+    """An org admin's grant of a class (and, optionally, only specific subjects of
+    it) to a member/teacher. ``all_subjects=True`` (default) → the whole class;
+    otherwise only the linked ``subjects``. Org-only concept — personal/solo scope
+    has no members, so grants never apply there."""
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="class_grants"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="class_grants"
+    )
+    class_group = models.ForeignKey(
+        "assessments.ClassGroup", on_delete=models.CASCADE, related_name="access_grants"
+    )
+    all_subjects = models.BooleanField(default=True)
+    subjects = models.ManyToManyField(
+        "assessments.Subject", blank=True, related_name="access_grants"
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "user", "class_group"],
+                name="uniq_grant_org_user_class",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["organization", "user"], name="grant_org_user_idx"),
+            models.Index(fields=["class_group"], name="grant_class_idx"),
+        ]
+
+    def __str__(self):
+        scope = "all subjects" if self.all_subjects else "narrowed"
+        return f"{self.user} → {self.class_group} ({scope})"
