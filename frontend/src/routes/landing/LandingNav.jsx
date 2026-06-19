@@ -19,17 +19,25 @@ function Wordmark() {
   )
 }
 
+// Real destinations: standalone marketing pages get router links; the landing's
+// own sections are reached via root-anchored hrefs (`/#anchor`) so they work
+// from any page, not just "/".
 const NAV_LINKS = [
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Built for", href: "#use-cases" },
-  { label: "Why", href: "#why" },
+  { label: "Features", to: "/features" },
+  { label: "Pricing", to: "/pricing" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Built for", href: "/#use-cases" },
+  { label: "About", to: "/about" },
 ]
 
 /**
  * LandingNav — sticky, translucent + backdrop-blur header with a hairline bottom
  * border (the Supabase nav). Ghost links collapse on mobile; the "Get started"
  * CTA + "Sign in" stay. h-16 (64px) bar. All flat, app tokens, theme-aware.
+ *
+ * Links point at the real marketing routes (/features, /pricing, /about) and at
+ * the landing's in-page sections via root-anchored hrefs, so the nav is shared
+ * across the landing + every standalone public page (via PublicLayout).
  */
 export default function LandingNav() {
   return (
@@ -37,16 +45,26 @@ export default function LandingNav() {
       <div className="mx-auto flex h-16 max-w-[90rem] items-center justify-between px-6 lg:px-16 xl:px-20">
         <Wordmark />
 
-        <nav className="hidden items-center gap-7 text-sm sm:flex" aria-label="Primary">
-          {NAV_LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {l.label}
-            </a>
-          ))}
+        <nav className="hidden items-center gap-7 text-sm md:flex" aria-label="Primary">
+          {NAV_LINKS.map((l) =>
+            l.to ? (
+              <Link
+                key={l.to}
+                to={l.to}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {l.label}
+              </Link>
+            ) : (
+              <a
+                key={l.href}
+                href={l.href}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {l.label}
+              </a>
+            )
+          )}
         </nav>
 
         <div className="flex items-center gap-2">

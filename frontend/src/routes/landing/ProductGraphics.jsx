@@ -164,7 +164,174 @@ export function AnalyticsChart({ className = "", label = "Score distribution" })
 
 // ── ScanSheet — an answer sheet with a scan-line sweep + read chips ────────────
 
-export function ScanSheet({ className = "" }) {
+// Shared footer stats — "47 read · 2 to review · aligned by QR".
+function ScanStats() {
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5">
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
+        <MaterialIcon name="task" className="size-3 text-success" /> 47 read
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
+        <MaterialIcon name="shield" className="size-3 text-[var(--color-warning)]" /> 2 to review
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
+        <MaterialIcon name="bolt" className="size-3 text-primary" /> aligned by QR
+      </span>
+    </div>
+  )
+}
+
+// 20 deterministic answers (filled option A–D index 0..3) for the full sheet.
+const FULL_ANSWERS = [
+  3, 0, 2, 1, 0, 3, 1, 2, 0, 3, // Q1–Q10
+  1, 2, 3, 0, 2, 1, 3, 0, 2, 1, // Q11–Q20
+]
+const REVIEW_ROWS = new Set([5, 14]) // 0-based → Q6 & Q15 get a double-mark flag
+const FAINT_ROWS = new Set([9]) // Q10 reads faint / low-confidence
+const OPT_LABELS = ["A", "B", "C", "D"]
+
+// One question row: index + 4 labelled bubbles, exactly one filled (green).
+// Review rows carry an amber ring + a faint 2nd mark; faint rows read lighter.
+function FullRow({ q, marked, review, faint, delay }) {
+  return (
+    <div
+      className={[
+        "landing-deal flex items-center gap-1.5 rounded-md px-1.5 py-1",
+        review
+          ? "bg-[color-mix(in_oklch,var(--color-warning)_8%,transparent)] ring-1 ring-[var(--color-warning)]/60"
+          : "",
+      ].join(" ")}
+      style={{ "--deal-delay": `${delay}ms`, "--deal-from-x": "0px" }}
+    >
+      <span className="w-4 shrink-0 text-right font-mono text-[9px] tabular text-muted-foreground">{q}</span>
+      <div className="flex items-center gap-1">
+        {OPT_LABELS.map((label, opt) => {
+          const isMarked = opt === marked
+          const isGhost = review && opt === (marked + 2) % 4 // ambiguous 2nd mark
+          return (
+            <span
+              key={label}
+              className={[
+                "flex size-[13px] items-center justify-center rounded-full border text-[7px] font-medium leading-none",
+                isMarked
+                  ? faint
+                    ? "border-primary/50 bg-primary/40 text-primary-foreground/80"
+                    : "border-primary bg-primary text-primary-foreground"
+                  : isGhost
+                    ? "border-[var(--color-warning)] bg-[color-mix(in_oklch,var(--color-warning)_45%,transparent)] text-foreground"
+                    : "border-border-stronger text-transparent",
+              ].join(" ")}
+            >
+              {label}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * FullAnswerSheet — an opt-in (variant="full") denser OMR card: a real-looking
+ * 20-question sheet laid out as TWO columns of 10 (Q1–Q10 / Q11–Q20), with a
+ * header (ANSWER SHEET eyebrow, student + roll, a QR-alignment glyph), exactly
+ * one green-filled bubble per row, two amber review-flagged rows and one faint
+ * row (matching the "2 to review" stat). Taller + denser than the default sheet
+ * so it balances a tall copy column. The two columns always stay side by side
+ * and shrink gracefully on narrow widths (no horizontal overflow).
+ */
+function FullAnswerSheet() {
+  const left = FULL_ANSWERS.slice(0, 10)
+  const right = FULL_ANSWERS.slice(10, 20)
+  return (
+    <div className="rounded-lg border border-border bg-surface-1 p-3 sm:p-4">
+      {/* header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Answer sheet
+          </p>
+          <p className="mt-1 truncate text-sm font-medium text-foreground">Rahul K.</p>
+          <p className="font-mono text-[10px] text-muted-foreground">
+            ROLL <span className="text-foreground">102</span>
+          </p>
+        </div>
+        {/* QR-alignment glyph (5×5) — matches the "aligned by QR" footer pill */}
+        <div aria-hidden className="grid shrink-0 grid-cols-5 gap-px rounded-sm border border-border bg-card p-1">
+          {Array.from({ length: 25 }).map((_, i) => {
+            const r = Math.floor(i / 5)
+            const c = i % 5
+            const on = (r * 7 + c * 5 + (r === c ? 3 : 0)) % 3 === 0
+            return <span key={i} className={["size-1 rounded-[1px]", on ? "bg-foreground" : "bg-transparent"].join(" ")} />
+          })}
+        </div>
+      </div>
+
+      <div className="my-2.5 h-px bg-border" />
+
+      {/* two columns of 10 rows */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+        <div className="space-y-0.5">
+          {left.map((marked, i) => (
+            <FullRow
+              key={i}
+              q={i + 1}
+              marked={marked}
+              review={REVIEW_ROWS.has(i)}
+              faint={FAINT_ROWS.has(i)}
+              delay={i * 35}
+            />
+          ))}
+        </div>
+        <div className="space-y-0.5">
+          {right.map((marked, i) => (
+            <FullRow
+              key={i}
+              q={i + 11}
+              marked={marked}
+              review={REVIEW_ROWS.has(i + 10)}
+              faint={FAINT_ROWS.has(i + 10)}
+              delay={(i + 10) * 35}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * ScanSheet — the default is the compact single SVG sheet with a scan-line sweep
+ * (used by Hero/DashboardPreview/HowItWorks — UNCHANGED). Pass `variant="full"`
+ * for the denser two-column 20-question OMR card (used by TrustSection to
+ * balance its tall copy column). Both share the read/review/QR stat footer and
+ * stay reduced-motion-safe via `InViewAnim` + the landing keyframes.
+ */
+export function ScanSheet({ className = "", variant = "default" }) {
+  if (variant === "full") {
+    return (
+      <InViewAnim className={className}>
+        <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4">
+          <div className="relative mx-auto max-w-[440px]">
+            <FullAnswerSheet />
+            {/* scan-line sweep — travels across the taller card; hidden under reduced motion */}
+            <div
+              aria-hidden
+              className="landing-scanline pointer-events-none absolute inset-x-2 top-2 h-7 rounded-sm"
+              style={{
+                "--scan-travel": "380px",
+                background:
+                  "linear-gradient(to bottom, transparent, color-mix(in oklch, var(--color-primary) 26%, transparent), transparent)",
+                boxShadow: "0 0 0 1px color-mix(in oklch, var(--color-primary) 32%, transparent)",
+              }}
+            />
+          </div>
+          <ScanStats />
+        </div>
+      </InViewAnim>
+    )
+  }
+
   return (
     <InViewAnim className={className}>
       <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4">
@@ -182,17 +349,7 @@ export function ScanSheet({ className = "" }) {
             }}
           />
         </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
-            <MaterialIcon name="task" className="size-3 text-success" /> 47 read
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
-            <MaterialIcon name="shield" className="size-3 text-primary" /> 2 to review
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
-            <MaterialIcon name="bolt" className="size-3 text-primary" /> aligned by QR
-          </span>
-        </div>
+        <ScanStats />
       </div>
     </InViewAnim>
   )

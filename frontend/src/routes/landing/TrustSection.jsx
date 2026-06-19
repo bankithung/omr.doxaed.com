@@ -65,7 +65,10 @@ export default function TrustSection() {
         </div>
 
         <FadeInUp delay={0.1} className="lg:pl-4">
-          <ScanSheet />
+          {/* The denser two-column 20-question sheet so this card's height
+              matches the heading + 4 trust points on the left — balancing the
+              row at lg. Other ScanSheet usages keep the default compact sheet. */}
+          <ScanSheet variant="full" />
           <p className="mt-3 text-center font-mono text-[11px] text-muted-foreground">
             Low-confidence reads go to review — never a guess.
           </p>
