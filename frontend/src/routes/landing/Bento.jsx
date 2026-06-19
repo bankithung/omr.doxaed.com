@@ -1,13 +1,17 @@
 import { useReducedMotion } from "framer-motion"
 import MaterialIcon from "./MaterialIcon"
 import SectionContainer from "./SectionContainer"
+import { DealOut } from "./ProductGraphics"
 import { Reveal, RevealItem, FadeInUp } from "./motion/reveal"
 
+// A complete, balanced 12-col bento: one tall feature on the left (6 cols × 2
+// rows) paired with four 3-col tiles filling the right 6 cols; then a full row
+// of three 4-col tiles — no empty or orphaned cells at any breakpoint.
 const FEATURES = [
   {
     icon: "shuffle",
     title: "Per-student shuffle",
-    body: "Question and option order is shuffled uniquely per student; every sheet stores its own answer key, so grading stays exact.",
+    body: "Question and option order is shuffled uniquely per student; every sheet stores its own answer key, so grading stays exact and copying is pointless.",
     className: "md:col-span-12 xl:col-span-6 xl:row-span-2",
     big: true,
   },
@@ -15,7 +19,9 @@ const FEATURES = [
   { icon: "checklist", title: "One question bank", body: "Write MCQs once; reuse across tests and sections.", className: "md:col-span-6 xl:col-span-3" },
   { icon: "scan", title: "Scan from any device", body: "Phone, scanner, or a stack of photos — auto-aligned by fiducials + QR.", className: "md:col-span-6 xl:col-span-3" },
   { icon: "shield", title: "Never guessed", body: "Faint, double-marked or missing reads go to a review queue — not a guess.", className: "md:col-span-6 xl:col-span-3" },
-  { icon: "analytics", title: "Analytics profile", body: "Distributions, toppers, hardest questions, and per-student improvement over time.", className: "md:col-span-12 xl:col-span-6" },
+  { icon: "target", title: "Competitive / sectional", body: "NEET- and UPSC-style sectional papers with configurable multi-mark and negative-marking rules.", className: "md:col-span-6 xl:col-span-4" },
+  { icon: "analytics", title: "Analytics & report cards", body: "Distributions, toppers, the hardest questions, item analysis and two-page report cards.", className: "md:col-span-6 xl:col-span-4" },
+  { icon: "folder", title: "Public results & sharing", body: "A public result portal per test, plus folders, organisations and roles for your team.", className: "md:col-span-12 xl:col-span-4" },
 ]
 
 // Restrained hover lift (compositor-only y), gated off reduced motion.
@@ -39,6 +45,8 @@ function FeatureCard({ icon, title, body, className, big }) {
           />
         </div>
         <p className={["mt-1.5 text-muted-foreground", big ? "text-base" : "text-sm"].join(" ")}>{body}</p>
+        {/* The tall feature carries an animated "deal-out" graphic (Supabase bento). */}
+        {big ? <DealOut className="mt-6" /> : null}
       </div>
     </RevealItem>
   )

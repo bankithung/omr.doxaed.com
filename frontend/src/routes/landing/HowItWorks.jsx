@@ -1,5 +1,5 @@
 import MaterialIcon from "./MaterialIcon"
-import BubbleSheet, { ShuffledSheet, GradedSheet } from "./BubbleSheet"
+import { ScanSheet, AnalyticsChart, DealOut } from "./ProductGraphics"
 import SectionContainer from "./SectionContainer"
 import { Reveal, RevealItem, FadeInUp } from "./motion/reveal"
 
@@ -69,24 +69,43 @@ export default function HowItWorks() {
         ))}
       </Reveal>
 
-      {/* Sheet story — one master, two shuffled, one graded; flat panel */}
-      <FadeInUp
-        delay={0.1}
-        className="mx-auto mt-12 grid max-w-5xl grid-cols-2 gap-4 rounded-2xl border border-border bg-card p-4 sm:grid-cols-4 sm:p-6"
-      >
-        <div className="rounded-xl border border-border bg-surface-2 p-2">
-          <BubbleSheet seed={1} name="Master" roll="000" className="aspect-[200/264]" />
-        </div>
-        <div className="rounded-xl border border-border bg-surface-2 p-2">
-          <ShuffledSheet seed={3} name="Asha D." roll="101" className="aspect-[200/264]" />
-        </div>
-        <div className="rounded-xl border border-border bg-surface-2 p-2">
-          <ShuffledSheet seed={5} name="Rahul K." roll="102" className="aspect-[200/264]" />
-        </div>
-        <div className="rounded-xl border border-border bg-surface-2 p-2">
-          <GradedSheet seed={7} name="Asha D." roll="101" score="14/15" className="aspect-[200/264]" />
-        </div>
-      </FadeInUp>
+      {/* Deep-dive: each beat illustrated with a flat ANIMATED product graphic.
+          Generate (deal-out) → Scan (scan-line sweep) → Analyse (drawn chart). */}
+      <div className="mx-auto mt-12 grid max-w-6xl gap-4 lg:grid-cols-2">
+        <FadeInUp className="lg:col-span-2">
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              <MaterialIcon name="shuffle" className="size-3.5 text-primary" />
+              Generate shuffled sheets
+            </div>
+            <DealOut />
+          </div>
+        </FadeInUp>
+
+        <FadeInUp>
+          <div className="h-full rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              <MaterialIcon name="scan" className="size-3.5 text-primary" />
+              Scan &amp; auto-grade
+            </div>
+            <ScanSheet />
+          </div>
+        </FadeInUp>
+
+        <FadeInUp delay={0.1}>
+          <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              <MaterialIcon name="analytics" className="size-3.5 text-primary" />
+              Analyse results
+            </div>
+            <AnalyticsChart label="Class score distribution" />
+            <p className="mt-4 text-sm text-muted-foreground">
+              Score distributions, toppers, the hardest questions and per-student
+              improvement — every test becomes a full analytics profile.
+            </p>
+          </div>
+        </FadeInUp>
+      </div>
     </SectionContainer>
   )
 }

@@ -3,19 +3,6 @@ import { Button } from "@/components/ui/button"
 import MaterialIcon from "./MaterialIcon"
 import { Reveal, RevealItem } from "./motion/reveal"
 
-function LogoMark() {
-  return (
-    <span className="flex size-7 items-center justify-center rounded-md bg-primary">
-      <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-        {[6, 12, 18].map((cy) => (
-          <circle key={cy} cx="8" cy={cy} r="2.4" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="1.6" />
-        ))}
-        <circle cx="16" cy="12" r="2.4" fill="var(--color-primary-foreground)" />
-      </svg>
-    </span>
-  )
-}
-
 // ── Real content only — no invented pages, no fake social, no fake newsletter ──
 const PRODUCT_LINKS = [
   { label: "How it works", to: "#how-it-works", anchor: true },
@@ -89,12 +76,9 @@ export default function Footer() {
         <div className="grid gap-x-8 gap-y-10 lg:grid-cols-[1.6fr_1fr_1.3fr_1.3fr_1fr_1fr]">
           {/* brand block */}
           <RevealItem className="max-w-sm lg:pr-6">
-            <Link to="/" className="flex items-center gap-2 text-foreground" aria-label="DoxaEd OMR — home">
-              <LogoMark />
-              <span className="flex items-baseline gap-1.5">
-                <span className="text-[1.05rem] font-semibold tracking-tight">DoxaEd</span>
-                <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
-              </span>
+            <Link to="/" className="flex items-baseline gap-1.5 text-foreground" aria-label="DoxaEd OMR — home">
+              <span className="text-[1.05rem] font-semibold tracking-tight">DoxaEd</span>
+              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               Shuffled OMR sheets, scanned and auto-graded — every test a full analytics profile.

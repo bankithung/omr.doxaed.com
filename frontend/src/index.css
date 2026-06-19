@@ -101,9 +101,10 @@
   --popover: oklch(0.985 0 0);                /* → --surface-2 */
   --popover-foreground: oklch(0.205 0 0);
 
-  /* Brand — DoxaEd indigo (accent ONLY: buttons, ring, links, active-nav, dots) */
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.985 0 0);
+  /* Brand — Supabase green (accent ONLY: buttons, ring, links, active-nav, dots).
+     Buttons read near-black on green (Supabase). Distinct from --color-success. */
+  --primary: oklch(0.77 0.15 162);          /* ≈ #3fcf8e Supabase green */
+  --primary-foreground: oklch(0.205 0 0);   /* #161616 near-black on green */
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.27 0 0);
   --muted: oklch(0.97 0 0);
@@ -120,30 +121,30 @@
   --border-strong: oklch(0.87 0 0);         /* #d4d4d4 structural */
   --border-stronger: oklch(0.66 0 0);       /* #8f8f8f hover/active */
   --input: oklch(0.9 0 0);
-  --ring: oklch(0.488 0.243 264.376);       /* crisp brand focus */
+  --ring: oklch(0.77 0.15 162);             /* crisp brand focus (green) */
 
   /* Active-nav: faint tinted fill + brand text (NOT a saturated pill) */
-  --nav-active-bg: oklch(0.955 0.01 264);
+  --nav-active-bg: oklch(0.955 0.02 162);
   --nav-active-fg: var(--primary);
 
-  /* Charts — sequential indigo→teal */
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.55 0.18 230);
-  --chart-3: oklch(0.56 0.16 195);
-  --chart-4: oklch(0.62 0.12 160);
-  --chart-5: oklch(0.70 0.10 140);
+  /* Charts — sequential green→teal */
+  --chart-1: oklch(0.77 0.15 162);
+  --chart-2: oklch(0.66 0.13 178);
+  --chart-3: oklch(0.60 0.12 200);
+  --chart-4: oklch(0.58 0.13 230);
+  --chart-5: oklch(0.62 0.16 264);
 
   --radius: 0.5rem;  /* 8px workhorse — matches Supabase */
 
   /* Sidebar (rail + secondary panel) */
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.27 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.955 0.01 264);           /* matches --nav-active-bg */
-  --sidebar-accent-foreground: oklch(0.3 0.08 264.376);
+  --sidebar-primary: oklch(0.77 0.15 162);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.955 0.02 162);           /* matches --nav-active-bg */
+  --sidebar-accent-foreground: oklch(0.3 0.08 162);
   --sidebar-border: oklch(0.87 0 0);                 /* = --border-strong */
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  --sidebar-ring: oklch(0.77 0.15 162);
 
   /* One restrained overlay shadow (dropdowns/dialogs in LIGHT only) */
   --shadow-overlay: 0 1px 2px oklch(0 0 0 / 0.05),
@@ -171,8 +172,8 @@
   --popover: oklch(0.205 0 0);              /* dialog = surface, not raised */
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.66 0.2 264.376);       /* indigo, nudged brighter for dark canvas */
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.8 0.15 162);           /* Supabase green, brighter for dark canvas (#3fcf8e family) */
+  --primary-foreground: oklch(0.205 0 0);   /* #161616 near-black on green (Supabase) */
   --secondary: oklch(0.225 0 0);            /* #242424 */
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.225 0 0);                /* #242424 control/muted */
@@ -188,25 +189,25 @@
   --border-strong: oklch(0.32 0 0);         /* #363636 strong */
   --border-stronger: oklch(0.37 0 0);       /* #454545 stronger/hover */
   --input: oklch(0.27 0 0);
-  --ring: oklch(0.66 0.2 264.376);
+  --ring: oklch(0.8 0.15 162);
 
-  --nav-active-bg: oklch(0.245 0.02 264);   /* faint indigo-tinted fill */
-  --nav-active-fg: oklch(0.78 0.12 264.376);
+  --nav-active-bg: oklch(0.245 0.03 162);   /* faint green-tinted fill */
+  --nav-active-fg: oklch(0.82 0.13 162);
 
-  --chart-1: oklch(0.66 0.2 264.376);
-  --chart-2: oklch(0.66 0.15 230);
-  --chart-3: oklch(0.67 0.13 195);
-  --chart-4: oklch(0.70 0.10 160);
-  --chart-5: oklch(0.75 0.09 140);
+  --chart-1: oklch(0.8 0.15 162);
+  --chart-2: oklch(0.7 0.13 178);
+  --chart-3: oklch(0.68 0.12 200);
+  --chart-4: oklch(0.67 0.13 230);
+  --chart-5: oklch(0.68 0.16 264);
 
   --sidebar: oklch(0.165 0 0);              /* #121212 dash-sidebar (≈ canvas) */
   --sidebar-foreground: oklch(0.85 0 0);
-  --sidebar-primary: oklch(0.66 0.2 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.245 0.02 264);
-  --sidebar-accent-foreground: oklch(0.82 0.1 264.376);
+  --sidebar-primary: oklch(0.8 0.15 162);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.245 0.03 162);
+  --sidebar-accent-foreground: oklch(0.82 0.13 162);
   --sidebar-border: oklch(0.27 0 0);        /* = --border */
-  --sidebar-ring: oklch(0.66 0.2 264.376);
+  --sidebar-ring: oklch(0.8 0.15 162);
 
   --shadow-overlay: none;  /* dark relies on border + surface step, never glow */
 }
@@ -230,9 +231,9 @@
 @utility tracking-tight-1 { letter-spacing: -0.01em; }
 /* Supabase-style white-alpha hairline — consistent edge over any dark surface (flat) */
 @utility border-hairline { border-color: oklch(1 0 0 / 0.08); }
-/* Brand focus glow (recolored to DoxaEd indigo) — flat box-shadow, no gradient */
+/* Brand focus glow (recolored to Supabase green) — flat box-shadow, no gradient */
 @utility ring-brand-glow {
-  box-shadow: 0 0 0 1px var(--ring), 0 0 6px 0 oklch(0.66 0.2 264 / 0.4);
+  box-shadow: 0 0 0 1px var(--ring), 0 0 6px 0 oklch(0.8 0.15 162 / 0.4);
 }
 @utility motion-safe-card {
   transition-property: background-color, border-color, transform;
@@ -269,4 +270,88 @@
     flex-wrap: wrap;
     justify-content: center;
   }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   LANDING PRODUCT GRAPHICS — restrained, premium, flat SVG animations (the
+   Supabase "images that animate" language). All run only when on-screen via a
+   `landing-anim` class toggled by an in-view observer (RevealItem / FadeInUp),
+   and ALL collapse to their finished frame under prefers-reduced-motion. No
+   colored gradients — these animate stroke/opacity/transform on flat shapes.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Scan-line sweep over a sheet — a thin band travels top→bottom, once. */
+@keyframes landing-scan {
+  0%   { transform: translateY(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(var(--scan-travel, 160px)); opacity: 0; }
+}
+.landing-anim .landing-scanline {
+  animation: landing-scan 2.6s var(--ease-out) infinite;
+}
+
+/* Chart bars / line growth — drawn on first reveal. Bars scaleY from baseline. */
+@keyframes landing-grow {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+.landing-anim .landing-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: landing-grow 0.7s var(--ease-out) both;
+}
+/* Horizontal (width) bar growth — for HTML progress rows (scaleX from left). */
+@keyframes landing-grow-x {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.landing-anim .landing-bar-x {
+  transform-origin: left;
+  animation: landing-grow-x 0.7s var(--ease-out) both;
+}
+/* Line path draws itself (dash offset → 0). */
+@keyframes landing-draw {
+  from { stroke-dashoffset: var(--draw-len, 320); }
+  to   { stroke-dashoffset: 0; }
+}
+.landing-anim .landing-draw {
+  stroke-dasharray: var(--draw-len, 320);
+  animation: landing-draw 1.1s var(--ease-out) both;
+}
+
+/* Deal-out — shuffled sheets fan out from the master, once on reveal. */
+@keyframes landing-deal {
+  from { transform: translate(var(--deal-from-x, 0), 8px) scale(0.96); opacity: 0; }
+  to   { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+.landing-anim .landing-deal {
+  animation: landing-deal 0.6s var(--ease-out) both;
+  animation-delay: var(--deal-delay, 0ms);
+}
+
+/* Soft pulse for a "live" status dot — opacity only (cheap, compositor-safe). */
+@keyframes landing-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.landing-anim .landing-pulse {
+  animation: landing-pulse 2.2s var(--ease-standard) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-anim .landing-scanline,
+  .landing-anim .landing-bar,
+  .landing-anim .landing-bar-x,
+  .landing-anim .landing-draw,
+  .landing-anim .landing-deal,
+  .landing-anim .landing-pulse {
+    animation: none !important;
+  }
+  /* Show the finished frame, not the empty/start state. */
+  .landing-anim .landing-bar,
+  .landing-anim .landing-bar-x { transform: none !important; }
+  .landing-anim .landing-draw { stroke-dashoffset: 0 !important; }
+  .landing-anim .landing-deal { opacity: 1 !important; transform: none !important; }
+  .landing-anim .landing-scanline { display: none !important; }
 }
