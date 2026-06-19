@@ -277,7 +277,7 @@ class SubjectViewSet(viewsets.ModelViewSet):
     serializer_class = SubjectSerializer
 
     def get_queryset(self):
-        from common.scope import visibility_q
+        from common.scope import visibility_q, narrowed_subject_names
 
         qs = Subject.objects.filter(
             scope_filter(self.request, "class_group__")
@@ -286,6 +286,9 @@ class SubjectViewSet(viewsets.ModelViewSet):
         class_group = self.request.query_params.get("class_group")
         if class_group:
             qs = qs.filter(class_group_id=class_group)
+            names = narrowed_subject_names(self.request, class_group)
+            if names is not None:
+                qs = qs.filter(name__in=names)
         return qs
 
     def perform_create(self, serializer):

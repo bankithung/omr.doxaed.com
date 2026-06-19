@@ -148,6 +148,32 @@ def is_active_admin(request):
     return membership is not None and membership.role == OrganizationMembership.ADMIN
 
 
+def narrowed_subject_names(request, class_group_id):
+    """For an org MEMBER with a NARROWED grant (all_subjects=False) on the given
+    class, return the SET of allowed Subject NAMES. Return None when subject
+    filtering should be SKIPPED — admin, solo scope, no grant, or an all-subjects
+    grant. Pass the ``?class_group=`` id being viewed (subject narrowing only has
+    a well-defined name set in the context of one class)."""
+    org = get_active_org(request)
+    if org is None or is_active_admin(request):
+        return None
+    from organizations.models import ClassAccessGrant  # lazy: avoid load cycle
+
+    g = (
+        ClassAccessGrant.objects.filter(
+            organization=org.id,
+            user=request.user,
+            class_group_id=class_group_id,
+            all_subjects=False,
+        )
+        .prefetch_related("subjects")
+        .first()
+    )
+    if g is None:
+        return None  # no narrowing grant → class-level visibility governs
+    return set(g.subjects.values_list("name", flat=True))
+
+
 def can_edit_class(request, class_group):
     """EDIT-rights predicate for a folder-governed resource (Step 4).
 

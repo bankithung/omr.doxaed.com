@@ -182,3 +182,70 @@ class ClassVisibilityViaGrantTests(APITestCase):
         self._login(self.teacher)
         # teacher is not a member of org2 → using org2's header is 403 regardless.
         self.assertEqual(self.client.get("/api/v1/classes/", **self._h(self.org2)).status_code, 403)
+
+
+class ClassSubjectNarrowingTests(APITestCase):
+    """A member narrowed to specific subjects sees only those subjects + their
+    tests (untagged tests stay visible); all-subjects/admin see everything."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        from assessments.models import Test
+        cache.clear()
+        self.admin = User.objects.create_user(email="adm3@o.com", password="Str0ng!pass")
+        self.teacher = User.objects.create_user(email="tch3@o.com", password="Str0ng!pass")
+        self.org = Organization.objects.create(name="O", owner=self.admin)
+        OrganizationMembership.objects.create(organization=self.org, user=self.admin, role="admin", status="active")
+        OrganizationMembership.objects.create(organization=self.org, user=self.teacher, role="member", status="active")
+        self.cls = ClassGroup.objects.create(organization=self.org, created_by=self.admin, name="C")
+        self.math = Subject.objects.create(class_group=self.cls, name="Math")
+        self.phys = Subject.objects.create(class_group=self.cls, name="Physics")
+        Test.objects.create(organization=self.org, created_by=self.admin, class_group=self.cls, title="M", subject="Math")
+        Test.objects.create(organization=self.org, created_by=self.admin, class_group=self.cls, title="P", subject="Physics")
+        Test.objects.create(organization=self.org, created_by=self.admin, class_group=self.cls, title="B", subject="")
+
+    def _login(self, user):
+        r = self.client.post("/api/v1/auth/login/", {"email": user.email, "password": "Str0ng!pass"}, format="json")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
+
+    def _h(self):
+        return {"HTTP_X_ORGANIZATION_ID": str(self.org.id)}
+
+    def _grant(self, all_subjects=True, subjects=()):
+        g = ClassAccessGrant.objects.create(organization=self.org, user=self.teacher, class_group=self.cls, all_subjects=all_subjects)
+        if subjects:
+            g.subjects.set(subjects)
+        return g
+
+    def _rows(self, key):
+        r = self.client.get(f"/api/v1/{key}/?class_group={self.cls.id}", **self._h())
+        data = r.data["results"] if isinstance(r.data, dict) else r.data
+        return r.status_code, data
+
+    def test_narrowed_member_sees_only_granted_subject(self):
+        self._grant(all_subjects=False, subjects=[self.math])
+        self._login(self.teacher)
+        code, subs = self._rows("subjects")
+        self.assertEqual(code, 200)
+        self.assertEqual(sorted(s["name"] for s in subs), ["Math"])
+
+    def test_narrowed_member_tests_filtered_to_subject_plus_blank(self):
+        self._grant(all_subjects=False, subjects=[self.math])
+        self._login(self.teacher)
+        _, tests = self._rows("tests")
+        self.assertEqual(sorted(t["subject"] for t in tests), ["", "Math"])
+
+    def test_all_subjects_member_sees_everything(self):
+        self._grant(all_subjects=True)
+        self._login(self.teacher)
+        _, subs = self._rows("subjects")
+        self.assertEqual(sorted(s["name"] for s in subs), ["Math", "Physics"])
+        _, tests = self._rows("tests")
+        self.assertEqual(len(tests), 3)
+
+    def test_admin_sees_all_subjects_and_tests(self):
+        self._login(self.admin)
+        _, subs = self._rows("subjects")
+        self.assertEqual(len(subs), 2)
+        _, tests = self._rows("tests")
+        self.assertEqual(len(tests), 3)

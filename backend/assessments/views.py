@@ -1,10 +1,17 @@
+from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from common.scope import can_edit_class, scope_filter, scope_kwargs, visibility_q
+from common.scope import (
+    can_edit_class,
+    narrowed_subject_names,
+    scope_filter,
+    scope_kwargs,
+    visibility_q,
+)
 from common.viewsets import ScopedModelViewSet
 
 from .models import ClassGroup, MarkingScheme, Option, Question, Section, SectionMarkingScheme, Test
@@ -47,7 +54,15 @@ class TestViewSet(ScopedModelViewSet):
             visibility_q(self.request, "class_group__", "created_by")
         ).distinct()
         cg = self.request.query_params.get("class_group")
-        return qs.filter(class_group_id=cg) if cg else qs
+        if not cg:
+            return qs
+        qs = qs.filter(class_group_id=cg)
+        # Subject narrowing: a member narrowed to certain subjects sees only those
+        # tests (untagged tests stay visible). All-subjects/admin → no filter.
+        names = narrowed_subject_names(self.request, cg)
+        if names is not None:
+            qs = qs.filter(Q(subject__in=names) | Q(subject=""))
+        return qs
 
     def perform_create(self, serializer):
         # Creating a test under a class requires EDIT rights on that class.
