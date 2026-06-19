@@ -143,6 +143,14 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:5173"])
 
+# The SPA sends a custom `X-Organization-Id` header for org-scoped requests, so it
+# MUST be in the CORS allow-list — otherwise the browser's preflight rejects every
+# scoped write with "x-organization-id is not allowed by Access-Control-Allow-
+# Headers". (curl / server-to-server skip preflight, so this only bites browsers.)
+from corsheaders.defaults import default_headers  # noqa: E402
+
+CORS_ALLOW_HEADERS = (*default_headers, "x-organization-id")
+
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="DoxaEd OMR <doxaed@gmail.com>")
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
