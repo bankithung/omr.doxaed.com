@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
  * frozen E2E (which hits `/tests/:id/<route>` by URL) keeps working:
  *
  *   Build     → /classes/:classId               (test list / wizard entry)
- *   Generate  → /classes/:classId               (Generate sheets dialog lives here)
+ *   Generate  → /tests/:testId/sheets            (dedicated Generate & Print page)
  *   Scan      → /tests/:testId/scan
  *   Review    → /tests/:testId/review
  *   Results   → /tests/:testId/results
@@ -37,8 +37,9 @@ const STAGES = [
 function stageHref({ key, testId, classId }) {
   switch (key) {
     case "build":
-    case "generate":
       return classId != null ? `/classes/${classId}` : null
+    case "generate":
+      return `/tests/${testId}/sheets`
     case "scan":
       return `/tests/${testId}/scan`
     case "review":

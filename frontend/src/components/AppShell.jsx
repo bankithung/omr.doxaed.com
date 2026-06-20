@@ -14,6 +14,7 @@ import {
   useBreadcrumbItems,
 } from "@/components/shell/use-section"
 import { useClass } from "@/features/class/useClass"
+import { useTest } from "@/features/test/useTest"
 import { childKindLabel, pluralize } from "@/features/class/typePresets"
 import { STAGES, stageHref } from "@/components/ui/test-progress-rail"
 
@@ -148,14 +149,16 @@ function NavSection({ title, items, onNavigate }) {
 function usePanel(section) {
   const { pathname } = useLocation()
   const { activeOrg } = useOrg()
-  // Called unconditionally (hooks rule); null when not in a class scope.
+  // Pure path matches first (no hooks) so the hooks below run unconditionally.
   const classScope = matchClassScope(pathname)
-  const cls = useClass(classScope ? classScope.classId : null)
-
   const testScope = matchTestScope(pathname)
+  const cls = useClass(classScope ? classScope.classId : null)
+  // Test-scoped URLs (/tests/:id/…) don't carry the classId, so resolve it from
+  // the exam itself — this lets the lifecycle nav show Build/Generate + Back-to-class.
+  const test = useTest(testScope ? testScope.testId : null)
+
   if (testScope) {
-    const classMatch = pathname.match(/\/classes\/([^/]+)/)
-    const classId = classMatch ? classMatch[1] : null
+    const classId = test?.class_group ?? null
     const items = STAGES
       .map((s) => {
         const to = stageHref({ key: s.key, testId: testScope.testId, classId })
@@ -164,7 +167,7 @@ function usePanel(section) {
       .filter(Boolean)
       .map((it) => ({ ...it, end: true }))
     return {
-      title: "Test",
+      title: test?.title ?? "Exam",
       back: classId ? { to: `/classes/${classId}`, label: "Back to class" } : null,
       groups: [{ title: "Lifecycle", items }],
       current: testScope.current,

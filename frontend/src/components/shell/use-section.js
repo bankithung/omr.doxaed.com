@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom"
 import { NAV } from "./nav-config"
 import { useClass } from "@/features/class/useClass"
+import { useTest } from "@/features/test/useTest"
 
 /** Resolve the active rail section from the current pathname. */
 export function useActiveSection() {
@@ -10,17 +11,17 @@ export function useActiveSection() {
 
 /**
  * Parse test-scoped context from a pathname.
- * Matches /tests/:testId/(scan|review|results|analytics) and
+ * Matches /tests/:testId/(sheets|scan|review|results|analytics) and
  * /tests/:testId/students/:studentId. Returns { testId, current } or null.
  */
 export function matchTestScope(pathname) {
   const m = pathname.match(
-    /^\/tests\/([^/]+)\/(scan|review|results|analytics|students)/
+    /^\/tests\/([^/]+)\/(sheets|scan|review|results|analytics|students)/
   )
   if (!m) return null
   const stage = m[2]
-  // student-detail pages sit under the "results" lifecycle stage for nav purposes
-  const current = stage === "students" ? "results" : stage
+  // sheets → the "generate" lifecycle stage; student-detail pages sit under "results"
+  const current = stage === "sheets" ? "generate" : stage === "students" ? "results" : stage
   return { testId: m[1], current }
 }
 
@@ -60,9 +61,12 @@ const CLASS_SECTION_LABEL = {
 
 export function useBreadcrumbItems(section, { orgName } = {}) {
   const { pathname } = useLocation()
-  // Called unconditionally (hooks rule); returns null when not in a class scope.
+  // Pure path matches first; all hooks below run unconditionally (hooks rule).
   const classScope = matchClassScope(pathname)
+  const testScope = matchTestScope(pathname)
   const cls = useClass(classScope ? classScope.classId : null)
+  const test = useTest(testScope ? testScope.testId : null)
+  const testClass = useClass(test?.class_group ?? null)
   const items = []
 
   if (classScope) {
@@ -83,16 +87,18 @@ export function useBreadcrumbItems(section, { orgName } = {}) {
     return items
   }
 
-  const testScope = matchTestScope(pathname)
   if (testScope) {
-    items.push({ label: "Tests", to: "/scan" })
+    items.push({ label: "Classes", to: "/classes" })
+    if (testClass) items.push({ label: testClass.name, to: `/classes/${testClass.id}` })
+    items.push({ label: test?.title ?? "Exam", to: `/tests/${testScope.testId}/sheets` })
     const leaf = {
+      generate: "Generate",
       scan: "Scan",
       review: "Review",
       results: "Results",
       analytics: "Analytics",
     }[testScope.current]
-    items.push({ label: leaf })
+    if (leaf) items.push({ label: leaf })
     return items
   }
 
