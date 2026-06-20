@@ -5,6 +5,7 @@ import { SearchIcon, FolderIcon } from "lucide-react"
 import { listClasses } from "@/api/assessments"
 import { useOrg } from "@/org/OrgContext"
 import { topKindLabel, pluralize } from "@/features/class/typePresets"
+import NewClassDialog from "@/features/class/NewClassDialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageShell } from "@/components/ui/page-shell"
@@ -44,6 +45,7 @@ export default function Classes() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [query, setQuery] = useState("")
+  const [newOpen, setNewOpen] = useState(false)
 
   const fetchClasses = useCallback(async () => {
     setLoading(true)
@@ -73,7 +75,7 @@ export default function Classes() {
         title={plural}
         description={activeOrg ? `${plural} in ${activeOrg.name}` : `Your ${plural.toLowerCase()}`}
         actions={
-          <Button onClick={() => navigate("/classes/new")}>New {topLabel.toLowerCase()}</Button>
+          <Button onClick={() => setNewOpen(true)}>New {topLabel.toLowerCase()}</Button>
         }
       />
 
@@ -110,7 +112,7 @@ export default function Classes() {
           icon={FolderIcon}
           title={`No ${plural.toLowerCase()} yet`}
           description={`Create your first ${topLabel.toLowerCase()} to start adding exams, students and subjects.`}
-          action={<Button onClick={() => navigate("/classes/new")}>New {topLabel.toLowerCase()}</Button>}
+          action={<Button onClick={() => setNewOpen(true)}>New {topLabel.toLowerCase()}</Button>}
         />
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">No {plural.toLowerCase()} match “{query}”.</p>
@@ -120,6 +122,17 @@ export default function Classes() {
             <ClassCard key={cls.id} cls={cls} />
           ))}
         </div>
+      )}
+
+      {newOpen && (
+        <NewClassDialog
+          topLabel={topLabel}
+          onClose={() => setNewOpen(false)}
+          onCreated={(cls) => {
+            setNewOpen(false)
+            navigate(`/classes/${cls.id}`)
+          }}
+        />
       )}
     </PageShell>
   )
