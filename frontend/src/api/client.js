@@ -81,6 +81,10 @@ api.interceptors.response.use(
         const { data } = await refreshPromise
         refreshPromise = null
         localStorage.setItem("access", data.access)
+        // Refresh-token ROTATION is on server-side: each refresh returns a NEW
+        // refresh token and blacklists the old one. We MUST persist the new one,
+        // or the next refresh uses a blacklisted token → 401 → spurious logout.
+        if (data.refresh) localStorage.setItem("refresh", data.refresh)
         original.headers.Authorization = `Bearer ${data.access}`
         return api(original)
       } catch (e) {
