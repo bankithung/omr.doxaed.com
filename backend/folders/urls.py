@@ -12,12 +12,12 @@ _share_detail = views.FolderShareViewSet.as_view({"delete": "destroy"})
 
 urlpatterns = router.urls + [
     path(
-        "folders/<int:folder_pk>/shares/",
+        "folders/<uuid:folder_pk>/shares/",
         _share_list,
         name="folder-shares-list",
     ),
     path(
-        "folders/<int:folder_pk>/shares/<int:pk>/",
+        "folders/<uuid:folder_pk>/shares/<uuid:pk>/",
         _share_detail,
         name="folder-shares-detail",
     ),

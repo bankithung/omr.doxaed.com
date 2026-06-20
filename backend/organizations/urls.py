@@ -26,25 +26,25 @@ router.register("permission-grants", PermissionGrantViewSet, basename="permissio
 urlpatterns = [
     # Organization CRUD
     path("organizations/", OrganizationListCreateView.as_view(), name="org-list-create"),
-    path("organizations/<int:org_id>/", OrgDetailView.as_view(), name="org-detail"),
+    path("organizations/<uuid:org_id>/", OrgDetailView.as_view(), name="org-detail"),
 
     # Invitation
-    path("organizations/<int:org_id>/invite/", InviteView.as_view(), name="org-invite"),
+    path("organizations/<uuid:org_id>/invite/", InviteView.as_view(), name="org-invite"),
     path("invitations/accept/", AcceptInviteView.as_view(), name="invitation-accept"),
 
     # Member management
-    path("organizations/<int:org_id>/members/", MemberListView.as_view(), name="org-members"),
+    path("organizations/<uuid:org_id>/members/", MemberListView.as_view(), name="org-members"),
     path(
-        "organizations/<int:org_id>/members/<int:user_id>/",
+        "organizations/<uuid:org_id>/members/<int:user_id>/",
         MemberDetailView.as_view(),
         name="org-member-detail",
     ),
 
     # Audit log
-    path("organizations/<int:org_id>/audit/", AuditLogView.as_view(), name="org-audit"),
+    path("organizations/<uuid:org_id>/audit/", AuditLogView.as_view(), name="org-audit"),
 
     # Branding (Phase 3c)
-    path("organizations/<int:org_id>/branding/", OrgBrandingView.as_view(), name="org-branding"),
+    path("organizations/<uuid:org_id>/branding/", OrgBrandingView.as_view(), name="org-branding"),
 
     # RBAC permission catalog (for the Roles UI matrix)
     path("permissions/", PermissionCatalogView.as_view(), name="permissions-catalog"),

@@ -560,8 +560,8 @@ class ClassAccessGrantViewSet(viewsets.ModelViewSet):
             .order_by("class_group_id", "id")
         )
         cg = self.request.query_params.get("class_group")
-        if cg and cg.isdigit():
-            qs = qs.filter(class_group_id=int(cg))
+        if cg:
+            qs = qs.filter(class_group_id=cg)
         u = self.request.query_params.get("user")
         if u and u.isdigit():
             qs = qs.filter(user_id=int(u))

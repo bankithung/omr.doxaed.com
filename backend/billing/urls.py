@@ -9,12 +9,12 @@ urlpatterns = [
         name="billing-plans-list",
     ),
     path(
-        "billing/organizations/<int:org_id>/subscribe/",
+        "billing/organizations/<uuid:org_id>/subscribe/",
         SubscribeView.as_view(),
         name="billing-subscribe",
     ),
     path(
-        "billing/organizations/<int:org_id>/plan/",
+        "billing/organizations/<uuid:org_id>/plan/",
         OrgPlanView.as_view(),
         name="billing-org-plan",
     ),

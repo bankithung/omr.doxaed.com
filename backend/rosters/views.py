@@ -45,8 +45,8 @@ class RosterViewSet(ScopedModelViewSet):
         cg = self.request.query_params.get("class_group")
         if cg == "none":
             qs = qs.filter(class_group__isnull=True)
-        elif cg and cg.isdigit():
-            qs = qs.filter(class_group_id=int(cg))
+        elif cg:
+            qs = qs.filter(class_group_id=cg)
         return qs
 
     def perform_create(self, serializer):
