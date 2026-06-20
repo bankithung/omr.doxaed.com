@@ -209,15 +209,17 @@ def render_question_paper_pdf(omr_sheet, *, include_answer_key: bool = False) ->
 
     # Bulk-fetch all questions needed for this sheet
     questions_qs = Question.objects.filter(pk__in=question_order).prefetch_related("options")
-    q_by_id = {q.id: q for q in questions_qs}
+    # question_order holds STRING ids (UUIDs serialised onto the JSONField), so the
+    # lookups must be keyed by str(q.id); keying by the UUID object never matches.
+    q_by_id = {str(q.id): q for q in questions_qs}
 
-    # Build per-question option text lookup: {q_id: {orig_label: display_text}}
-    opt_text_by_q: dict[int, dict[str, str]] = {}
+    # Build per-question option text lookup: {str(q_id): {orig_label: display_text}}
+    opt_text_by_q: dict[str, dict[str, str]] = {}
     for q in questions_qs:
-        opt_text_by_q[q.id] = {}
+        opt_text_by_q[str(q.id)] = {}
         for opt in q.options.all():
             # Prefer opt.text; fall back to the label itself for label-only options
-            opt_text_by_q[q.id][opt.label] = opt.text or opt.label
+            opt_text_by_q[str(q.id)][opt.label] = opt.text or opt.label
 
     # ------------------------------------------------------------------
     # 4. Build Platypus story

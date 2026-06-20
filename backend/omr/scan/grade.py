@@ -94,7 +94,8 @@ def _build_section_cache(question_order: list) -> dict:
     qs = Q.objects.filter(id__in=question_order).select_related(
         "section", "section__marking_scheme"
     )
-    return {q.id: q.section for q in qs}
+    # question_order holds STRING ids — key by str(q.id) to match.
+    return {str(q.id): q.section for q in qs}
 
 
 def _scheme_for_qpos(
@@ -172,7 +173,7 @@ def grade_sheet(omr_sheet, aggregated_reads: dict) -> dict:
     if has_sections and question_order:
         from assessments.models import Question as Q
         for q in Q.objects.filter(id__in=question_order).only("id", "order_index"):
-            q_id_to_order_index[q.id] = q.order_index
+            q_id_to_order_index[str(q.id)] = q.order_index
 
     # Build section_id -> list of q_pos for choose_k sections
     section_to_qpos: dict[int, list[int]] = defaultdict(list)
