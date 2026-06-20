@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { Plus, Users } from "lucide-react"
+import { Plus, Users, Search } from "lucide-react"
 import { listClasses, createClass } from "@/api/assessments"
 import { listRosters, createRoster, listStudents, addStudent } from "@/api/omr"
 import { useClass } from "@/features/class/useClass"
@@ -139,6 +139,7 @@ export default function ClassStudents() {
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [filter, setFilter] = useState("all")
+  const [query, setQuery] = useState("")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -181,7 +182,15 @@ export default function ClassStudents() {
     value: String(b.id),
     label: b.isClass ? "Direct (no section)" : b.name,
   }))
-  const filtered = filter === "all" ? allStudents : allStudents.filter((s) => s._sid === filter)
+  const q = query.trim().toLowerCase()
+  const filtered = allStudents
+    .filter((s) => filter === "all" || s._sid === filter)
+    .filter(
+      (s) =>
+        !q ||
+        s.full_name?.toLowerCase().includes(q) ||
+        String(s.roll_number ?? "").toLowerCase().includes(q),
+    )
   const lower = childLabel.toLowerCase()
 
   return (
@@ -211,8 +220,21 @@ export default function ClassStudents() {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Filter by section */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Search + filter by section */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:max-w-xs">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                placeholder="Search by name or roll…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-9"
+                aria-label="Search students"
+              />
+            </div>
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="min-h-[40px] w-full sm:w-56">
                 <SelectValue />
@@ -224,15 +246,13 @@ export default function ClassStudents() {
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground tabular-nums">
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {filtered.length} student{filtered.length === 1 ? "" : "s"}
             </span>
           </div>
 
           {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No students {filter === "all" ? "yet" : `in this ${lower}`}.
-            </p>
+            <p className="text-sm text-muted-foreground">No students match your filters.</p>
           ) : (
             <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-1">
               {filtered.map((s) => (
