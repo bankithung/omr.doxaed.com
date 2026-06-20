@@ -246,7 +246,7 @@ function StepDetails({ classId, onNext }) {
   }
 
   return (
-    <form onSubmit={handleNext} className="space-y-6 max-w-lg">
+    <form onSubmit={handleNext} className="space-y-6">
       {/* Target context — which class/section this test is being created for. */}
       <div className="rounded-lg border border-border bg-surface-2/40 px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -261,7 +261,12 @@ function StepDetails({ classId, onNext }) {
           ))}
         </p>
       </div>
-      <div className="space-y-4">
+
+      {/* Two-column grid on wide screens so the form fits without long scroll;
+          stacks to one column on small screens. */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="rounded-xl border p-4 space-y-4">
+        <p className="text-sm font-medium">Details</p>
         <div className="space-y-1.5">
           <Label htmlFor="test-title">Title</Label>
           <Input
@@ -487,6 +492,7 @@ function StepDetails({ classId, onNext }) {
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {/* Action footer — sticky above the mobile tab bar so Next is always
@@ -721,7 +727,7 @@ export default function TestWizard() {
           ← Back to class
         </button>
       </header>
-      <PageShell className="max-w-3xl">
+      <PageShell className="max-w-5xl">
         {/* Page header */}
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">Create test</h1>
