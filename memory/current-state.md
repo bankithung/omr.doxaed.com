@@ -1,5 +1,21 @@
 # Current State
 
+- 2026-06-19: **Exam workspace COMPLETE (Overview hub + Questions editor) + E2E harness restored**
+  (on `main`, commits after `7b5e32b`). Two gaps closed so an exam is a real workspace: (1) **ExamOverview**
+  (`/tests/:id`, `routes/exam/ExamOverview.jsx`) — the exam hub: status/section/subject, stat tiles
+  (Questions · Total marks · Mode · Attempt), answer-key + empty-state nudges, and lifecycle quick-action
+  cards. (2) **ExamQuestions** (`/tests/:id/questions`, post-creation editor) — loads existing questions
+  with their answer keys, add/edit/delete/save (new `updateQuestion`/`deleteQuestion` over the existing
+  `QuestionViewSet` ModelViewSet). Extracted the wizard's `QuestionEditor` + `makeBlankQuestion` to
+  **`features/test/QuestionEditor.jsx`** (shared, DRY — removed the wizard's local copy + 2 now-unused
+  imports). Nav: "Build" → the questions editor (not the class list); panel gained an **Overview** item
+  above the lifecycle; `matchTestScope` now covers the bare overview + questions pages; exam titles in the
+  class Exams list link into the workspace. Verified: pages render + load answer keys (screenshots),
+  update/delete round-trip persists (API). **E2E harness (`e2e/run.mjs`) restored for the org-first IA** —
+  it had been stale since the redesign (login → /organizations not /dashboard; rosters auto-create). Now
+  drives auth + the whole OMR pipeline through the UI, seeds org/class/roster/students via the API, captures
+  the org-scoped testId via API (solo `latest-ids` can't see org rows). **Chromium full loop GREEN (14
+  steps)**; full cross-browser + modeB suite running. Lint 0 errors, build clean.
 - 2026-06-19: **Exam workspace nav made coherent** (on `main`, exam-lifecycle commit after `275806c`).
   Entering an exam now gives a proper Supabase-grade secondary nav. Three gaps fixed: (1) `matchTestScope`
   didn't match `/tests/:id/sheets` → the **Generate page showed NO exam nav**; (2) the "Generate" lifecycle
