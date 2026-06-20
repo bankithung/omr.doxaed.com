@@ -61,6 +61,23 @@ function ensureDir(d) {
   fs.mkdirSync(d, { recursive: true })
 }
 
+// REST helper for the org/class/student SETUP (the org-first redesign made these
+// flows multi-page; we exercise them via the API and reserve the browser for the
+// auth front door + the OMR pipeline, which is what this harness exists to prove).
+const API = "http://localhost:8000/api/v1"
+async function api(pathname, { method = "GET", token, org, body } = {}) {
+  const headers = { "Content-Type": "application/json" }
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (org) headers["X-Organization-Id"] = String(org)
+  const r = await fetch(`${API}${pathname}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!r.ok) throw new Error(`${method} ${pathname} → ${r.status} ${await r.text()}`)
+  return r.json()
+}
+
 async function shot(page, browser, label) {
   const dir = path.join(SHOTS, browser)
   ensureDir(dir)
@@ -118,31 +135,47 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
       await shot(page, browserName, "02-verified")
     })
 
-    // 3. Login
+    // 3. Login (org-first redesign: a fresh account lands on the Organizations page)
     await step("login", async () => {
       await page.goto(`${FRONTEND}/login`)
       await page.getByPlaceholder("you@example.com").fill(email)
       await page.getByPlaceholder("••••••••").fill(password)
       await page.getByRole("button", { name: "Sign in" }).click()
-      await page.waitForURL("**/dashboard", { timeout: 20000 })
-      await page.getByRole("heading", { name: /Welcome back/ }).waitFor({ timeout: 20000 })
+      await page.waitForURL("**/organizations", { timeout: 20000 })
       await shot(page, browserName, "03-loggedin")
     })
 
-    // 4. Create class
-    await step("create-class", async () => {
-      await page.goto(`${FRONTEND}/classes`)
-      await page.getByRole("button", { name: "Create class" }).first().click()
-      const dlg = page.getByRole("dialog")
-      await dlg.getByPlaceholder("e.g. Class 8A").fill(`E2E Class ${RUN_ID}`)
-      await dlg.getByRole("button", { name: "Create", exact: true }).click()
-      await page.getByText("Class created", { exact: false }).waitFor({ timeout: 15000 })
-      await shot(page, browserName, "04-class")
+    // 4. Setup org + class + roster + students via the API, then point the browser
+    //    session at the new org (activeOrg in localStorage = the X-Organization-Id header).
+    let classId, orgId, token
+    await step("setup", async () => {
+      const { access } = await api("/auth/login/", { method: "POST", body: { email, password } })
+      token = access
+      const org = await api("/organizations/", {
+        method: "POST", token: access, body: { name: `E2E Org ${RUN_ID}`, type: "school" },
+      })
+      orgId = org.id
+      const cls = await api("/classes/", {
+        method: "POST", token: access, org: orgId, body: { name: `E2E Class ${RUN_ID}`, kind_label: "Class" },
+      })
+      classId = cls.id
+      const roster = await api("/rosters/", {
+        method: "POST", token: access, org: orgId, body: { name: "Students", class_group: classId },
+      })
+      for (const roll of STUDENTS) {
+        await api("/students/", {
+          method: "POST", token: access, org: orgId,
+          body: { roster: roster.id, roll_number: roll, full_name: `Student ${roll}` },
+        })
+      }
+      // Make the SPA act inside this org (OrgContext reads activeOrg from localStorage).
+      await page.goto(`${FRONTEND}/organizations`)
+      await page.evaluate((id) => localStorage.setItem("activeOrg", String(id)), orgId)
+      await shot(page, browserName, "04-setup")
     })
-    const ids1 = py("latest-ids", email)
-    const classId = ids1.class_id
 
     // 5. Create test with N questions × N options (option A correct)
+    let testId
     await step("create-test", async () => {
       await page.goto(`${FRONTEND}/classes/${classId}/tests/new`)
       // Step 1 — details
@@ -180,46 +213,23 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
       await page.waitForURL(`**/classes/${classId}`, { timeout: 20000 })
       await shot(page, browserName, "05-test-created")
     })
-    const ids2 = py("latest-ids", email)
-    const testId = ids2.test_id
+    // The exam was created in ORG scope — capture its id from the API (the solo-scoped
+    // latest-ids helper can't see org-owned rows). The roster + students came from setup.
+    {
+      const tests = await api(`/tests/?class_group=${classId}`, { token, org: orgId })
+      const rows = (tests.results ?? tests).slice().sort((a, b) => b.id - a.id)
+      if (!rows.length) throw new Error("no test found after create-test")
+      testId = rows[0].id
+    }
 
-    // 6. Create roster + students
-    await step("create-roster", async () => {
-      await page.goto(`${FRONTEND}/rosters`)
-      await page.getByRole("button", { name: "Create roster" }).first().click()
-      const dlg = page.getByRole("dialog")
-      await dlg.getByPlaceholder("e.g. Class 10A").fill(`E2E Roster ${RUN_ID}`)
-      await dlg.getByRole("button", { name: /^Creat/ }).click()
-      await page.getByText("Roster created", { exact: false }).waitFor({ timeout: 15000 })
-    })
-    const ids3 = py("latest-ids", email)
-    const rosterId = ids3.roster_id
-
-    await step("add-students", async () => {
-      await page.goto(`${FRONTEND}/rosters/${rosterId}`)
-      for (let i = 0; i < STUDENTS.length; i++) {
-        const roll = STUDENTS[i]
-        await page.getByRole("button", { name: "Add student" }).first().click()
-        const dlg = page.getByRole("dialog")
-        await dlg.getByPlaceholder("e.g. Asha Devi").fill(`Student ${roll}`)
-        await dlg.getByPlaceholder("e.g. 101").fill(roll)
-        await dlg.getByRole("button", { name: "Add student", exact: true }).click()
-        // Wait for the dialog to close (toasts stack across iterations, so don't match on them)
-        await dlg.waitFor({ state: "hidden", timeout: 15000 })
-      }
-      await shot(page, browserName, "06-roster")
-    })
-
-    // 7. Generate OMR sheets — now a DEDICATED PAGE (not a modal): the class-page
-    // row button navigates to /tests/:id/sheets, where the roster picker + generate
-    // live alongside the branding editor.
+    // 6. Generate OMR sheets — a DEDICATED PAGE: /tests/:id/sheets hosts the roster
+    // picker (now subtree-aware, labelled by section) + generate + branding editor.
     await step("generate-sheets", async () => {
-      await page.goto(`${FRONTEND}/classes/${classId}`)
-      await page.getByRole("button", { name: "Generate sheets" }).first().click()
-      await page.waitForURL("**/tests/*/sheets", { timeout: 20000 })
+      await page.goto(`${FRONTEND}/tests/${testId}/sheets`)
+      await page.waitForLoadState("networkidle")
       // pick the roster in the shadcn Select (options render in a portal)
       await page.getByText("Select a roster…").click()
-      await page.getByRole("option", { name: `E2E Roster ${RUN_ID}` }).click()
+      await page.getByRole("option", { name: "Students", exact: true }).click()
       await page.getByRole("button", { name: "Generate sheets", exact: true }).click()
       await page.getByText("Sheets generated successfully!", { exact: false }).first().waitFor({ timeout: 60000 })
       await shot(page, browserName, "07-generated")
