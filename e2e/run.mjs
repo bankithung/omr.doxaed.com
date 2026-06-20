@@ -149,22 +149,24 @@ async function runJourney(browserName, launchOpts, mode = "standard") {
     //    session at the new org (activeOrg in localStorage = the X-Organization-Id header).
     let classId, orgId, token
     await step("setup", async () => {
-      const { access } = await api("/auth/login/", { method: "POST", body: { email, password } })
-      token = access
+      // Reuse the token the UI login already stored — a second API login per journey
+      // trips the auth throttle once several browser journeys run back-to-back.
+      token = await page.evaluate(() => localStorage.getItem("access"))
+      if (!token) throw new Error("no access token in localStorage after login")
       const org = await api("/organizations/", {
-        method: "POST", token: access, body: { name: `E2E Org ${RUN_ID}`, type: "school" },
+        method: "POST", token, body: { name: `E2E Org ${RUN_ID}`, type: "school" },
       })
       orgId = org.id
       const cls = await api("/classes/", {
-        method: "POST", token: access, org: orgId, body: { name: `E2E Class ${RUN_ID}`, kind_label: "Class" },
+        method: "POST", token, org: orgId, body: { name: `E2E Class ${RUN_ID}`, kind_label: "Class" },
       })
       classId = cls.id
       const roster = await api("/rosters/", {
-        method: "POST", token: access, org: orgId, body: { name: "Students", class_group: classId },
+        method: "POST", token, org: orgId, body: { name: "Students", class_group: classId },
       })
       for (const roll of STUDENTS) {
         await api("/students/", {
-          method: "POST", token: access, org: orgId,
+          method: "POST", token, org: orgId,
           body: { roster: roster.id, roll_number: roll, full_name: `Student ${roll}` },
         })
       }
