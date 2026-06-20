@@ -54,3 +54,9 @@ export const listQuestions = (testId) =>
 
 export const createQuestion = (d) =>
   api.post("/questions/", d).then((r) => r.data)
+
+export const updateQuestion = (id, d) =>
+  api.patch(`/questions/${id}/`, d).then((r) => r.data)
+
+export const deleteQuestion = (id) =>
+  api.delete(`/questions/${id}/`).then((r) => r.data)

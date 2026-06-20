@@ -11,17 +11,27 @@ export function useActiveSection() {
 
 /**
  * Parse test-scoped context from a pathname.
- * Matches /tests/:testId/(sheets|scan|review|results|analytics) and
+ * Matches the exam workspace: bare /tests/:testId (overview) and
+ * /tests/:testId/(questions|sheets|scan|review|results|analytics) +
  * /tests/:testId/students/:studentId. Returns { testId, current } or null.
  */
 export function matchTestScope(pathname) {
   const m = pathname.match(
-    /^\/tests\/([^/]+)\/(sheets|scan|review|results|analytics|students)/
+    /^\/tests\/([^/]+)(?:\/(questions|sheets|scan|review|results|analytics|students)(?:\/.*)?)?\/?$/
   )
   if (!m) return null
   const stage = m[2]
-  // sheets → the "generate" lifecycle stage; student-detail pages sit under "results"
-  const current = stage === "sheets" ? "generate" : stage === "students" ? "results" : stage
+  // map page → lifecycle stage: bare → overview, questions → build,
+  // sheets → generate, student-detail pages sit under "results".
+  const current = !stage
+    ? "overview"
+    : stage === "questions"
+      ? "build"
+      : stage === "sheets"
+        ? "generate"
+        : stage === "students"
+          ? "results"
+          : stage
   return { testId: m[1], current }
 }
 
@@ -90,8 +100,9 @@ export function useBreadcrumbItems(section, { orgName } = {}) {
   if (testScope) {
     items.push({ label: "Classes", to: "/classes" })
     if (testClass) items.push({ label: testClass.name, to: `/classes/${testClass.id}` })
-    items.push({ label: test?.title ?? "Exam", to: `/tests/${testScope.testId}/sheets` })
+    items.push({ label: test?.title ?? "Exam", to: `/tests/${testScope.testId}` })
     const leaf = {
+      build: "Questions",
       generate: "Generate",
       scan: "Scan",
       review: "Review",

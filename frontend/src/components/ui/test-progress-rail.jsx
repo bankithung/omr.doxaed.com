@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
  * destination the buttons used to point at — the routes are unchanged so the
  * frozen E2E (which hits `/tests/:id/<route>` by URL) keeps working:
  *
- *   Build     → /classes/:classId               (test list / wizard entry)
+ *   Build     → /tests/:testId/questions         (post-creation question editor)
  *   Generate  → /tests/:testId/sheets            (dedicated Generate & Print page)
  *   Scan      → /tests/:testId/scan
  *   Review    → /tests/:testId/review
@@ -34,10 +34,10 @@ const STAGES = [
   { key: "analytics", label: "Analytics" },
 ]
 
-function stageHref({ key, testId, classId }) {
+function stageHref({ key, testId }) {
   switch (key) {
     case "build":
-      return classId != null ? `/classes/${classId}` : null
+      return `/tests/${testId}/questions`
     case "generate":
       return `/tests/${testId}/sheets`
     case "scan":

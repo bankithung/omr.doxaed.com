@@ -724,7 +724,11 @@ export function ExamsSection({ classId }) {
     {
       key: "title",
       header: "Title",
-      cell: (test) => <span className="font-medium">{test.title}</span>,
+      cell: (test) => (
+        <Link to={`/tests/${test.id}`} className="font-medium hover:text-primary hover:underline">
+          {test.title}
+        </Link>
+      ),
     },
     {
       key: "subject",

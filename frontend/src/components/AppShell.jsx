@@ -169,7 +169,10 @@ function usePanel(section) {
     return {
       title: test?.title ?? "Exam",
       back: classId ? { to: `/classes/${classId}`, label: "Back to class" } : null,
-      groups: [{ title: "Lifecycle", items }],
+      groups: [
+        { title: null, items: [{ label: "Overview", to: `/tests/${testScope.testId}`, end: true }] },
+        { title: "Lifecycle", items },
+      ],
       current: testScope.current,
     }
   }
