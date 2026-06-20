@@ -81,7 +81,11 @@ export default function ClassOverview() {
         subjects: subjects.length,
         sections: secs.length,
       })
-      setRecent([...tests].sort((a, b) => b.id - a.id).slice(0, 5))
+      setRecent(
+        [...tests]
+          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+          .slice(0, 5),
+      )
     } catch {
       setStats({ exams: 0, students: 0, subjects: 0, sections: 0 })
     } finally {

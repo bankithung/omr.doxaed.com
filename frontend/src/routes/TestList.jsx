@@ -8,6 +8,7 @@ import {
   RefreshCw,
   CheckCircle,
   FileText,
+  Search,
   X as XIcon,
 } from "lucide-react"
 import { listTests, retest, listClasses } from "@/api/assessments"
@@ -670,6 +671,7 @@ export function ExamsSection({ classId }) {
   const [error, setError] = useState(false)
   const [retestingId, setRetestingId] = useState(null)
   const [filter, setFilter] = useState("all")
+  const [query, setQuery] = useState("")
 
   // Exams can live on the class itself OR on any of its sections (the wizard lets
   // you pick). Pull them all so the class page is the single place to see them.
@@ -718,7 +720,13 @@ export function ExamsSection({ classId }) {
   }
 
   const hasSections = sections.length > 0
-  const filtered = filter === "all" ? tests : tests.filter((t) => t._gid === filter)
+  const q = query.trim().toLowerCase()
+  // Section filter + free-text search, newest first. Sort by created_at, NOT id
+  // (ids are UUID strings now — id arithmetic no longer orders by recency).
+  const filtered = tests
+    .filter((t) => filter === "all" || t._gid === filter)
+    .filter((t) => !q || t.title?.toLowerCase().includes(q) || t.subject?.toLowerCase().includes(q))
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
 
   const columns = [
     {
@@ -767,6 +775,21 @@ export function ExamsSection({ classId }) {
       ),
     },
     {
+      key: "created",
+      header: "Created",
+      cell: (test) => (
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {test.created_at
+            ? new Date(test.created_at).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "—"}
+        </span>
+      ),
+    },
+    {
       key: "actions",
       header: "",
       mobileLabel: "",
@@ -804,8 +827,21 @@ export function ExamsSection({ classId }) {
 
   return (
     <div className="space-y-3">
-      {hasSections && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:max-w-xs">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            placeholder="Search exams…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
+            aria-label="Search exams"
+          />
+        </div>
+        {hasSections && (
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="min-h-[40px] w-full sm:w-56">
               <SelectValue />
@@ -818,13 +854,13 @@ export function ExamsSection({ classId }) {
               ))}
             </SelectContent>
           </Select>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {filtered.length} exam{filtered.length === 1 ? "" : "s"}
-          </span>
-        </div>
-      )}
+        )}
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          {filtered.length} exam{filtered.length === 1 ? "" : "s"}
+        </span>
+      </div>
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No exams in this {lower}.</p>
+        <p className="text-sm text-muted-foreground">No exams match your filters.</p>
       ) : (
         <DataTable columns={columns} rows={filtered} getRowKey={(test) => test.id} />
       )}
