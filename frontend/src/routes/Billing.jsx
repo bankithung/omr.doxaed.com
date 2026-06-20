@@ -16,9 +16,11 @@ import { PageHeader } from "@/components/ui/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CheckIcon, ZapIcon, BuildingIcon, UsersIcon, StarIcon } from "lucide-react"
 
-// Derive a human-readable price label from price_inr string (e.g. "0.00" → "Free", "500.00" → "₹500 / month").
-function derivePriceLabel(price_inr) {
-  const n = parseFloat(price_inr)
+// Human-readable price label. Enterprise is custom-priced (price_inr is 0 as a
+// placeholder) so it must read "Custom", not "Free".
+function derivePriceLabel(plan) {
+  if (plan.code === "enterprise") return "Custom"
+  const n = parseFloat(plan.price_inr)
   if (!n) return "Free"
   return `₹${n.toLocaleString("en-IN")} / month`
 }
@@ -49,6 +51,14 @@ const PLAN_ICONS = {
 
 // Plans highlighted as "Popular".
 const HIGHLIGHT_CODES = new Set(["team"])
+
+// Display order (Enterprise has price 0 as a custom-pricing placeholder, so we
+// can't order by price — that would float it to the front next to Free).
+const PLAN_ORDER = ["free", "team", "business", "enterprise"]
+const planRank = (code) => {
+  const i = PLAN_ORDER.indexOf(code)
+  return i === -1 ? PLAN_ORDER.length : i
+}
 
 // Map subscription status → a Badge status variant.
 const STATUS_VARIANT = {
@@ -109,7 +119,7 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
   const [loading, setLoading] = useState(false)
   const Icon = PLAN_ICONS[plan.code] ?? UsersIcon
   const isHighlight = HIGHLIGHT_CODES.has(plan.code)
-  const priceLabel = derivePriceLabel(plan.price_inr)
+  const priceLabel = derivePriceLabel(plan)
   const price = parseFloat(plan.price_inr)
   const limitLines = buildLimitLines(plan.limits)
 
@@ -191,6 +201,14 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
           <div className="flex items-center justify-center rounded-md border border-border bg-muted py-2 text-sm font-medium text-muted-foreground">
             Current plan
           </div>
+        ) : plan.code === "enterprise" ? (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => toast.info("Contact us to set up an Enterprise plan.")}
+          >
+            Contact sales
+          </Button>
         ) : (
           <Button className="w-full" onClick={handleSubscribe} disabled={loading}>
             {loading ? "Processing…" : price ? "Upgrade" : "Downgrade to Free"}
@@ -308,7 +326,9 @@ export default function Billing() {
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Plans</h2>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {plans.map((plan) => (
+              {[...plans]
+                .sort((a, b) => planRank(a.code) - planRank(b.code))
+                .map((plan) => (
                 <PlanCard
                   key={plan.code}
                   plan={plan}
