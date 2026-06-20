@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
 import {
@@ -6,8 +6,6 @@ import {
   invite,
   setMemberRole,
   removeMember,
-  getOrgBranding,
-  updateOrgBranding,
 } from "@/api/orgs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,168 +25,12 @@ import {
 } from "@/components/ui/dialog"
 import { DataTable } from "@/components/ui/DataTable"
 import { Badge } from "@/components/ui/badge"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
 import { ChevronDownIcon, UserPlusIcon } from "lucide-react"
 
 const ROLES = ["admin", "member"]
 const ROLE_LABELS = { admin: "Admin", member: "Member" }
-
-// ─── OrgBrandingCard — admin-only settings section ───────────────────────────
-
-function OrgBrandingCard({ orgId }) {
-  const [heading, setHeading] = useState("")
-  const [logoFile, setLogoFile] = useState(null)
-  const [currentLogoUrl, setCurrentLogoUrl] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const logoInputRef = useRef(null)
-
-  useEffect(() => {
-    getOrgBranding(orgId)
-      .then((data) => {
-        setHeading(data.default_sheet_heading ?? "")
-        setCurrentLogoUrl(data.logo ?? null)
-      })
-      .catch(() => toast.error("Failed to load branding settings"))
-      .finally(() => setLoading(false))
-  }, [orgId])
-
-  async function handleSave(e) {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      let data
-      if (logoFile) {
-        data = new FormData()
-        data.append("default_sheet_heading", heading.trim())
-        data.append("logo", logoFile)
-      } else {
-        data = { default_sheet_heading: heading.trim() }
-      }
-      const result = await updateOrgBranding(orgId, data)
-      setCurrentLogoUrl(result.logo ?? null)
-      setLogoFile(null)
-      if (logoInputRef.current) logoInputRef.current.value = ""
-      toast.success("Branding settings saved")
-    } catch (err) {
-      const msg = err?.response?.data?.detail || "Failed to save branding"
-      toast.error(msg)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Organisation branding</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-64" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-12 w-32" />
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <form onSubmit={handleSave}>
-        <CardHeader className="flex-col items-start gap-1">
-          <CardTitle>Organisation branding</CardTitle>
-          <CardDescription>
-            Applied to all sheets generated under this organisation (unless
-            overridden per test).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="org-heading">Default sheet heading</Label>
-            <Input
-              id="org-heading"
-              placeholder="e.g. Springfield School District"
-              value={heading}
-              onChange={(e) => setHeading(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Organisation logo</Label>
-            {currentLogoUrl && (
-              <div className="inline-block rounded-lg border border-border p-2">
-                <img
-                  src={currentLogoUrl}
-                  alt="Current organisation logo"
-                  className="h-12 w-auto object-contain"
-                />
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-[40px]"
-                onClick={() => logoInputRef.current?.click()}
-              >
-                {logoFile
-                  ? "Change logo"
-                  : currentLogoUrl
-                    ? "Replace logo"
-                    : "Upload logo"}
-              </Button>
-              {logoFile && (
-                <span className="max-w-[180px] truncate text-sm text-muted-foreground">
-                  {logoFile.name}
-                </span>
-              )}
-              {logoFile && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setLogoFile(null)
-                    if (logoInputRef.current) logoInputRef.current.value = ""
-                  }}
-                >
-                  Remove
-                </Button>
-              )}
-            </div>
-            {/* Hidden native file input — custom trigger button above */}
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/png,image/jpeg"
-              className="sr-only"
-              onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-              aria-label="Upload organisation logo"
-            />
-            <p className="text-xs text-muted-foreground">PNG or JPEG, max 2 MB</p>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" size="sm" disabled={saving} className="min-h-[40px]">
-            {saving ? "Saving…" : "Save branding"}
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
-  )
-}
 
 export default function OrgMembers() {
   const { activeOrg } = useOrg()
@@ -396,9 +238,6 @@ export default function OrgMembers() {
           ) : null,
         }}
       />
-
-      {/* Branding settings — admin only (Phase 3c) */}
-      {isAdmin && <OrgBrandingCard orgId={orgId} />}
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>

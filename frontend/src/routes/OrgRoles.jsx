@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
+import { SubNavLayout } from "@/components/ui/sub-nav"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -215,6 +216,7 @@ function AssignDialog({ members, roles, classes, onClose, onSaved }) {
 export default function OrgRoles() {
   const { activeOrg } = useOrg()
   const id = activeOrg?.id // org id (for the members endpoint)
+  const [tab, setTab] = useState("roles")
   const [catalog, setCatalog] = useState([])
   const [roles, setRoles] = useState([])
   const [members, setMembers] = useState([])
@@ -283,30 +285,33 @@ export default function OrgRoles() {
         actions={<Button onClick={() => setRoleDialog({})}><Plus className="size-4" aria-hidden="true" /> New role</Button>}
       />
 
-      {/* Roles */}
+      <SubNavLayout
+        sections={[{ key: "roles", label: "Roles" }, { key: "members", label: "Member roles" }]}
+        value={tab}
+        onChange={setTab}
+      >
+      {tab === "roles" && (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Roles</h2>
         {loading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px] w-full rounded-xl" />)}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {roles.map((r) => (
-              <div key={r.id} className="flex items-start justify-between gap-2 rounded-xl border border-border bg-surface-1 p-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
-                    <p className="truncate font-semibold">{r.name}</p>
-                    {r.is_system && <Badge variant="neutral">System</Badge>}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                    {r.permissions.length} permission{r.permissions.length === 1 ? "" : "s"}
-                  </p>
+              <div key={r.id} className="rounded-xl border border-border bg-surface-1 p-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  <p className="min-w-0 flex-1 truncate font-semibold">{r.name}</p>
+                  {r.is_system && <Badge variant="neutral">System</Badge>}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button variant="outline" size="sm" className="min-h-[36px]" onClick={() => setRoleDialog({ role: r })}>
-                    {r.is_system ? "View" : "Edit"}
+                <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                  {r.permissions.length} permission{r.permissions.length === 1 ? "" : "s"}
+                </p>
+                <div className="mt-3 flex items-center gap-1">
+                  <Button variant="outline" size="sm" className="min-h-[36px] flex-1" onClick={() => setRoleDialog({ role: r })}>
+                    {r.is_system ? "View permissions" : "Edit"}
                   </Button>
                   {!r.is_system && (
                     <Button variant="ghost" size="icon-sm" aria-label={`Delete ${r.name}`} onClick={() => handleDeleteRole(r)}>
@@ -319,8 +324,9 @@ export default function OrgRoles() {
           </div>
         )}
       </section>
+      )}
 
-      {/* Member assignments */}
+      {tab === "members" && (
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Member roles</h2>
@@ -351,6 +357,8 @@ export default function OrgRoles() {
           </ul>
         )}
       </section>
+      )}
+      </SubNavLayout>
 
       {roleDialog && (
         <RoleDialog

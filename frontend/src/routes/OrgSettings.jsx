@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
+import { SubNavLayout } from "@/components/ui/sub-nav"
 
 const TYPES = [
   ["personal", "Personal"],
@@ -45,7 +46,9 @@ export default function OrgSettings() {
   const { user } = useAuth()
   const id = activeOrg?.id
 
+  const [tab, setTab] = useState("general")
   const [name, setName] = useState("")
+  const [slug, setSlug] = useState("")
   const [type, setType] = useState("other")
   const [savingGeneral, setSavingGeneral] = useState(false)
 
@@ -64,6 +67,7 @@ export default function OrgSettings() {
   useEffect(() => {
     if (activeOrg) {
       setName(activeOrg.name ?? "")
+      setSlug(activeOrg.slug ?? "")
       setType(activeOrg.type ?? "other")
     }
   }, [activeOrg])
@@ -85,11 +89,17 @@ export default function OrgSettings() {
     }
     setSavingGeneral(true)
     try {
-      await updateOrg(id, { name: name.trim(), type })
+      const updated = await updateOrg(id, { name: name.trim(), slug: slug.trim(), type })
       await refreshOrgs({ force: true })
       toast.success("Organization updated")
-    } catch {
-      toast.error("Failed to update organization")
+      // The URL carries the slug — follow it if the slug changed.
+      if (updated?.slug && updated.slug !== activeOrg?.slug) {
+        navigate(`/org/${updated.slug}/settings`, { replace: true })
+      }
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.slug?.[0] || err?.response?.data?.detail || "Failed to update organization",
+      )
     } finally {
       setSavingGeneral(false)
     }
@@ -133,17 +143,34 @@ export default function OrgSettings() {
     }
   }
 
+  const sections = [
+    { key: "general", label: "General" },
+    { key: "branding", label: "Sheet branding" },
+    ...(isOwner ? [{ key: "danger", label: "Danger zone" }] : []),
+  ]
+
   return (
     <PageShell>
       <PageHeader title="Organization settings" description={activeOrg?.name} />
 
-      {/* General */}
+      <SubNavLayout sections={sections} value={tab} onChange={setTab}>
+      {tab === "general" && (
       <section className="max-w-lg space-y-4 rounded-xl border border-border p-4 sm:p-5">
         <h2 className="text-sm font-semibold">General</h2>
         <form onSubmit={saveGeneral} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="org-name">Name</Label>
             <Input id="org-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="org-slug">Slug</Label>
+            <div className="flex items-center gap-1.5">
+              <span className="shrink-0 text-sm text-muted-foreground">/org/</span>
+              <Input id="org-slug" value={slug} onChange={(e) => setSlug(e.target.value)} className="flex-1" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Used in your organization's URL. Lowercase letters, numbers and hyphens.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="org-type">Type</Label>
@@ -166,8 +193,9 @@ export default function OrgSettings() {
           </Button>
         </form>
       </section>
+      )}
 
-      {/* Branding */}
+      {tab === "branding" && (
       <section className="max-w-lg space-y-4 rounded-xl border border-border p-4 sm:p-5">
         <div>
           <h2 className="text-sm font-semibold">Sheet branding</h2>
@@ -231,9 +259,9 @@ export default function OrgSettings() {
           </Button>
         </form>
       </section>
+      )}
 
-      {/* Danger zone — owner only */}
-      {isOwner && (
+      {tab === "danger" && isOwner && (
         <section className="max-w-lg space-y-3 rounded-xl border border-destructive/40 p-4 sm:p-5">
           <div>
             <h2 className="text-sm font-semibold text-destructive">Delete organization</h2>
@@ -254,6 +282,7 @@ export default function OrgSettings() {
           </Button>
         </section>
       )}
+      </SubNavLayout>
 
       <Dialog open={deleteOpen} onOpenChange={(o) => !deleting && setDeleteOpen(o)}>
         <DialogContent>
