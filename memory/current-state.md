@@ -1,5 +1,18 @@
 # Current State
 
+- 2026-06-19: **Exam workspace nav made coherent** (on `main`, exam-lifecycle commit after `275806c`).
+  Entering an exam now gives a proper Supabase-grade secondary nav. Three gaps fixed: (1) `matchTestScope`
+  didn't match `/tests/:id/sheets` → the **Generate page showed NO exam nav**; (2) the "Generate" lifecycle
+  stage still linked to `/classes/:id` (a stale dialog reference) instead of the dedicated GenerateSheets
+  page; (3) `/tests/:id/...` URLs carry no classId, so `stageHref` silently dropped the Build/Generate
+  stages and "Back to class" was dead. New **`useTest(testId)`** hook (`features/test/useTest.js`, mirrors
+  `useClass` w/ module cache) lets the shell resolve the exam's class from the exam itself → the LIFECYCLE
+  panel now shows all 6 stages (Build·Generate·Scan·Review·Results·Analytics) with the current one
+  highlighted, header = exam title, "Back to class" works, breadcrumb = Classes › Class › Exam › Stage.
+  Touched `use-section.js` (matchTestScope + breadcrumb), `test-progress-rail.jsx` (stageHref), `AppShell.jsx`
+  (usePanel). E2E navigates by URL so unaffected. Screenshot-verified (`e2e/shoot-exam-workspace.mjs`); lint
+  0 errors, build clean. (Note: an exam still has no dedicated Overview/edit-questions page — "Build" links
+  to the class list; a future add.)
 - 2026-06-19: **Section-awareness sweep — exams can now target a section, and every roll-up spans the
   subtree** (on `main`, `738098b`→`0ac99e9`). Owner hit a real logical gap: "when starting a class test
   there is NO option to select for which section." With `ClassGroup` now a self-nesting tree and
