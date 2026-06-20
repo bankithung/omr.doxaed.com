@@ -1,5 +1,19 @@
 # Current State
 
+- 2026-06-19: **Supabase-style ORG WORKSPACE — building (spec
+  `docs/superpowers/specs/2026-06-19-org-workspace.md`).** Owner wants clicking an org → a workspace at
+  `/org/<slug>/…` with Dashboard·Members·Roles·Usage·Billing·Settings. Done so far: **(A)** `Organization.slug`
+  (auto from name, unique, editable; 3-step migration backfills; CharField→unique SlugField avoids the
+  _like-index collision). **(B)** Routing: `OrgShellRoute` resolves slug→active org; `/org/:slug` Dashboard =
+  Classes grid; Members/Roles/Usage/Billing/Settings; legacy `/organizations/:id/*` + `/classes` redirect;
+  pages read `activeOrg.id` not the URL param; new **Usage** page (quota bars from the plan endpoint). **(C)**
+  Seeded **Supervisor + Office** system roles (now 6: Owner/Admin/Supervisor/Office/Teacher/Viewer; data
+  migration; existing codes so has_perm covers them). **Nav (owner-directed):** KEEP the hover-expand root
+  rail + contextual panel; add **in-page sub-sidebars** (`components/ui/sub-nav.jsx`) for multi-section pages
+  — Settings = General·Sheet branding·Danger zone (+ editable **slug** field), Roles = Roles·Member roles.
+  Removed the duplicate org-branding card from Members (lives in Settings). All screenshot-verified; lint 0,
+  build clean. **NEXT:** Members page should show each member's role + assigned classes/sections (∞) +
+  subjects (Phase E — currently just Email/Role/Status). Then re-run E2E.
 - 2026-06-19: **Exam workspace COMPLETE (Overview hub + Questions editor) + E2E harness restored**
   (on `main`, commits after `7b5e32b`). Two gaps closed so an exam is a real workspace: (1) **ExamOverview**
   (`/tests/:id`, `routes/exam/ExamOverview.jsx`) — the exam hub: status/section/subject, stat tiles
