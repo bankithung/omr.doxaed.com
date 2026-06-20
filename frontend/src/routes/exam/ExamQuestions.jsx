@@ -35,6 +35,7 @@ export default function ExamQuestions() {
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [savingIdx, setSavingIdx] = useState(null)
+  const [savingAll, setSavingAll] = useState(false)
   const multipleCorrect = test?.marking_scheme?.multiple_correct_allowed ?? false
 
   const load = useCallback(async () => {
@@ -110,7 +111,47 @@ export default function ExamQuestions() {
     }
   }
 
+  // Save every question in one go (sequentially, so a failure mid-way still
+  // persists the earlier ones with ids — re-running won't duplicate them).
+  async function saveAll() {
+    setSavingAll(true)
+    let done = 0
+    try {
+      for (let idx = 0; idx < questions.length; idx++) {
+        const q = questions[idx]
+        if (q.saved) {
+          done++
+          continue
+        }
+        const payload = {
+          test: testId,
+          order_index: idx,
+          text: q.text.trim(),
+          options: q.options.map((o) => ({
+            label: o.label,
+            text: o.text.trim(),
+            is_correct: o.is_correct,
+          })),
+        }
+        const saved = q.id ? await updateQuestion(q.id, payload) : await createQuestion(payload)
+        setQuestions((qs) =>
+          qs.map((question, i) => (i === idx ? { ...question, id: saved.id, saved: true } : question)),
+        )
+        done++
+      }
+      toast.success("All questions saved")
+    } catch (err) {
+      toast.error(
+        `Saved ${done} of ${questions.length} — ` +
+          (err?.response?.data?.text?.[0] || err?.response?.data?.detail || "check the highlighted question"),
+      )
+    } finally {
+      setSavingAll(false)
+    }
+  }
+
   const savedCount = questions.filter((q) => q.saved).length
+  const unsavedCount = questions.length - savedCount
 
   return (
     <PageShell>
@@ -147,6 +188,23 @@ export default function ExamQuestions() {
           <Button variant="outline" onClick={addQ} className="w-full">
             <Plus className="size-4" aria-hidden="true" /> Add question
           </Button>
+        </div>
+      )}
+
+      {/* Sticky save bar — saves every question at once; stays pinned at the
+          bottom while you scroll so you never have to save each one. */}
+      {!loading && (
+        <div className="sticky bottom-0 z-20 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+            <span className="text-sm text-muted-foreground">
+              {unsavedCount === 0
+                ? "All questions saved"
+                : `${unsavedCount} unsaved question${unsavedCount === 1 ? "" : "s"}`}
+            </span>
+            <Button onClick={saveAll} disabled={savingAll || unsavedCount === 0} className="min-h-[44px]">
+              {savingAll ? "Saving…" : "Save all"}
+            </Button>
+          </div>
         </div>
       )}
     </PageShell>
