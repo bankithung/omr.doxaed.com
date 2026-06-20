@@ -34,6 +34,9 @@ const PLANS = [
   { value: "enterprise", name: "Enterprise", price: "Custom", caps: ["Unlimited", "SSO", "Priority support"] },
 ]
 
+// Display value → backend plan code ("Pro" is stored as "team").
+const PLAN_CODE = { free: "free", pro: "team", business: "business", enterprise: "enterprise" }
+
 export default function NewOrganization() {
   const navigate = useNavigate()
   const { setActiveOrg, refreshOrgs } = useOrg()
@@ -50,19 +53,17 @@ export default function NewOrganization() {
     }
     setSubmitting(true)
     try {
-      // Paid activation goes through Billing → payment (not here), so we don't
-      // send the plan to the create endpoint. A paid pick lands you on Billing.
-      const org = await createOrg({ name: name.trim(), type })
+      // Send the selected plan. Locally (dev) it's applied immediately so you can
+      // test plan limits; in production paid plans activate only after Razorpay
+      // payment. "Pro" is stored as "team".
+      const org = await createOrg({ name: name.trim(), type, plan: PLAN_CODE[plan] ?? plan })
       await refreshOrgs({ force: true })
       setActiveOrg(String(org.id))
-      if (plan === "free") {
-        toast.success("Organization created")
-        navigate(`/org/${org.slug}`)
-      } else {
-        const planName = PLANS.find((p) => p.value === plan)?.name
-        toast.success(`Organization created — finish your ${planName} upgrade in Billing`)
-        navigate(`/org/${org.slug}/billing`)
-      }
+      const planName = PLANS.find((p) => p.value === plan)?.name
+      toast.success(
+        plan === "free" ? "Organization created" : `Organization created on the ${planName} plan`,
+      )
+      navigate(`/org/${org.slug}`)
     } catch {
       toast.error("Could not create organization")
       setSubmitting(false)
