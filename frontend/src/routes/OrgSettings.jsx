@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
+import { cn } from "@/lib/utils"
 
 const TYPES = [
   ["personal", "Personal"],
@@ -38,6 +39,39 @@ const TYPES = [
   ["coaching", "Coaching"],
   ["other", "Other"],
 ]
+
+// A Supabase-style settings row: title + description on the left, a card with the
+// fields (and an optional footer action bar) on the right.
+function SettingsSection({ title, description, children, footer, danger = false }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-8">
+      <div>
+        <h2 className={cn("text-sm font-semibold", danger && "text-destructive")}>{title}</h2>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      <div className="lg:col-span-2">
+        <div
+          className={cn(
+            "overflow-hidden rounded-xl border bg-surface-1",
+            danger ? "border-destructive/40" : "border-border",
+          )}
+        >
+          <div className="space-y-4 p-4 sm:p-5">{children}</div>
+          {footer && (
+            <div
+              className={cn(
+                "flex items-center justify-end border-t px-4 py-3 sm:px-5",
+                danger ? "border-destructive/30 bg-destructive/5" : "border-border bg-surface-2/40",
+              )}
+            >
+              {footer}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function OrgSettings() {
   const navigate = useNavigate()
@@ -145,130 +179,151 @@ export default function OrgSettings() {
     <PageShell>
       <PageHeader title="Organization settings" description={activeOrg?.name} />
 
-      <section className="max-w-lg space-y-4 rounded-xl border border-border p-4 sm:p-5">
-        <h2 className="text-sm font-semibold">General</h2>
-        <form onSubmit={saveGeneral} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="org-name">Name</Label>
-            <Input id="org-name" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="org-slug">Slug</Label>
-            <div className="flex items-center gap-1.5">
-              <span className="shrink-0 text-sm text-muted-foreground">/org/</span>
-              <Input id="org-slug" value={slug} onChange={(e) => setSlug(e.target.value)} className="flex-1" />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Used in your organization's URL. Lowercase letters, numbers and hyphens.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="org-type">Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger id="org-type" className="min-h-[40px] w-full">
-                <SelectValue placeholder="Select a type…" />
-              </SelectTrigger>
-              <SelectContent>
-                {TYPES.map(([v, l]) => (
-                  <SelectItem key={v} value={v}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Changing the type only updates default labels for new groups; existing names are kept.
-            </p>
-          </div>
-          <Button type="submit" disabled={savingGeneral} className="min-h-[40px]">
-            {savingGeneral ? "Saving…" : "Save changes"}
-          </Button>
-        </form>
-      </section>
-
-      <section className="max-w-lg space-y-4 rounded-xl border border-border p-4 sm:p-5">
-        <div>
-          <h2 className="text-sm font-semibold">Sheet branding</h2>
-          <p className="text-sm text-muted-foreground">
-            The default heading + logo printed on OMR sheets across this organization.
-          </p>
-        </div>
-        <form onSubmit={saveBranding} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="org-heading">Default sheet heading</Label>
-            <Input
-              id="org-heading"
-              placeholder="e.g. Riverdale High School"
-              value={heading}
-              onChange={(e) => setHeading(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Logo</Label>
-            {logoUrl && !logoFile && (
-              <img
-                src={mediaUrl(logoUrl)}
-                alt="Organization logo"
-                className="mb-1 size-12 rounded border border-border bg-surface-2 object-contain"
-              />
-            )}
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-[40px]"
-                onClick={() => logoRef.current?.click()}
-              >
-                {logoFile ? "Change logo" : logoUrl ? "Replace logo" : "Upload logo"}
+      <div className="space-y-8">
+        {/* General */}
+        <form onSubmit={saveGeneral}>
+          <SettingsSection
+            title="General"
+            description="Your organization's name, URL and type."
+            footer={
+              <Button type="submit" disabled={savingGeneral} className="min-h-[40px]">
+                {savingGeneral ? "Saving…" : "Save changes"}
               </Button>
-              {logoFile && (
-                <span className="max-w-[180px] truncate text-sm text-muted-foreground">{logoFile.name}</span>
-              )}
-            </div>
-            <input
-              ref={logoRef}
-              type="file"
-              accept="image/png,image/jpeg"
-              className="sr-only"
-              aria-label="Upload organization logo"
-              onChange={(e) => {
-                const f = e.target.files?.[0] ?? null
-                if (f && f.size > 2 * 1024 * 1024) {
-                  toast.error("Logo must be 2 MB or smaller")
-                  e.target.value = ""
-                  return
-                }
-                setLogoFile(f)
-              }}
-            />
-            <p className="text-xs text-muted-foreground">PNG or JPEG, max 2 MB</p>
-          </div>
-          <Button type="submit" disabled={savingBrand} className="min-h-[40px]">
-            {savingBrand ? "Saving…" : "Save branding"}
-          </Button>
-        </form>
-      </section>
-
-      {isOwner && (
-        <section className="max-w-lg space-y-3 rounded-xl border border-destructive/40 p-4 sm:p-5">
-          <div>
-            <h2 className="text-sm font-semibold text-destructive">Delete organization</h2>
-            <p className="text-sm text-muted-foreground">
-              Permanently deletes <strong>{activeOrg?.name}</strong> and all its classes, exams, students
-              and members. This can't be undone.
-            </p>
-          </div>
-          <Button
-            variant="destructive"
-            className="min-h-[40px]"
-            onClick={() => {
-              setConfirmName("")
-              setDeleteOpen(true)
-            }}
+            }
           >
-            Delete organization
-          </Button>
-        </section>
-      )}
+            <div className="space-y-1.5">
+              <Label htmlFor="org-name">Name</Label>
+              <Input id="org-name" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="org-slug">Slug</Label>
+              <div className="flex h-10 items-center overflow-hidden rounded-lg border border-input bg-transparent focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/40">
+                <span className="select-none border-r border-input px-3 text-sm text-muted-foreground">
+                  /org/
+                </span>
+                <input
+                  id="org-slug"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="h-full min-w-0 flex-1 bg-transparent px-3 text-sm outline-none"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used in your organization's URL. Lowercase letters, numbers and hyphens.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="org-type">Type</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger id="org-type" className="min-h-[40px] w-full">
+                  <SelectValue placeholder="Select a type…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPES.map(([v, l]) => (
+                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Changing the type only updates default labels for new groups; existing names are kept.
+              </p>
+            </div>
+          </SettingsSection>
+        </form>
+
+        {/* Sheet branding */}
+        <form onSubmit={saveBranding}>
+          <SettingsSection
+            title="Sheet branding"
+            description="The default heading and logo printed on OMR sheets across this organization."
+            footer={
+              <Button type="submit" disabled={savingBrand} className="min-h-[40px]">
+                {savingBrand ? "Saving…" : "Save branding"}
+              </Button>
+            }
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="org-heading">Default sheet heading</Label>
+              <Input
+                id="org-heading"
+                placeholder="e.g. Riverdale High School"
+                value={heading}
+                onChange={(e) => setHeading(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Logo</Label>
+              <div className="flex items-center gap-4">
+                <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-surface-2">
+                  {logoUrl && !logoFile ? (
+                    <img src={mediaUrl(logoUrl)} alt="Organization logo" className="size-full object-contain p-1" />
+                  ) : (
+                    <span className="text-lg font-bold text-muted-foreground">
+                      {(activeOrg?.name?.[0] ?? "O").toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[40px]"
+                    onClick={() => logoRef.current?.click()}
+                  >
+                    {logoFile ? "Change logo" : logoUrl ? "Replace logo" : "Upload logo"}
+                  </Button>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {logoFile ? logoFile.name : "PNG or JPEG, max 2 MB"}
+                  </p>
+                </div>
+              </div>
+              <input
+                ref={logoRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="sr-only"
+                aria-label="Upload organization logo"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null
+                  if (f && f.size > 2 * 1024 * 1024) {
+                    toast.error("Logo must be 2 MB or smaller")
+                    e.target.value = ""
+                    return
+                  }
+                  setLogoFile(f)
+                }}
+              />
+            </div>
+          </SettingsSection>
+        </form>
+
+        {/* Danger zone */}
+        {isOwner && (
+          <SettingsSection
+            title="Danger zone"
+            description="Irreversible and destructive actions."
+            danger
+            footer={
+              <Button
+                variant="destructive"
+                className="min-h-[40px]"
+                onClick={() => {
+                  setConfirmName("")
+                  setDeleteOpen(true)
+                }}
+              >
+                Delete organization
+              </Button>
+            }
+          >
+            <p className="text-sm text-muted-foreground">
+              Permanently deletes <strong className="text-foreground">{activeOrg?.name}</strong> and all its
+              classes, exams, students and members. This <strong className="text-foreground">cannot be undone</strong>.
+            </p>
+          </SettingsSection>
+        )}
+      </div>
 
       <Dialog open={deleteOpen} onOpenChange={(o) => !deleting && setDeleteOpen(o)}>
         <DialogContent>
