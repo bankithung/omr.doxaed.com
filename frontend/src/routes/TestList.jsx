@@ -463,13 +463,16 @@ export function AccessSection({ classId }) {
   const [removeTarget, setRemoveTarget] = useState(null)
   const [removing, setRemoving] = useState(false)
   const [narrowTarget, setNarrowTarget] = useState(null)
+  const cls = useClass(classId)
+  // Subjects are class-wide — read the PARENT class's when this is a section.
+  const subjectsClassId = cls?.parent ?? classId
 
   const fetchAll = useCallback(async () => {
     try {
       const [grantData, memberData, subjectData] = await Promise.all([
         listClassGrants(classId),
         activeOrgId ? getMembers(activeOrgId) : Promise.resolve([]),
-        listSubjects(classId),
+        listSubjects(subjectsClassId),
       ])
       setGrants(grantData.results ?? grantData)
       setMembers(memberData.results ?? memberData)
@@ -479,7 +482,7 @@ export function AccessSection({ classId }) {
     } finally {
       setLoading(false)
     }
-  }, [classId, activeOrgId])
+  }, [classId, activeOrgId, subjectsClassId])
 
   useEffect(() => {
     fetchAll()
