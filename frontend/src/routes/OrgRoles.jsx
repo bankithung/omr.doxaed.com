@@ -34,7 +34,12 @@ import {
 } from "@/components/ui/dialog"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import { SubNavLayout } from "@/components/ui/sub-nav"
+import { useSubNav } from "@/components/shell/sub-nav-context"
+
+const ROLES_SECTIONS = [
+  { key: "roles", label: "Roles" },
+  { key: "members", label: "Member roles" },
+]
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -277,6 +282,8 @@ export default function OrgRoles() {
 
   const scopeName = (gid) => classes.find((c) => c.id === gid)?.name
 
+  useSubNav(ROLES_SECTIONS, tab, setTab)
+
   return (
     <PageShell>
       <PageHeader
@@ -285,11 +292,6 @@ export default function OrgRoles() {
         actions={<Button onClick={() => setRoleDialog({})}><Plus className="size-4" aria-hidden="true" /> New role</Button>}
       />
 
-      <SubNavLayout
-        sections={[{ key: "roles", label: "Roles" }, { key: "members", label: "Member roles" }]}
-        value={tab}
-        onChange={setTab}
-      >
       {tab === "roles" && (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Roles</h2>
@@ -358,7 +360,6 @@ export default function OrgRoles() {
         )}
       </section>
       )}
-      </SubNavLayout>
 
       {roleDialog && (
         <RoleDialog

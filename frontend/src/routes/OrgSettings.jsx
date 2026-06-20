@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import { SubNavLayout } from "@/components/ui/sub-nav"
+import { useSubNav } from "@/components/shell/sub-nav-context"
 
 const TYPES = [
   ["personal", "Personal"],
@@ -39,6 +39,15 @@ const TYPES = [
   ["coaching", "Coaching"],
   ["other", "Other"],
 ]
+
+// Stable section arrays (module-level) so the shell sub-bar doesn't re-register
+// on every render.
+const SECTIONS = [
+  { key: "general", label: "General" },
+  { key: "branding", label: "Sheet branding" },
+  { key: "danger", label: "Danger zone" },
+]
+const SECTIONS_NO_DANGER = SECTIONS.slice(0, 2)
 
 export default function OrgSettings() {
   const navigate = useNavigate()
@@ -143,17 +152,12 @@ export default function OrgSettings() {
     }
   }
 
-  const sections = [
-    { key: "general", label: "General" },
-    { key: "branding", label: "Sheet branding" },
-    ...(isOwner ? [{ key: "danger", label: "Danger zone" }] : []),
-  ]
+  useSubNav(isOwner ? SECTIONS : SECTIONS_NO_DANGER, tab, setTab)
 
   return (
     <PageShell>
       <PageHeader title="Organization settings" description={activeOrg?.name} />
 
-      <SubNavLayout sections={sections} value={tab} onChange={setTab}>
       {tab === "general" && (
       <section className="max-w-lg space-y-4 rounded-xl border border-border p-4 sm:p-5">
         <h2 className="text-sm font-semibold">General</h2>
@@ -282,7 +286,6 @@ export default function OrgSettings() {
           </Button>
         </section>
       )}
-      </SubNavLayout>
 
       <Dialog open={deleteOpen} onOpenChange={(o) => !deleting && setDeleteOpen(o)}>
         <DialogContent>

@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import CommandMenu from "@/components/CommandMenu"
+import { SubNavProvider, useSubNavState } from "@/components/shell/sub-nav-context"
 import {
   FileTextIcon,
   BuildingIcon,
@@ -678,6 +679,65 @@ function OrgSwitcherTopBar() {
  *   isAdmin  — accepted for back-compat with the route wrapper (no longer used:
  *              admin-only panel items are derived from the active org's role).
  */
+// ─── Sub-bar — the SECOND sidebar column for a page's sub-sections ─────────────
+// A page registers its sub-sections via useSubNav(); these render them next to
+// the always-on org/class sidebar (desktop) or as a top strip (mobile).
+
+function SubNavPanel() {
+  const { subNav } = useSubNavState() ?? {}
+  if (!subNav) return null
+  return (
+    <aside
+      aria-label="Section navigation"
+      className="hidden w-52 shrink-0 flex-col border-r border-strong bg-surface-1 lg:flex"
+    >
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+        {subNav.sections.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => subNav.onChange(s.key)}
+            aria-current={subNav.value === s.key ? "page" : undefined}
+            className={cn(
+              "flex min-h-[40px] w-full items-center rounded-md px-2.5 py-2 text-sm font-medium motion-safe-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+              subNav.value === s.key
+                ? "bg-nav-active-bg text-nav-active-fg"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/60",
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
+      </nav>
+    </aside>
+  )
+}
+
+function SubNavMobile() {
+  const { subNav } = useSubNavState() ?? {}
+  if (!subNav) return null
+  return (
+    <div className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2 lg:hidden">
+      {subNav.sections.map((s) => (
+        <button
+          key={s.key}
+          type="button"
+          onClick={() => subNav.onChange(s.key)}
+          aria-current={subNav.value === s.key ? "page" : undefined}
+          className={cn(
+            "min-h-[40px] shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium",
+            subNav.value === s.key
+              ? "bg-nav-active-bg text-nav-active-fg"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function AppShell({ children }) {
   const section = useActiveSection()
   const panel = usePanel(section)
@@ -704,24 +764,28 @@ export default function AppShell({ children }) {
   }
 
   return (
-    <div className="app-density flex min-h-screen bg-canvas text-foreground">
-      <PrimaryRail activeKey={section.key} />
-      {hasPanel && (
-        <SecondaryNav panel={panel} collapsed={collapsed} onToggle={toggleCollapsed} />
-      )}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          section={section}
-          hasPanel={hasPanel}
-          panelCollapsed={collapsed}
-          onExpandPanel={toggleCollapsed}
-        />
-        <main id="main" className="flex-1 overflow-auto pb-16 lg:pb-0">
-          {children}
-        </main>
-        <BottomTabBar />
+    <SubNavProvider>
+      <div className="app-density flex min-h-screen bg-canvas text-foreground">
+        <PrimaryRail activeKey={section.key} />
+        {hasPanel && (
+          <SecondaryNav panel={panel} collapsed={collapsed} onToggle={toggleCollapsed} />
+        )}
+        <SubNavPanel />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar
+            section={section}
+            hasPanel={hasPanel}
+            panelCollapsed={collapsed}
+            onExpandPanel={toggleCollapsed}
+          />
+          <SubNavMobile />
+          <main id="main" className="flex-1 overflow-auto pb-16 lg:pb-0">
+            {children}
+          </main>
+          <BottomTabBar />
+        </div>
+        <CommandMenu />
       </div>
-      <CommandMenu />
-    </div>
+    </SubNavProvider>
   )
 }
