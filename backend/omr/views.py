@@ -803,13 +803,23 @@ class OmrTestQuestionPapersBatchView(APIView):
         merged = fitz.open()
         found = False
         for sheet in sheets:
+            # Per student, a ready-to-print packet: the question paper page(s)
+            # FIRST, then that student's OMR bubble sheet — "read the questions,
+            # then fill the sheet".
             try:
-                data = sheet.question_paper_file.open("rb").read()
+                paper_data = sheet.question_paper_file.open("rb").read()
             except (FileNotFoundError, OSError, ValueError):
                 continue
-            src = fitz.open(stream=data, filetype="pdf")
-            merged.insert_pdf(src)
-            src.close()
+            psrc = fitz.open(stream=paper_data, filetype="pdf")
+            merged.insert_pdf(psrc)
+            psrc.close()
+            try:
+                sheet_data = sheet.pdf_file.open("rb").read()
+                ssrc = fitz.open(stream=sheet_data, filetype="pdf")
+                merged.insert_pdf(ssrc)
+                ssrc.close()
+            except (FileNotFoundError, OSError, ValueError):
+                pass
             found = True
         if not found:
             merged.close()
@@ -821,7 +831,7 @@ class OmrTestQuestionPapersBatchView(APIView):
             io.BytesIO(out),
             content_type="application/pdf",
             as_attachment=True,
-            filename=f"question-papers-test-{test.id}.pdf",
+            filename=f"print-packet-test-{test.id}.pdf",
         )
         return response
 

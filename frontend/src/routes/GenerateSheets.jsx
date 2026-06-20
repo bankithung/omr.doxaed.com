@@ -582,7 +582,7 @@ export default function GenerateSheets() {
                   disabled={downloadingPaper}
                 >
                   <FileText className="size-4" aria-hidden="true" />{" "}
-                  {downloadingPaper ? "Downloading…" : "Download question papers"}
+                  {downloadingPaper ? "Downloading…" : "Download print packet (questions + sheets)"}
                 </Button>
               )}
             </div>
