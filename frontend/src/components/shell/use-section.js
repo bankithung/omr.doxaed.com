@@ -77,12 +77,18 @@ export function useBreadcrumbItems(section, { orgName } = {}) {
   const classScope = matchClassScope(pathname)
   const testScope = matchTestScope(pathname)
   const cls = useClass(classScope ? classScope.classId : null)
+  const parentCls = useClass(cls?.parent ?? null)
   const test = useTest(testScope ? testScope.testId : null)
   const testClass = useClass(test?.class_group ?? null)
   const items = []
 
   if (classScope) {
     items.push({ label: "Classes", to: "/classes" })
+    // Inside a section (a class with a parent), include the parent class in the
+    // trail: Classes › Class 10 › Section A.
+    if (cls?.parent) {
+      items.push({ label: parentCls?.name ?? "Class", to: `/classes/${cls.parent}` })
+    }
     items.push({ label: cls?.name ?? "Class", to: `/classes/${classScope.classId}` })
     if (classScope.current !== "overview") {
       items.push({ label: CLASS_SECTION_LABEL[classScope.current] })
