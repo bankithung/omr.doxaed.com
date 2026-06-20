@@ -520,8 +520,10 @@ def _pdf_to_images(file_bytes: bytes) -> list[bytes]:
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     images = []
     for page in doc:
-        # Render at 200 DPI for reliable QR + fiducial detection
-        mat = fitz.Matrix(2.0, 2.0)
+        # Render at ~216 DPI (3× the 72-DPI base) for reliable QR + fiducial
+        # detection — a denser QR needs more pixels to decode from a re-rendered
+        # PDF page.
+        mat = fitz.Matrix(3.0, 3.0)
         pix = page.get_pixmap(matrix=mat)
         png_bytes = pix.tobytes("png")
         images.append(png_bytes)

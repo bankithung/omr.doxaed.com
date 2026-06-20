@@ -403,7 +403,8 @@ def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
     if omr_sheet.question_order:
         from assessments.models import Question as _Q
         q_section_map = {
-            q.id: q.section_id
+            # question_order holds STRING ids — key by str(q.id) to match.
+            str(q.id): q.section_id
             for q in _Q.objects.filter(id__in=omr_sheet.question_order).only("id", "section_id")
         }
         for idx, q_id in enumerate(omr_sheet.question_order):

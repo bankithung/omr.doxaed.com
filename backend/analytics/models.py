@@ -10,6 +10,7 @@ StudentProfile (per student per test)
 Both tables are owner-scoped through their parent Test (no direct user FK).
 """
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
 from common.models import UUIDModel
@@ -46,7 +47,9 @@ class TestProfile(UUIDModel):
         on_delete=models.CASCADE,
         related_name="profile",
     )
-    profile = models.JSONField(default=dict)
+    # DjangoJSONEncoder serialises UUID / Decimal / datetime that the psychometric
+    # profile embeds (student_id, question_id, student_result_id, …) → str.
+    profile = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
     cohort_size = models.PositiveIntegerField(default=0)
     status = models.CharField(
         max_length=32,

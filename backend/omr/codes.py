@@ -29,9 +29,11 @@ def make_sheet_code(test_id, seed: int) -> tuple[str, str]:
     # base64.b32encode uses A-Z and 2-7 (no padding issues with 8 chars from 32-byte digest)
     token = base64.b32encode(digest).decode("ascii")[:8]
 
-    # Prefix with the test id (UUID hex) for human grouping — id arithmetic /
-    # zero-padded integer formatting no longer applies to UUID primary keys.
-    prefix = str(test_id).replace("-", "")
+    # Short test prefix (first 8 hex of the UUID) for human grouping — keeps the
+    # sheet code (and therefore the printed QR payload) SHORT so it decodes
+    # reliably from real scans. Uniqueness/security comes from the HMAC token,
+    # and the scan side resolves the sheet by full code + batch test anyway.
+    prefix = str(test_id).replace("-", "")[:8]
     sheet_code = f"{prefix}-{token}"
     human_readable_code = token
     return sheet_code, human_readable_code
