@@ -35,6 +35,7 @@ export default function ClassOverview() {
   const cls = useClass(id)
   // When viewing a section, show its parent class as context above the title.
   const parentCls = useClass(cls?.parent ?? null)
+  const parentId = cls?.parent ?? null
   const { activeOrg } = useOrg() ?? {}
   const childLabel = childKindLabel(activeOrg?.type, cls?.kind_label)
   const [stats, setStats] = useState(null)
@@ -68,7 +69,7 @@ export default function ClassOverview() {
             return d.results ?? d
           }),
         ),
-        listSubjects(id),
+        listSubjects(parentId ?? id),
       ])
       const tests = perGroupTests.flat()
       const rosters = perGroupRosters.flat()
@@ -93,7 +94,7 @@ export default function ClassOverview() {
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, parentId])
 
   useEffect(() => {
     load()
