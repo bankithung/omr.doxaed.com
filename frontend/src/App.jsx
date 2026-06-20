@@ -117,8 +117,11 @@ function OrgShellRoute({ children }) {
     }
   }, [org, activeOrgId, setActiveOrg])
 
-  if (loading || !loaded) return <AppShellSkeleton />
+  // Auth FIRST: an unauthenticated deep link must redirect to /login, never sit
+  // on a skeleton (the orgs list never loads without auth, so we'd hang forever).
+  if (loading) return <AppShellSkeleton />
   if (!user) return <Navigate to="/login" replace />
+  if (!loaded) return <AppShellSkeleton />
   if (!org) return <Navigate to="/organizations" replace />
   // Wait until the active org matches the slug so child API calls carry the right header.
   if (String(org.id) !== String(activeOrgId)) return <AppShellSkeleton />
@@ -128,7 +131,10 @@ function OrgShellRoute({ children }) {
 // Legacy /organizations/:id/<tab> → /org/:slug/<tab>
 function OrgIdRedirect({ tab = "" }) {
   const { id } = useParams()
+  const { user, loading } = useAuth()
   const { orgs, loaded } = useOrg()
+  if (loading) return <AppShellSkeleton />
+  if (!user) return <Navigate to="/login" replace />
   if (!loaded) return <AppShellSkeleton />
   const org = orgs.find((o) => String(o.id) === String(id))
   if (!org) return <Navigate to="/organizations" replace />
@@ -137,7 +143,10 @@ function OrgIdRedirect({ tab = "" }) {
 
 // Legacy /classes → the active org's Dashboard.
 function ClassesRedirect() {
+  const { user, loading } = useAuth()
   const { activeOrg, loaded } = useOrg()
+  if (loading) return <AppShellSkeleton />
+  if (!user) return <Navigate to="/login" replace />
   if (!loaded) return <AppShellSkeleton />
   if (!activeOrg) return <Navigate to="/organizations" replace />
   return <Navigate to={`/org/${activeOrg.slug}`} replace />
