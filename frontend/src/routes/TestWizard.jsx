@@ -247,18 +247,20 @@ function StepDetails({ classId, onNext }) {
 
   return (
     <form onSubmit={handleNext} className="space-y-6">
-      {/* Target context — which class/section this test is being created for. */}
+      {/* Live header — the target class/section (small) + the title (big), which
+          updates as the user types it in the Details card below. */}
       <div className="rounded-lg border border-border bg-surface-2/40 px-4 py-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          New test for
-        </p>
-        <p className="mt-1 flex flex-wrap items-center gap-1.5 font-semibold">
+        <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+          <span className="font-medium">New test for</span>
           {targetParts.filter(Boolean).map((part, i) => (
             <span key={i} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-muted-foreground">›</span>}
-              {part}
+              {i > 0 && <span className="text-muted-foreground/60">›</span>}
+              <span className="font-medium text-foreground">{part}</span>
             </span>
           ))}
+        </p>
+        <p className="mt-1.5 truncate text-2xl font-bold tracking-tight">
+          {title.trim() || <span className="text-muted-foreground">Untitled test</span>}
         </p>
       </div>
 
