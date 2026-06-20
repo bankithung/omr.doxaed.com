@@ -56,7 +56,7 @@ export default function OrgList() {
 
   function openOrg(org) {
     setActiveOrg(String(org.id))
-    navigate("/classes")
+    navigate(`/org/${org.slug}`)
   }
 
   async function handleLogout() {

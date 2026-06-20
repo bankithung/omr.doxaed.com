@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
 import { listPlans, getPlan, subscribe } from "@/api/billing"
@@ -203,14 +202,14 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
 }
 
 export default function Billing() {
-  const { id: orgId } = useParams()
-  const { orgs } = useOrg()
+  const { activeOrg } = useOrg()
+  const orgId = activeOrg?.id
   const [planData, setPlanData] = useState(null)
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const org = orgs.find((o) => String(o.id) === String(orgId))
+  const org = activeOrg
 
   async function fetchPlan() {
     setLoading(true)

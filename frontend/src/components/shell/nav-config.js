@@ -16,7 +16,8 @@ export const NAV = [
     label: "Classes",
     icon: LayersIcon,
     to: "/classes",
-    match: (p) => /^\/(classes|folders|rosters|tests)/.test(p),
+    // /org/ = the org workspace (Dashboard = classes); plus class/exam scopes.
+    match: (p) => /^\/(org\/|classes|folders|rosters|tests)/.test(p),
     groups: null, // the Classes grid is full-width; a class opens its own panel
   },
   {

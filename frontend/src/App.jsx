@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react"
-import { Navigate, Route, Routes, useLocation } from "react-router-dom"
+import { lazy, Suspense, useEffect } from "react"
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
 import { Toaster } from "@/components/ui/sonner"
 import { useAuth } from "@/auth/AuthContext"
 import { useOrg } from "@/org/OrgContext"
@@ -59,6 +59,7 @@ const OrgRoles = lazy(() => import("@/routes/OrgRoles"))
 const OrgSettings = lazy(() => import("@/routes/OrgSettings"))
 const AcceptInvite = lazy(() => import("@/routes/AcceptInvite"))
 const Billing = lazy(() => import("@/routes/Billing"))
+const Usage = lazy(() => import("@/routes/Usage"))
 const StudentDetail = lazy(() => import("@/routes/StudentDetail"))
 const PublicResult = lazy(() => import("@/routes/PublicResult"))
 
@@ -97,6 +98,49 @@ function ShellProtectedRoute({ children }) {
       {children}
     </AppShell>
   )
+}
+
+// ─── OrgShellRoute — slug-aware org workspace guard ─────────────────────────
+// Resolves /org/:slug to an organization, makes it the active org (so the
+// X-Organization-Id header is correct), then renders the page in the shell.
+// Self-resolving so deep links work without a pre-selected org.
+
+function OrgShellRoute({ children }) {
+  const { slug } = useParams()
+  const { user, loading } = useAuth()
+  const { orgs, loaded, activeOrgId, setActiveOrg } = useOrg()
+  const org = orgs.find((o) => o.slug === slug)
+
+  useEffect(() => {
+    if (org && String(org.id) !== String(activeOrgId)) {
+      setActiveOrg(String(org.id))
+    }
+  }, [org, activeOrgId, setActiveOrg])
+
+  if (loading || !loaded) return <AppShellSkeleton />
+  if (!user) return <Navigate to="/login" replace />
+  if (!org) return <Navigate to="/organizations" replace />
+  // Wait until the active org matches the slug so child API calls carry the right header.
+  if (String(org.id) !== String(activeOrgId)) return <AppShellSkeleton />
+  return <AppShell isAdmin={org.role === "admin"}>{children}</AppShell>
+}
+
+// Legacy /organizations/:id/<tab> → /org/:slug/<tab>
+function OrgIdRedirect({ tab = "" }) {
+  const { id } = useParams()
+  const { orgs, loaded } = useOrg()
+  if (!loaded) return <AppShellSkeleton />
+  const org = orgs.find((o) => String(o.id) === String(id))
+  if (!org) return <Navigate to="/organizations" replace />
+  return <Navigate to={`/org/${org.slug}${tab ? `/${tab}` : ""}`} replace />
+}
+
+// Legacy /classes → the active org's Dashboard.
+function ClassesRedirect() {
+  const { activeOrg, loaded } = useOrg()
+  if (!loaded) return <AppShellSkeleton />
+  if (!activeOrg) return <Navigate to="/organizations" replace />
+  return <Navigate to={`/org/${activeOrg.slug}`} replace />
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -231,14 +275,7 @@ export default function App() {
               </ShellProtectedRoute>
             }
           />
-          <Route
-            path="/classes"
-            element={
-              <ShellProtectedRoute>
-                <Classes />
-              </ShellProtectedRoute>
-            }
-          />
+          <Route path="/classes" element={<ClassesRedirect />} />
           <Route
             path="/classes/new"
             element={
@@ -417,14 +454,18 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/organizations/:id/members"
-            element={
-              <ShellProtectedRoute>
-                <OrgMembers />
-              </ShellProtectedRoute>
-            }
-          />
+
+          {/* Org workspace — Supabase-style /org/:slug/… */}
+          <Route path="/org/:slug" element={<OrgShellRoute><Classes /></OrgShellRoute>} />
+          <Route path="/org/:slug/members" element={<OrgShellRoute><OrgMembers /></OrgShellRoute>} />
+          <Route path="/org/:slug/roles" element={<OrgShellRoute><OrgRoles /></OrgShellRoute>} />
+          <Route path="/org/:slug/usage" element={<OrgShellRoute><Usage /></OrgShellRoute>} />
+          <Route path="/org/:slug/billing" element={<OrgShellRoute><Billing /></OrgShellRoute>} />
+          <Route path="/org/:slug/settings" element={<OrgShellRoute><OrgSettings /></OrgShellRoute>} />
+          <Route path="/org/:slug/audit" element={<OrgShellRoute><OrgAudit /></OrgShellRoute>} />
+
+          {/* Legacy /organizations/:id/* → slug routes */}
+          <Route path="/organizations/:id/members" element={<OrgIdRedirect tab="members" />} />
           <Route
             path="/accept-invite"
             element={
@@ -435,38 +476,11 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/organizations/:id/billing"
-            element={
-              <ShellProtectedRoute>
-                <Billing />
-              </ShellProtectedRoute>
-            }
-          />
-          <Route
-            path="/organizations/:id/roles"
-            element={
-              <ShellProtectedRoute>
-                <OrgRoles />
-              </ShellProtectedRoute>
-            }
-          />
-          <Route
-            path="/organizations/:id/settings"
-            element={
-              <ShellProtectedRoute>
-                <OrgSettings />
-              </ShellProtectedRoute>
-            }
-          />
-          <Route
-            path="/organizations/:id/audit"
-            element={
-              <ShellProtectedRoute>
-                <OrgAudit />
-              </ShellProtectedRoute>
-            }
-          />
+          <Route path="/organizations/:id/billing" element={<OrgIdRedirect tab="billing" />} />
+          <Route path="/organizations/:id/roles" element={<OrgIdRedirect tab="roles" />} />
+          <Route path="/organizations/:id/usage" element={<OrgIdRedirect tab="usage" />} />
+          <Route path="/organizations/:id/settings" element={<OrgIdRedirect tab="settings" />} />
+          <Route path="/organizations/:id/audit" element={<OrgIdRedirect tab="audit" />} />
           <Route
             path="/tests/:testId/students/:studentId"
             element={

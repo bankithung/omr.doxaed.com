@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react"
-import { useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { ShieldIcon } from "lucide-react"
 import { useOrg } from "@/org/OrgContext"
@@ -66,13 +65,13 @@ const COLUMNS = [
 ]
 
 export default function OrgAudit() {
-  const { id: orgId } = useParams()
-  const { orgs } = useOrg()
+  const { activeOrg } = useOrg()
+  const orgId = activeOrg?.id
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  const org = orgs.find((o) => String(o.id) === String(orgId))
+  const org = activeOrg
 
   const fetchAudit = useCallback(() => {
     setLoading(true)

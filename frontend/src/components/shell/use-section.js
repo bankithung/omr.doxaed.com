@@ -40,9 +40,11 @@ export function matchTestScope(pathname) {
  * Matches /organizations/:id/(members|billing|audit). Returns { orgId, current } or null.
  */
 export function matchOrgScope(pathname) {
-  const m = pathname.match(/^\/organizations\/([^/]+)\/(members|billing|audit|roles|settings)/)
+  const m = pathname.match(
+    /^\/org\/([^/]+)(?:\/(members|roles|usage|billing|settings|audit))?\/?$/,
+  )
   if (!m) return null
-  return { orgId: m[1], current: m[2] }
+  return { slug: m[1], current: m[2] || "dashboard" }
 }
 
 /**
@@ -91,9 +93,16 @@ export function useBreadcrumbItems(section, { orgName } = {}) {
   const orgScope = matchOrgScope(pathname)
   if (orgScope) {
     items.push({ label: "Organizations", to: "/organizations" })
-    items.push({ label: orgName ?? "Organization", to: `/organizations/${orgScope.orgId}/members` })
-    const leaf = { members: "Members", billing: "Billing", audit: "Audit", roles: "Roles & permissions", settings: "Settings" }[orgScope.current]
-    items.push({ label: leaf })
+    items.push({ label: orgName ?? "Organization", to: `/org/${orgScope.slug}` })
+    const leaf = {
+      members: "Members",
+      roles: "Roles & permissions",
+      usage: "Usage",
+      billing: "Billing",
+      settings: "Settings",
+      audit: "Audit",
+    }[orgScope.current]
+    if (orgScope.current !== "dashboard" && leaf) items.push({ label: leaf })
     return items
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { useParams } from "react-router-dom"
+import { useOrg } from "@/org/OrgContext"
 import { toast } from "sonner"
 import { X as XIcon, Plus, Check, ShieldCheck } from "lucide-react"
 import {
@@ -213,7 +213,8 @@ function AssignDialog({ members, roles, classes, onClose, onSaved }) {
 }
 
 export default function OrgRoles() {
-  const { id } = useParams() // org id from the URL (for the members endpoint)
+  const { activeOrg } = useOrg()
+  const id = activeOrg?.id // org id (for the members endpoint)
   const [catalog, setCatalog] = useState([])
   const [roles, setRoles] = useState([])
   const [members, setMembers] = useState([])

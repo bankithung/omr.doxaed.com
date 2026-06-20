@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import {
   updateOrg,
@@ -40,10 +40,10 @@ const TYPES = [
 ]
 
 export default function OrgSettings() {
-  const { id } = useParams()
   const navigate = useNavigate()
   const { activeOrg, refreshOrgs, setActiveOrg } = useOrg() ?? {}
   const { user } = useAuth()
+  const id = activeOrg?.id
 
   const [name, setName] = useState("")
   const [type, setType] = useState("other")

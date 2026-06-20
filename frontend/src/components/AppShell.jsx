@@ -202,14 +202,18 @@ function usePanel(section) {
   const orgScope = matchOrgScope(pathname)
   if (orgScope) {
     const role = activeOrg?.role
+    const s = orgScope.slug
     const items = [
-      { label: "Members", to: `/organizations/${orgScope.orgId}/members`, end: true },
-      { label: "Billing", to: `/organizations/${orgScope.orgId}/billing`, end: true },
+      { label: "Dashboard", to: `/org/${s}`, end: true },
+      { label: "Members", to: `/org/${s}/members`, end: true },
     ]
     if (role === "admin") {
-      items.push({ label: "Roles & permissions", to: `/organizations/${orgScope.orgId}/roles`, end: true })
-      items.push({ label: "Audit", to: `/organizations/${orgScope.orgId}/audit`, end: true })
-      items.push({ label: "Settings", to: `/organizations/${orgScope.orgId}/settings`, end: true })
+      items.push({ label: "Roles & permissions", to: `/org/${s}/roles`, end: true })
+    }
+    items.push({ label: "Usage", to: `/org/${s}/usage`, end: true })
+    if (role === "admin") {
+      items.push({ label: "Billing", to: `/org/${s}/billing`, end: true })
+      items.push({ label: "Settings", to: `/org/${s}/settings`, end: true })
     }
     return {
       title: activeOrg?.name ?? "Organization",
@@ -335,10 +339,10 @@ function OrgSwitcher({ compact = false }) {
   const [open, setOpen] = useState(false)
   const label = activeOrg ? activeOrg.name : "Select organization"
 
-  function handleSwitch(id) {
-    setActiveOrg(id)
+  function handleSwitch(org) {
+    setActiveOrg(String(org.id))
     setOpen(false)
-    navigate("/classes")
+    navigate(`/org/${org.slug}`)
   }
 
   return (
@@ -370,7 +374,7 @@ function OrgSwitcher({ compact = false }) {
             <CommandEmpty>No organizations found.</CommandEmpty>
             <CommandGroup heading="Organizations">
               {orgs.map((org) => (
-                <CommandItem key={org.id} value={org.name} onSelect={() => handleSwitch(org.id)}>
+                <CommandItem key={org.id} value={org.name} onSelect={() => handleSwitch(org)}>
                   <Avatar className="size-5">
                     <AvatarFallback className="text-[10px]">
                       {(org.name?.[0] ?? "O").toUpperCase()}
@@ -389,7 +393,7 @@ function OrgSwitcher({ compact = false }) {
               <button
                 onClick={() => {
                   setOpen(false)
-                  navigate(`/organizations/${activeOrg.id}/members`)
+                  navigate(`/org/${activeOrg.slug}/members`)
                 }}
                 className="flex w-full min-h-[40px] items-center gap-2 rounded-md px-2 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
               >

@@ -58,7 +58,7 @@ export default function NewOrganization() {
       } else {
         toast.success("Organization created")
       }
-      navigate("/classes")
+      navigate(`/org/${org.slug}`)
     } catch {
       toast.error("Could not create organization")
       setSubmitting(false)

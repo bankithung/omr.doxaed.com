@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react"
-import { useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
 import {
@@ -192,8 +191,8 @@ function OrgBrandingCard({ orgId }) {
 }
 
 export default function OrgMembers() {
-  const { id: orgId } = useParams()
-  const { orgs } = useOrg()
+  const { activeOrg } = useOrg()
+  const orgId = activeOrg?.id
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -208,7 +207,7 @@ export default function OrgMembers() {
   const [removeTarget, setRemoveTarget] = useState(null) // member object
   const [removing, setRemoving] = useState(false)
 
-  const org = orgs.find((o) => String(o.id) === String(orgId))
+  const org = activeOrg
   const isAdmin = org?.role === "admin"
 
   async function fetchMembers() {
