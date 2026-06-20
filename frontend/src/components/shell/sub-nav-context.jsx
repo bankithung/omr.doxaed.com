@@ -23,15 +23,15 @@ export function useSubNavState() {
  * Pass a STABLE `sections` array (module constant) + the active `value` +
  * a stable `onChange` (e.g. a useState setter).
  */
-export function useSubNav(sections, value, onChange) {
+export function useSubNav(sections, value, onChange, title = null) {
   const ctx = useContext(SubNavContext)
   const set = ctx?.setSubNav
 
   // Update on value change — no cleanup here, so switching tabs doesn't flicker
   // the bar away.
   useEffect(() => {
-    set?.({ sections, value, onChange })
-  }, [set, sections, value, onChange])
+    set?.({ sections, value, onChange, title })
+  }, [set, sections, value, onChange, title])
 
   // Clear only when the page unmounts.
   useEffect(() => {

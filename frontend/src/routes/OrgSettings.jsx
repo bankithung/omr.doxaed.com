@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/dialog"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
-import { useSubNav } from "@/components/shell/sub-nav-context"
 
 const TYPES = [
   ["personal", "Personal"],
@@ -40,22 +39,12 @@ const TYPES = [
   ["other", "Other"],
 ]
 
-// Stable section arrays (module-level) so the shell sub-bar doesn't re-register
-// on every render.
-const SECTIONS = [
-  { key: "general", label: "General" },
-  { key: "branding", label: "Sheet branding" },
-  { key: "danger", label: "Danger zone" },
-]
-const SECTIONS_NO_DANGER = SECTIONS.slice(0, 2)
-
 export default function OrgSettings() {
   const navigate = useNavigate()
   const { activeOrg, refreshOrgs, setActiveOrg } = useOrg() ?? {}
   const { user } = useAuth()
   const id = activeOrg?.id
 
-  const [tab, setTab] = useState("general")
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
   const [type, setType] = useState("other")
@@ -152,13 +141,10 @@ export default function OrgSettings() {
     }
   }
 
-  useSubNav(isOwner ? SECTIONS : SECTIONS_NO_DANGER, tab, setTab)
-
   return (
     <PageShell>
       <PageHeader title="Organization settings" description={activeOrg?.name} />
 
-      {tab === "general" && (
       <section className="max-w-lg space-y-4 rounded-xl border border-border p-4 sm:p-5">
         <h2 className="text-sm font-semibold">General</h2>
         <form onSubmit={saveGeneral} className="space-y-4">
@@ -197,9 +183,7 @@ export default function OrgSettings() {
           </Button>
         </form>
       </section>
-      )}
 
-      {tab === "branding" && (
       <section className="max-w-lg space-y-4 rounded-xl border border-border p-4 sm:p-5">
         <div>
           <h2 className="text-sm font-semibold">Sheet branding</h2>
@@ -263,9 +247,8 @@ export default function OrgSettings() {
           </Button>
         </form>
       </section>
-      )}
 
-      {tab === "danger" && isOwner && (
+      {isOwner && (
         <section className="max-w-lg space-y-3 rounded-xl border border-destructive/40 p-4 sm:p-5">
           <div>
             <h2 className="text-sm font-semibold text-destructive">Delete organization</h2>

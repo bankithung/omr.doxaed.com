@@ -66,7 +66,15 @@ import {
   PlusIcon,
   UserIcon,
   LogOutIcon,
-  ArrowLeftIcon,
+  LayoutGridIcon,
+  UsersIcon,
+  ShieldCheckIcon,
+  ActivityIcon,
+  CreditCardIcon,
+  SettingsIcon,
+  HomeIcon,
+  LayersIcon,
+  BookOpenIcon,
 } from "lucide-react"
 
 const PANEL_COLLAPSE_KEY = "nav.panel.collapsed"
@@ -171,7 +179,7 @@ function usePanel(section) {
       title: test?.title ?? "Exam",
       back: classId ? { to: `/classes/${classId}`, label: "Back to class" } : null,
       groups: [
-        { title: null, items: [{ label: "Overview", to: `/tests/${testScope.testId}`, end: true }] },
+        { title: null, items: [{ label: "Overview", to: `/tests/${testScope.testId}`, end: true, icon: HomeIcon }] },
         { title: "Lifecycle", items },
       ],
       current: testScope.current,
@@ -183,16 +191,16 @@ function usePanel(section) {
     const id = classScope.classId
     const subLabel = pluralize(childKindLabel(activeOrg?.type, cls?.kind_label))
     const items = [
-      { label: "Overview", to: `/classes/${id}`, end: true },
-      { label: subLabel, to: `/classes/${id}/groups` },
-      { label: "Exams", to: `/classes/${id}/exams` },
-      { label: "Students", to: `/classes/${id}/students` },
-      { label: "Subjects", to: `/classes/${id}/subjects` },
+      { label: "Overview", to: `/classes/${id}`, end: true, icon: HomeIcon },
+      { label: subLabel, to: `/classes/${id}/groups`, icon: LayersIcon },
+      { label: "Exams", to: `/classes/${id}/exams`, icon: FileTextIcon },
+      { label: "Students", to: `/classes/${id}/students`, icon: UsersIcon },
+      { label: "Subjects", to: `/classes/${id}/subjects`, icon: BookOpenIcon },
     ]
     if (activeOrg?.role === "admin") {
-      items.push({ label: "Teacher access", to: `/classes/${id}/access` })
+      items.push({ label: "Teacher access", to: `/classes/${id}/access`, icon: ShieldCheckIcon })
     }
-    items.push({ label: "Settings", to: `/classes/${id}/settings` })
+    items.push({ label: "Settings", to: `/classes/${id}/settings`, icon: SettingsIcon })
     return {
       title: cls?.name ?? "Class",
       back: { to: "/classes", label: "All classes" },
@@ -205,16 +213,16 @@ function usePanel(section) {
     const role = activeOrg?.role
     const s = orgScope.slug
     const items = [
-      { label: "Dashboard", to: `/org/${s}`, end: true },
-      { label: "Members", to: `/org/${s}/members`, end: true },
+      { label: "Dashboard", to: `/org/${s}`, end: true, icon: LayoutGridIcon },
+      { label: "Members", to: `/org/${s}/members`, end: true, icon: UsersIcon },
     ]
     if (role === "admin") {
-      items.push({ label: "Roles & permissions", to: `/org/${s}/roles`, end: true })
+      items.push({ label: "Roles & permissions", to: `/org/${s}/roles`, end: true, icon: ShieldCheckIcon })
     }
-    items.push({ label: "Usage", to: `/org/${s}/usage`, end: true })
+    items.push({ label: "Usage", to: `/org/${s}/usage`, end: true, icon: ActivityIcon })
     if (role === "admin") {
-      items.push({ label: "Billing", to: `/org/${s}/billing`, end: true })
-      items.push({ label: "Settings", to: `/org/${s}/settings`, end: true })
+      items.push({ label: "Billing", to: `/org/${s}/billing`, end: true, icon: CreditCardIcon })
+      items.push({ label: "Settings", to: `/org/${s}/settings`, end: true, icon: SettingsIcon })
     }
     return {
       title: activeOrg?.name ?? "Organization",
@@ -231,41 +239,62 @@ function usePanel(section) {
 
 // ─── Primary rail (w-14 icon rail + tooltips) ──────────────────────────────────
 
-function RailItem({ section, activeKey }) {
-  const Icon = section.icon
-  const active = section.key === activeKey
+function RailItem({ item }) {
+  const { to, label, icon: Icon, end, badge } = item
   return (
     <NavLink
-      to={section.to}
-      aria-label={section.label}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "mx-2 flex h-9 items-center gap-2.5 rounded-md px-2 motion-safe-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-        active
-          ? "bg-nav-active-bg text-nav-active-fg"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60",
-      )}
+      to={to}
+      end={end}
+      aria-label={label}
+      className={({ isActive }) =>
+        cn(
+          "mx-2 flex h-9 items-center gap-2.5 rounded-md px-2 motion-safe-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          isActive
+            ? "bg-nav-active-bg text-nav-active-fg"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60",
+        )
+      }
     >
-      <Icon className="size-5 shrink-0" aria-hidden="true" />
-      <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
-        {section.label}
-      </span>
+      {({ isActive }) => (
+        <>
+          {badge != null ? (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold",
+                isActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {badge}
+            </span>
+          ) : Icon ? (
+            <Icon className="size-5 shrink-0" aria-hidden="true" />
+          ) : (
+            <span className="size-5 shrink-0" aria-hidden="true" />
+          )}
+          <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
+            {label}
+          </span>
+        </>
+      )}
     </NavLink>
   )
 }
 
-function PrimaryRail({ activeKey }) {
+// The always-present root rail: hover-expands to show the CONTEXTUAL primary nav
+// (org tabs / class tabs / exam lifecycle). The brand links to All organizations
+// (the product root). No standalone "Classes" item — classes live inside an org.
+function PrimaryRail({ panel }) {
+  const items = panel?.groups?.flatMap((g) => g.items) ?? []
   return (
-    // A w-14 spacer keeps the column in the flex flow; the real rail is fixed and
-    // EXPANDS on hover (overlaying content, no reflow) so the icon labels show.
     <div className="hidden w-14 shrink-0 lg:block">
       <aside
-        aria-label="Primary"
-        className="group/rail fixed inset-y-0 left-0 z-40 flex w-14 flex-col gap-1 overflow-hidden border-r border-strong bg-canvas py-2 transition-[width] duration-200 ease-out hover:w-56 hover:shadow-overlay"
+        aria-label="Primary navigation"
+        className="group/rail fixed inset-y-0 left-0 z-40 flex w-14 flex-col gap-1 overflow-hidden border-r border-strong bg-canvas py-2 transition-[width] duration-200 ease-out hover:w-60 hover:shadow-overlay"
       >
         <Link
-          to="/classes"
-          aria-label="DoxaEd home"
+          to="/organizations"
+          aria-label="All organizations"
           className="mx-2 mb-1 flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-bold text-primary"
         >
           <span className="grid size-5 shrink-0 place-items-center">DX</span>
@@ -273,13 +302,12 @@ function PrimaryRail({ activeKey }) {
             DoxaEd OMR
           </span>
         </Link>
-        {NAV.filter((s) => !s.footer).map((s) => (
-          <RailItem key={s.key} section={s} activeKey={activeKey} />
-        ))}
-        <div className="mt-auto flex flex-col gap-1">
-          {NAV.filter((s) => s.footer).map((s) => (
-            <RailItem key={s.key} section={s} activeKey={activeKey} />
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label="Sections">
+          {items.map((item) => (
+            <RailItem key={item.to} item={item} />
           ))}
+        </nav>
+        <div className="mt-auto flex flex-col gap-1">
           <div className="mx-2 flex h-9 items-center px-0.5">
             <ThemeToggle />
           </div>
@@ -294,40 +322,46 @@ function PrimaryRail({ activeKey }) {
 
 // ─── Secondary nav (w-60 contextual panel, collapsible) ────────────────────────
 
-function SecondaryNav({ panel, collapsed, onToggle }) {
+// The secondary panel now holds the active page's SUB-TABS (registered via
+// useSubNav) — e.g. Roles / Member roles, or Settings' General / Branding /
+// Danger. It self-hides on pages without sub-tabs.
+function SecondaryNav({ collapsed, onToggle }) {
+  const { subNav } = useSubNavState() ?? {}
+  if (!subNav) return null
   return (
     <aside
-      aria-label="Secondary"
+      aria-label="Section navigation"
       className={cn(
         "hidden shrink-0 flex-col border-r border-strong bg-surface-1 transition-[width] duration-[--dur] lg:flex",
-        collapsed ? "w-0 overflow-hidden" : "w-60",
+        collapsed ? "w-0 overflow-hidden" : "w-56",
       )}
     >
       <div className="flex h-14 items-center justify-between gap-2 border-b border-border px-4">
-        <span className="truncate text-sm font-semibold tracking-tight-1">{panel.title}</span>
+        <span className="truncate text-sm font-semibold tracking-tight-1">
+          {subNav.title ?? "Sections"}
+        </span>
         <Button size="icon-sm" variant="ghost" aria-label="Collapse sidebar" onClick={onToggle}>
           <PanelLeftCloseIcon className="size-4" aria-hidden="true" />
         </Button>
       </div>
-      {panel.back && (
-        <div className="border-b border-border px-2 py-2">
-          <Link
-            to={panel.back.to}
-            className="flex min-h-[40px] items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2" aria-label="Sub-sections">
+        {subNav.sections.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => subNav.onChange(s.key)}
+            aria-current={subNav.value === s.key ? "page" : undefined}
+            className={cn(
+              "flex min-h-[40px] w-full items-center rounded-md px-2.5 py-2 text-sm font-medium motion-safe-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+              subNav.value === s.key
+                ? "bg-nav-active-bg text-nav-active-fg"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/60",
+            )}
           >
-            <ArrowLeftIcon className="size-4" aria-hidden="true" />
-            {panel.back.label}
-          </Link>
-        </div>
-      )}
-      <nav className="flex-1 overflow-y-auto py-2" aria-label="Section navigation">
-        {panel.groups.map((g) => (
-          <NavSection key={g.title} title={g.title} items={g.items} />
+            {s.label}
+          </button>
         ))}
       </nav>
-      <div className="border-t border-border p-2">
-        <OrgSwitcher compact />
-      </div>
     </aside>
   )
 }
@@ -679,40 +713,8 @@ function OrgSwitcherTopBar() {
  *   isAdmin  — accepted for back-compat with the route wrapper (no longer used:
  *              admin-only panel items are derived from the active org's role).
  */
-// ─── Sub-bar — the SECOND sidebar column for a page's sub-sections ─────────────
-// A page registers its sub-sections via useSubNav(); these render them next to
-// the always-on org/class sidebar (desktop) or as a top strip (mobile).
-
-function SubNavPanel() {
-  const { subNav } = useSubNavState() ?? {}
-  if (!subNav) return null
-  return (
-    <aside
-      aria-label="Section navigation"
-      className="hidden w-52 shrink-0 flex-col border-r border-strong bg-surface-1 lg:flex"
-    >
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-        {subNav.sections.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            onClick={() => subNav.onChange(s.key)}
-            aria-current={subNav.value === s.key ? "page" : undefined}
-            className={cn(
-              "flex min-h-[40px] w-full items-center rounded-md px-2.5 py-2 text-sm font-medium motion-safe-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-              subNav.value === s.key
-                ? "bg-nav-active-bg text-nav-active-fg"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/60",
-            )}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
-    </aside>
-  )
-}
-
+// On mobile the page's sub-sections render as a top strip (desktop uses the
+// SecondaryNav panel).
 function SubNavMobile() {
   const { subNav } = useSubNavState() ?? {}
   if (!subNav) return null
@@ -766,11 +768,8 @@ export default function AppShell({ children }) {
   return (
     <SubNavProvider>
       <div className="app-density flex min-h-screen bg-canvas text-foreground">
-        <PrimaryRail activeKey={section.key} />
-        {hasPanel && (
-          <SecondaryNav panel={panel} collapsed={collapsed} onToggle={toggleCollapsed} />
-        )}
-        <SubNavPanel />
+        <PrimaryRail panel={panel} />
+        <SecondaryNav collapsed={collapsed} onToggle={toggleCollapsed} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
             section={section}

@@ -282,7 +282,7 @@ export default function OrgRoles() {
 
   const scopeName = (gid) => classes.find((c) => c.id === gid)?.name
 
-  useSubNav(ROLES_SECTIONS, tab, setTab)
+  useSubNav(ROLES_SECTIONS, tab, setTab, "Roles & permissions")
 
   return (
     <PageShell>
