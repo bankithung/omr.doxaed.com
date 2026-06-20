@@ -710,18 +710,22 @@ export default function TestWizard() {
   }
 
   return (
-    <PageShell className="max-w-3xl">
-      {/* Page header */}
-      <div>
+    <div className="min-h-screen bg-canvas">
+      {/* Standalone top bar — no app sidebar for this focused flow. */}
+      <header className="sticky top-0 z-10 flex h-14 items-center border-b border-border bg-canvas px-4 sm:px-6">
         <button
           type="button"
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="flex min-h-[40px] items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
           onClick={() => navigate(`/classes/${classId}`)}
         >
           ← Back to class
         </button>
-        <h1 className="mt-2 font-heading text-2xl font-bold tracking-tight">Create test</h1>
-      </div>
+      </header>
+      <PageShell className="max-w-3xl">
+        {/* Page header */}
+        <div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight">Create test</h1>
+        </div>
 
       {/* Step indicator — compact under md, full horizontal stepper ≥md */}
       <StepperCompact steps={WIZARD_STEPS} current={step} className="md:hidden" />
@@ -750,6 +754,7 @@ export default function TestWizard() {
           onBack={() => setStep(1)}
         />
       )}
-    </PageShell>
+      </PageShell>
+    </div>
   )
 }

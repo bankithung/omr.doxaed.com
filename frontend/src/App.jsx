@@ -359,9 +359,9 @@ export default function App() {
           <Route
             path="/classes/:classId/tests/new"
             element={
-              <ShellProtectedRoute>
+              <ProtectedRoute>
                 <TestWizard />
-              </ShellProtectedRoute>
+              </ProtectedRoute>
             }
           />
           <Route
