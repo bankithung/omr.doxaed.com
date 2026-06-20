@@ -80,6 +80,8 @@ export function useBreadcrumbItems(section, { orgName } = {}) {
   const parentCls = useClass(cls?.parent ?? null)
   const test = useTest(testScope ? testScope.testId : null)
   const testClass = useClass(test?.class_group ?? null)
+  // If the exam belongs to a section, its parent class for the breadcrumb.
+  const testParentClass = useClass(testClass?.parent ?? null)
   const items = []
 
   if (classScope) {
@@ -114,6 +116,9 @@ export function useBreadcrumbItems(section, { orgName } = {}) {
 
   if (testScope) {
     items.push({ label: "Classes", to: "/classes" })
+    if (testClass?.parent && testParentClass) {
+      items.push({ label: testParentClass.name, to: `/classes/${testParentClass.id}` })
+    }
     if (testClass) items.push({ label: testClass.name, to: `/classes/${testClass.id}` })
     items.push({ label: test?.title ?? "Exam", to: `/tests/${testScope.testId}` })
     const leaf = {
