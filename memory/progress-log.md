@@ -158,3 +158,9 @@
   → sets Test.class_group to the chosen tree node; class Exams list, class Overview counts, and the
   Generate roster picker all aggregate the class+section subtree (section badges/labels + filters).
   Students page → single filterable list; Subjects page polished. Screenshot-verified; lint/build clean.
+
+- 2026-06-19 — **Exam workspace completed + E2E restored**. Built the exam Overview hub
+  (/tests/:id) and a post-creation Questions editor (/tests/:id/questions: add/edit/delete/save
+  with answer keys), extracted QuestionEditor to features/test/QuestionEditor.jsx (shared with the
+  wizard), wired Build→questions + an Overview nav item. Restored e2e/run.mjs for the org-first IA
+  (UI auth + OMR pipeline, API setup for org/class/students) — Chromium full loop green (14 steps).
