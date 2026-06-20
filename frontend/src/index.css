@@ -366,3 +366,34 @@
   .landing-anim .landing-deal { opacity: 1 !important; transform: none !important; }
   .landing-anim .landing-scanline { display: none !important; }
 }
+
+/* ── Thin, subtle scrollbars everywhere ─────────────────────────────────────── */
+* {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+/* Utility: fully hide a scrollbar (content still scrolls) — for the icon rail. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

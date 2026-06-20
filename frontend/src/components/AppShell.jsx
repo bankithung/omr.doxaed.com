@@ -318,7 +318,7 @@ function PrimaryRail({ panel }) {
             </span>
           </Link>
         )}
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label="Sections">
+        <nav className="no-scrollbar flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label="Sections">
           {items.map((item) => (
             <RailItem key={item.to} item={item} />
           ))}

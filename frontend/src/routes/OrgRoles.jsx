@@ -85,7 +85,7 @@ function RoleDialog({ role, catalog, onClose, onSaved }) {
 
   return (
     <Dialog open onOpenChange={(o) => !saving && !o && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[88vh] w-[95vw] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editing ? `Edit role — ${role.name}` : "New role"}</DialogTitle>
         </DialogHeader>
@@ -168,7 +168,7 @@ function AssignDialog({ members, roles, classes, onClose, onSaved }) {
 
   return (
     <Dialog open onOpenChange={(o) => !saving && !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[88vh] w-[95vw] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Assign a role</DialogTitle>
         </DialogHeader>
