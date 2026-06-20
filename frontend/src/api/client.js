@@ -108,4 +108,6 @@ export const authApi = {
   passwordResetConfirm: (d) => api.post("/auth/password-reset-confirm/", d),
   me: () => api.get("/auth/me/"),
   updateMe: (d) => api.patch("/auth/me/", d),
+  changePassword: (d) => api.post("/auth/change-password/", d),
+  deleteAccount: (password) => api.post("/auth/delete-account/", { password }),
 }

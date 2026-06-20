@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { UserIcon, ShieldIcon } from "lucide-react"
+import { UserIcon, ShieldIcon, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/auth/AuthContext"
 import { authApi } from "@/api/client"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,15 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
 import { cn } from "@/lib/utils"
@@ -50,6 +59,15 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [sendingReset, setSendingReset] = useState(false)
   const [active, setActive] = useState("account")
+  // Change password
+  const [curPw, setCurPw] = useState("")
+  const [newPw, setNewPw] = useState("")
+  const [confirmPw, setConfirmPw] = useState("")
+  const [changingPw, setChangingPw] = useState(false)
+  // Delete account
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deletePw, setDeletePw] = useState("")
+  const [deleting, setDeleting] = useState(false)
 
   // Save is disabled until the form is dirty (name differs from the stored value).
   const dirty = fullName.trim() !== (user?.full_name ?? "").trim()
@@ -82,6 +100,51 @@ export default function Profile() {
     }
   }
 
+  async function handleChangePassword(e) {
+    e.preventDefault()
+    if (newPw.length < 8) {
+      toast.error("New password must be at least 8 characters")
+      return
+    }
+    if (newPw !== confirmPw) {
+      toast.error("New passwords don't match")
+      return
+    }
+    setChangingPw(true)
+    try {
+      await authApi.changePassword({ current_password: curPw, new_password: newPw })
+      toast.success("Password changed")
+      setCurPw("")
+      setNewPw("")
+      setConfirmPw("")
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to change password")
+    } finally {
+      setChangingPw(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!deletePw) {
+      toast.error("Enter your password to confirm")
+      return
+    }
+    setDeleting(true)
+    try {
+      await authApi.deleteAccount(deletePw)
+      toast.success("Account deleted")
+      // The account is gone server-side — clear the session locally and leave.
+      localStorage.removeItem("access")
+      localStorage.removeItem("refresh")
+      localStorage.removeItem("activeOrg")
+      setUser(null)
+      navigate("/register")
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to delete account")
+      setDeleting(false)
+    }
+  }
+
   async function handleLogout() {
     await logout()
     navigate("/login")
@@ -95,8 +158,18 @@ export default function Profile() {
   }
 
   return (
-    <PageShell>
-      <PageHeader title="Profile" description="Manage your account settings" />
+    <div className="min-h-screen bg-canvas">
+      <header className="sticky top-0 z-10 flex h-14 items-center border-b border-border bg-canvas px-4 sm:px-6">
+        <button
+          type="button"
+          onClick={() => navigate("/organizations")}
+          className="flex min-h-[40px] items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" /> All organizations
+        </button>
+      </header>
+      <PageShell>
+        <PageHeader title="Profile" description="Manage your account settings" />
 
       {/* Mobile sub-nav: horizontal tabs */}
       <nav
@@ -214,51 +287,139 @@ export default function Profile() {
 
           {/* ── Security ── */}
           <Card id="settings-security">
-            <CardHeader className="flex-col items-start gap-1">
-              <CardTitle>Security</CardTitle>
-              <CardDescription>
-                Manage your password and account access.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <SettingsRow
-                title="Password"
-                description="We'll email you a secure link to set a new password."
-              >
-                <Button
+            <form onSubmit={handleChangePassword}>
+              <CardHeader className="flex-col items-start gap-1">
+                <CardTitle>Password</CardTitle>
+                <CardDescription>
+                  Change your password — you'll stay signed in on this device.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:max-w-sm">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cur-pw">Current password</Label>
+                    <Input
+                      id="cur-pw"
+                      type="password"
+                      autoComplete="current-password"
+                      value={curPw}
+                      onChange={(e) => setCurPw(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-pw">New password</Label>
+                    <Input
+                      id="new-pw"
+                      type="password"
+                      autoComplete="new-password"
+                      value={newPw}
+                      onChange={(e) => setNewPw(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirm-pw">Confirm new password</Label>
+                    <Input
+                      id="confirm-pw"
+                      type="password"
+                      autoComplete="new-password"
+                      value={confirmPw}
+                      onChange={(e) => setConfirmPw(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="min-h-[40px]"
                   onClick={handleSendReset}
                   disabled={sendingReset || !user?.email}
+                  className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
                 >
-                  {sendingReset ? "Sending…" : "Send password reset link"}
+                  {sendingReset ? "Sending…" : "Forgot your current password? Email a reset link"}
+                </button>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="min-h-[40px]"
+                  disabled={changingPw || !curPw || !newPw}
+                >
+                  {changingPw ? "Changing…" : "Change password"}
                 </Button>
-              </SettingsRow>
+              </CardFooter>
+            </form>
+          </Card>
+
+          {/* ── Session ── */}
+          <Card>
+            <CardHeader className="flex-col items-start gap-1">
+              <CardTitle>Sign out</CardTitle>
+              <CardDescription>End your session on this device.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="min-h-[40px]" onClick={handleLogout}>
+                Sign out
+              </Button>
             </CardContent>
           </Card>
 
           {/* ── Danger zone ── */}
-          <Card className="border-destructive/30">
+          <Card className="border-destructive/40">
             <CardHeader className="flex-col items-start gap-1">
-              <CardTitle>Sign out</CardTitle>
+              <CardTitle className="text-destructive">Delete account</CardTitle>
               <CardDescription>
-                End your session on this device.
+                Permanently delete your account and every organization you own — with all
+                their classes, exams and students. This can't be undone.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button
                 variant="destructive"
                 className="min-h-[40px]"
-                onClick={handleLogout}
+                onClick={() => {
+                  setDeletePw("")
+                  setDeleteOpen(true)
+                }}
               >
-                Sign out
+                Delete my account
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    </PageShell>
+
+      {/* Delete-account confirmation */}
+      <Dialog open={deleteOpen} onOpenChange={(o) => !deleting && setDeleteOpen(o)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete account</DialogTitle>
+            <DialogDescription>
+              This permanently deletes your account and everything you own. Enter your
+              password to confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="del-pw">Password</Label>
+            <Input
+              id="del-pw"
+              type="password"
+              autoComplete="current-password"
+              value={deletePw}
+              onChange={(e) => setDeletePw(e.target.value)}
+              placeholder="Your password"
+            />
+          </div>
+          <DialogFooter showCloseButton>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deleting || !deletePw}
+            >
+              {deleting ? "Deleting…" : "Delete account"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </PageShell>
+    </div>
   )
 }

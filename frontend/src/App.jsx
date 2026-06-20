@@ -270,9 +270,9 @@ export default function App() {
           <Route
             path="/profile"
             element={
-              <ShellProtectedRoute>
+              <ProtectedRoute>
                 <Profile />
-              </ShellProtectedRoute>
+              </ProtectedRoute>
             }
           />
           <Route path="/classes" element={<ClassesRedirect />} />

@@ -147,6 +147,57 @@ class MeView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+class ChangePasswordView(APIView):
+    """Authenticated password change: verify the current password, set a new one.
+
+    Distinct from the email-based reset (for users who are LOGGED IN and know
+    their current password). Runs Django's password validators on the new value.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current = request.data.get("current_password") or ""
+        new = request.data.get("new_password") or ""
+        if not user.check_password(current):
+            return Response(
+                {"detail": "Current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_password(new, user=user)
+        except DjangoValidationError as exc:
+            return Response(
+                {"detail": " ".join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        user.set_password(new)
+        user.save(update_fields=["password"])
+        return Response({"detail": "Password changed."})
+
+
+class DeleteAccountView(APIView):
+    """Permanently delete the authenticated user's account.
+
+    Requires the current password as confirmation. Organizations the user OWNS
+    (and all their classes/exams/students) cascade-delete with the account
+    (Organization.owner is on_delete=CASCADE); memberships in others' orgs are
+    removed too. This is irreversible.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        password = request.data.get("password") or ""
+        if not user.check_password(password):
+            return Response(
+                {"detail": "Password is incorrect."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class GoogleLoginView(APIView):
     """Sign in (or sign up) with a Google ID token.
 

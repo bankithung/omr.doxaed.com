@@ -71,12 +71,20 @@ export default function OrgList() {
       {/* Minimal top bar — no sidebar at this level */}
       <header className="flex h-14 items-center justify-between border-b border-border px-4 sm:px-6">
         <span className="text-sm font-bold tracking-tight text-primary">DoxaEd OMR</span>
-        <div className="flex items-center gap-3">
-          {user?.email && (
-            <span className="hidden max-w-[180px] truncate text-sm text-muted-foreground sm:block">
-              {user.email}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/profile")}
+            className="flex min-h-[40px] items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Account settings"
+          >
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+              {(user?.email?.[0] ?? "U").toUpperCase()}
             </span>
-          )}
+            {user?.email && (
+              <span className="hidden max-w-[180px] truncate sm:block">{user.email}</span>
+            )}
+          </button>
           <Button variant="ghost" size="sm" className="min-h-[40px]" onClick={handleLogout}>
             <LogOut className="size-4" aria-hidden="true" /> Sign out
           </Button>
