@@ -186,6 +186,26 @@ class InviteView(APIView):
         email = serializer.validated_data["email"]
         role = serializer.validated_data["role"]
 
+        # Granular RBAC role (optional) — derive the coarse membership role from it
+        # so the admin gate stays consistent (Owner/Admin → admin, else member).
+        from organizations.models import Role
+        from organizations.permissions_catalog import ADMIN_ROLE_NAMES
+
+        rbac_role = None
+        rbac_role_id = request.data.get("rbac_role")
+        if rbac_role_id:
+            rbac_role = Role.objects.filter(organization=org, id=rbac_role_id).first()
+            if rbac_role is None:
+                return Response(
+                    {"detail": "Invalid role for this organization."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            role = (
+                OrganizationMembership.ADMIN
+                if rbac_role.name in ADMIN_ROLE_NAMES
+                else OrganizationMembership.MEMBER
+            )
+
         # Check for existing active membership with that email.
         target_user = User.objects.filter(email__iexact=email).first()
         if target_user:
@@ -204,6 +224,7 @@ class InviteView(APIView):
             organization=org,
             email=email,
             role=role,
+            rbac_role=rbac_role,
             invited_by=request.user,
             expires_at=timezone.now() + timezone.timedelta(days=7),
         )
@@ -302,6 +323,18 @@ class AcceptInviteView(APIView):
             membership.role = invitation.role
             membership.status = OrganizationMembership.ACTIVE
             membership.save(update_fields=["role", "status"])
+
+        # Apply the granular RBAC role as an org-wide binding.
+        if invitation.rbac_role_id:
+            from organizations.models import RoleBinding
+
+            RoleBinding.objects.get_or_create(
+                organization=org,
+                user=request.user,
+                role=invitation.rbac_role,
+                scope_group=None,
+                defaults={"granted_by": invitation.invited_by},
+            )
 
         # Mark invitation accepted.
         invitation.accepted_at = timezone.now()

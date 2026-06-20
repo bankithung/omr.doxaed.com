@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { useOrg } from "@/org/OrgContext"
 import {
@@ -6,10 +6,21 @@ import {
   invite,
   setMemberRole,
   removeMember,
+  listRoles,
+  listRoleBindings,
+  createRoleBinding,
+  deleteRoleBinding,
 } from "@/api/orgs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,20 +40,22 @@ import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
 import { ChevronDownIcon, UserPlusIcon } from "lucide-react"
 
-const ROLES = ["admin", "member"]
-const ROLE_LABELS = { admin: "Admin", member: "Member" }
+// Roles whose holders are org admins (keeps the membership admin/member gate in sync).
+const ADMIN_ROLE_NAMES = ["Owner", "Admin"]
 
 export default function OrgMembers() {
   const { activeOrg } = useOrg()
   const orgId = activeOrg?.id
   const [members, setMembers] = useState([])
+  const [roles, setRoles] = useState([])
+  const [bindings, setBindings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   // Invite dialog
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState("member")
+  const [inviteRoleId, setInviteRoleId] = useState("")
   const [inviting, setInviting] = useState(false)
 
   // Remove confirm dialog
@@ -52,23 +65,41 @@ export default function OrgMembers() {
   const org = activeOrg
   const isAdmin = org?.role === "admin"
 
-  async function fetchMembers() {
+  // Roles assignable on invite / change — exclude Owner (there's exactly one).
+  const assignableRoles = roles.filter((r) => r.name !== "Owner")
+  const defaultRoleId = String(
+    assignableRoles.find((r) => r.name === "Teacher")?.id ?? assignableRoles[0]?.id ?? "",
+  )
+
+  const fetchAll = useCallback(async () => {
+    if (!orgId) return
     setLoading(true)
     setError(false)
     try {
-      const data = await getMembers(orgId)
-      setMembers(data.results ?? data)
+      const [m, r, b] = await Promise.all([getMembers(orgId), listRoles(), listRoleBindings()])
+      setMembers(m.results ?? m)
+      setRoles(r.results ?? r)
+      setBindings(b.results ?? b)
     } catch {
       setError(true)
       toast.error("Failed to load members")
     } finally {
       setLoading(false)
     }
-  }
+  }, [orgId])
 
   useEffect(() => {
-    fetchMembers()
-  }, [orgId]) // eslint-disable-line react-hooks/exhaustive-deps
+    fetchAll()
+  }, [fetchAll])
+
+  // The member's org-wide role = their binding with no scope; else fall back to
+  // the coarse membership role for legacy members without a binding.
+  function orgWideRoleName(m) {
+    const userId = m.user_id ?? m.id
+    const b = bindings.find((bb) => String(bb.user) === String(userId) && !bb.scope_group)
+    if (b) return b.role_name
+    return m.role === "admin" ? "Admin" : "Member"
+  }
 
   async function handleInvite(e) {
     e.preventDefault()
@@ -76,36 +107,50 @@ export default function OrgMembers() {
       toast.error("Email is required")
       return
     }
+    const roleId = inviteRoleId || defaultRoleId
+    if (!roleId) {
+      toast.error("Pick a role")
+      return
+    }
     setInviting(true)
     try {
-      await invite(orgId, inviteEmail.trim(), inviteRole)
+      await invite(orgId, inviteEmail.trim(), Number(roleId))
       toast.success(`Invitation sent to ${inviteEmail.trim()}`)
       setInviteOpen(false)
       setInviteEmail("")
-      setInviteRole("member")
-      fetchMembers()
+      setInviteRoleId("")
+      fetchAll()
     } catch (err) {
-      const msg =
+      toast.error(
         err?.response?.data?.detail ||
-        err?.response?.data?.email?.[0] ||
-        "Failed to send invitation"
-      toast.error(msg)
+          err?.response?.data?.email?.[0] ||
+          "Failed to send invitation",
+      )
     } finally {
       setInviting(false)
     }
   }
 
-  async function handleRoleChange(member, newRole) {
+  async function handleRoleChange(member, newRoleId) {
+    const userId = member.user_id ?? member.id
+    const role = roles.find((r) => String(r.id) === String(newRoleId))
+    const membershipRole = ADMIN_ROLE_NAMES.includes(role?.name) ? "admin" : "member"
     try {
-      await setMemberRole(orgId, member.user_id ?? member.id, newRole)
-      toast.success(`${member.email} is now ${ROLE_LABELS[newRole]}`)
-      fetchMembers()
+      // Sync the coarse role first — this enforces last-admin protection.
+      await setMemberRole(orgId, userId, membershipRole)
+      // Replace the member's org-wide binding with the new role.
+      const existing = bindings.filter(
+        (b) => String(b.user) === String(userId) && !b.scope_group,
+      )
+      for (const b of existing) await deleteRoleBinding(b.id)
+      await createRoleBinding({ user: userId, role: Number(newRoleId), scope_group: null })
+      toast.success(`${member.email} is now ${role?.name}`)
+      fetchAll()
     } catch (err) {
-      const msg =
+      toast.error(
         err?.response?.data?.detail ||
-        (err?.response?.status === 400 ? "Cannot demote the last admin" : null) ||
-        "Failed to change role"
-      toast.error(msg)
+          (err?.response?.status === 400 ? "Cannot demote the last admin" : "Failed to change role"),
+      )
     }
   }
 
@@ -116,22 +161,19 @@ export default function OrgMembers() {
       await removeMember(orgId, removeTarget.user_id ?? removeTarget.id)
       toast.success(`${removeTarget.email} removed`)
       setRemoveTarget(null)
-      fetchMembers()
+      fetchAll()
     } catch (err) {
-      const msg =
+      toast.error(
         err?.response?.data?.detail ||
-        (err?.response?.status === 400 ? "Cannot remove the last admin" : null) ||
-        (err?.response?.status === 403
-          ? "Not authorized to remove this member"
-          : null) ||
-        "Failed to remove member"
-      toast.error(msg)
+          (err?.response?.status === 400 ? "Cannot remove the last admin" : null) ||
+          (err?.response?.status === 403 ? "Not authorized to remove this member" : null) ||
+          "Failed to remove member",
+      )
     } finally {
       setRemoving(false)
     }
   }
 
-  // Columns are derived per-render so they capture isAdmin + handlers.
   const columns = [
     {
       key: "email",
@@ -146,35 +188,31 @@ export default function OrgMembers() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="min-h-[40px]">
-                {ROLE_LABELS[m.role] ?? m.role}
+                {orgWideRoleName(m)}
                 <ChevronDownIcon className="ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {ROLES.map((r) => (
+              {roles.map((r) => (
                 <DropdownMenuItem
-                  key={r}
-                  disabled={r === m.role}
-                  onSelect={() => handleRoleChange(m, r)}
+                  key={r.id}
+                  disabled={r.name === orgWideRoleName(m)}
+                  onSelect={() => handleRoleChange(m, r.id)}
                 >
-                  {ROLE_LABELS[r]}
+                  {r.name}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Badge variant={m.role === "admin" ? "info" : "neutral"}>
-            {ROLE_LABELS[m.role] ?? m.role}
-          </Badge>
+          <Badge variant="info">{orgWideRoleName(m)}</Badge>
         ),
     },
     {
       key: "status",
       header: "Status",
       cell: (m) => (
-        <span className="text-sm capitalize text-muted-foreground">
-          {m.status ?? "active"}
-        </span>
+        <span className="text-sm capitalize text-muted-foreground">{m.status ?? "active"}</span>
       ),
     },
     ...(isAdmin
@@ -211,7 +249,7 @@ export default function OrgMembers() {
             <Button
               onClick={() => {
                 setInviteEmail("")
-                setInviteRole("member")
+                setInviteRoleId(defaultRoleId)
                 setInviteOpen(true)
               }}
             >
@@ -222,13 +260,18 @@ export default function OrgMembers() {
         }
       />
 
+      <p className="text-sm text-muted-foreground">
+        Each member holds an organization role. Scope someone to specific classes in{" "}
+        <strong>Roles &amp; permissions → Member roles</strong>.
+      </p>
+
       <DataTable
         columns={columns}
         rows={members}
         getRowKey={(m) => m.user_id ?? m.id ?? m.email}
         loading={loading}
         error={error}
-        onRetry={fetchMembers}
+        onRetry={fetchAll}
         empty={{
           icon: UserPlusIcon,
           title: "No members yet",
@@ -258,24 +301,22 @@ export default function OrgMembers() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Role</Label>
-              <div className="flex gap-2">
-                {ROLES.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setInviteRole(r)}
-                    className={[
-                      "min-h-[40px] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
-                      inviteRole === r
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background text-foreground hover:bg-muted",
-                    ].join(" ")}
-                  >
-                    {ROLE_LABELS[r]}
-                  </button>
-                ))}
-              </div>
+              <Label htmlFor="invite-role">Role</Label>
+              <Select value={inviteRoleId || defaultRoleId} onValueChange={setInviteRoleId}>
+                <SelectTrigger id="invite-role" className="min-h-[40px] w-full">
+                  <SelectValue placeholder="Select a role…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignableRoles.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Sets what they can do org-wide. You can scope them to specific classes later.
+              </p>
             </div>
             <DialogFooter showCloseButton>
               <Button type="submit" disabled={inviting}>
@@ -287,17 +328,13 @@ export default function OrgMembers() {
       </Dialog>
 
       {/* Remove confirm dialog */}
-      <Dialog
-        open={!!removeTarget}
-        onOpenChange={(open) => !open && setRemoveTarget(null)}
-      >
+      <Dialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove member</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Remove <strong>{removeTarget?.email}</strong> from this organization?
-            This cannot be undone.
+            Remove <strong>{removeTarget?.email}</strong> from this organization? This cannot be undone.
           </p>
           <DialogFooter showCloseButton>
             <Button

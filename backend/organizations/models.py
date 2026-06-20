@@ -107,10 +107,20 @@ class Invitation(models.Model):
     )
     email = models.EmailField()
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    # Coarse membership role (admin/member) — the admin gate. Derived from rbac_role.
     role = models.CharField(
         max_length=10,
         choices=OrganizationMembership.ROLE_CHOICES,
         default=OrganizationMembership.MEMBER,
+    )
+    # The granular RBAC role the invitee will hold; an org-wide RoleBinding is
+    # created from it on accept. Null = legacy admin/member-only invite.
+    rbac_role = models.ForeignKey(
+        "organizations.Role",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
     )
     invited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -18,8 +18,8 @@ export const deleteOrg = (orgId) =>
 export const getMembers = (orgId) =>
   api.get(`/organizations/${orgId}/members/`).then((r) => r.data)
 
-export const invite = (orgId, email, role) =>
-  api.post(`/organizations/${orgId}/invite/`, { email, role }).then((r) => r.data)
+export const invite = (orgId, email, rbacRoleId) =>
+  api.post(`/organizations/${orgId}/invite/`, { email, rbac_role: rbacRoleId }).then((r) => r.data)
 
 export const acceptInvite = (token) =>
   api.post("/invitations/accept/", { token }).then((r) => r.data)

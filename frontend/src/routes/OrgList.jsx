@@ -83,7 +83,7 @@ export default function OrgList() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Organizations</h1>
@@ -95,7 +95,7 @@ export default function OrgList() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-[68px] w-full rounded-xl" />
             ))}
@@ -112,7 +112,7 @@ export default function OrgList() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {orgs.map((org) => (
               <OrgCard key={org.id} org={org} onOpen={openOrg} />
             ))}
