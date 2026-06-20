@@ -57,8 +57,8 @@ class OmrSheetSerializer(serializers.ModelSerializer):
 class GenerateSerializer(serializers.Serializer):
     """Validates the generation request body."""
 
-    test = serializers.IntegerField()
-    roster = serializers.IntegerField()
+    test = serializers.UUIDField()
+    roster = serializers.UUIDField()
     shuffle_questions = serializers.BooleanField(default=False)
     shuffle_options = serializers.BooleanField(default=False)
     emit_question_paper = serializers.BooleanField(default=False)

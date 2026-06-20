@@ -284,7 +284,9 @@ class GenerateView(APIView):
         # Build question dicts for shuffle
         question_dicts = [
             {
-                "id": q.id,
+                # str() the UUID so the sheet plan (question_order / option_order)
+                # is JSON-serializable when stored on the OmrSheet's JSONFields.
+                "id": str(q.id),
                 "options": [
                     {"label": o.label, "is_correct": o.is_correct}
                     for o in q.options.order_by("label", "id")

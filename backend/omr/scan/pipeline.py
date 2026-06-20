@@ -19,6 +19,8 @@ _maybe_grade(omr_sheet)
 
 from __future__ import annotations
 
+import uuid
+
 import cv2
 import numpy as np
 from decimal import Decimal
@@ -515,21 +517,18 @@ def _flag_to_reason(flag: str) -> str | None:
     return mapping.get(flag)
 
 
-def _parse_test_id_from_sheet_code(sheet_code: str) -> int | None:
+def _parse_test_id_from_sheet_code(sheet_code: str):
     """
-    Parse the test_id from a sheet_code of the form "{test_id:06d}-{token}".
+    Parse the test UUID from a sheet_code of the form "{test_uuid_hex}-{token}".
 
-    Returns the integer test_id if the format is recognised, or None if the
-    code is not in a parseable format (legacy tolerance: never crash).
-
-    The format is defined by omr.codes.make_sheet_code:
-        sheet_code = f"{test_id:06d}-{token}"
-
-    The leading zero-padded 6-digit decimal before the first '-' is the test_id.
+    Returns the test's UUID if the prefix is a valid hex UUID, or None if the
+    code is not parseable (legacy tolerance: never crash). This is an early
+    sanity check; the OmrSheet lookup by full sheet_code + test still enforces
+    the match downstream.
     """
     try:
         prefix = sheet_code.split("-")[0]
-        return int(prefix)
+        return uuid.UUID(hex=prefix)
     except (ValueError, IndexError, AttributeError):
         return None
 
