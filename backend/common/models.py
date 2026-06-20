@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -6,7 +8,14 @@ from django.db.models import Q
 from common.managers import ScopedManager
 
 
-class OwnerScopedModel(models.Model):
+class UUIDModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    class Meta:
+        abstract = True
+
+
+class OwnerScopedModel(UUIDModel):
     """Abstract base: every tenant-owned row is owned by exactly one of `user` (solo) or
     `organization`. Enforced in the DB via a CheckConstraint and in Python via clean()."""
 

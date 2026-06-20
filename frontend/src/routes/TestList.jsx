@@ -161,7 +161,7 @@ export function SubjectsSection({ classId }) {
     }
     setAdding(true)
     try {
-      await createSubject({ class_group: Number(classId), name: name.trim() })
+      await createSubject({ class_group: classId, name: name.trim() })
       setName("")
       toast.success("Subject added")
       fetchSubjects()
@@ -291,7 +291,7 @@ export function RostersSection({ classId }) {
     }
     setAdding(true)
     try {
-      await createRoster({ name: name.trim(), class_group: Number(classId) })
+      await createRoster({ name: name.trim(), class_group: classId })
       setName("")
       toast.success("Roster added")
       fetchRosters()
@@ -496,8 +496,8 @@ export function AccessSection({ classId }) {
     setAdding(true)
     try {
       await createClassGrant({
-        user: Number(addUserId),
-        class_group: Number(classId),
+        user: addUserId,
+        class_group: classId,
         all_subjects: true,
       })
       setAddUserId("")
@@ -681,7 +681,7 @@ export function ExamsSection({ classId }) {
       const secs = secD.results ?? secD
       setSections(secs)
       const groups = [
-        { id: Number(classId), label: null },
+        { id: classId, label: null },
         ...secs.map((s) => ({ id: s.id, label: s.name })),
       ]
       const perGroup = await Promise.all(

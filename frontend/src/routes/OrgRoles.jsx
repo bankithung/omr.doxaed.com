@@ -153,8 +153,8 @@ function AssignDialog({ members, roles, classes, onClose, onSaved }) {
     setSaving(true)
     try {
       await createRoleBinding({
-        user: Number(userId),
-        role: Number(roleId),
+        user: userId,
+        role: roleId,
         scope_group: scope === ORG_WIDE ? null : Number(scope),
       })
       toast.success("Role assigned")

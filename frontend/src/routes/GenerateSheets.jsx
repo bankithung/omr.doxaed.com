@@ -180,8 +180,8 @@ export default function GenerateSheets() {
     setPaperBatchUrl(null)
     try {
       const resp = await generateSheets({
-        test: Number(testId),
-        roster: Number(rosterId),
+        test: testId,
+        roster: rosterId,
         shuffle_questions: shuffleQuestions,
         shuffle_options: shuffleOptions,
       })

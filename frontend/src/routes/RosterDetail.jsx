@@ -253,8 +253,8 @@ export default function RosterDetail() {
         description={`${students.length} student${students.length !== 1 ? "s" : ""}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <AddStudentDialog rosterId={Number(id)} onAdded={fetchData} />
-            <AddBlankSheetsDialog rosterId={Number(id)} onAdded={fetchData} />
+            <AddStudentDialog rosterId={id} onAdded={fetchData} />
+            <AddBlankSheetsDialog rosterId={id} onAdded={fetchData} />
           </div>
         }
       />
@@ -266,8 +266,8 @@ export default function RosterDetail() {
           description="Add individual students or create numbered blank sheets."
           action={
             <div className="flex gap-2">
-              <AddStudentDialog rosterId={Number(id)} onAdded={fetchData} />
-              <AddBlankSheetsDialog rosterId={Number(id)} onAdded={fetchData} />
+              <AddStudentDialog rosterId={id} onAdded={fetchData} />
+              <AddBlankSheetsDialog rosterId={id} onAdded={fetchData} />
             </div>
           }
         />

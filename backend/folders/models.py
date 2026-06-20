@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from common.models import OwnerScopedModel
+from common.models import OwnerScopedModel, UUIDModel
 
 
 class Folder(OwnerScopedModel):
@@ -27,7 +27,7 @@ class Folder(OwnerScopedModel):
         return self.name
 
 
-class FolderShare(models.Model):
+class FolderShare(UUIDModel):
     SHARE_MEMBER = "member"
     SHARE_ORG = "org"
     PERM_VIEW = "view"

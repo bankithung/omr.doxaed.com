@@ -4,8 +4,10 @@ from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from django.db import models
 
+from common.models import UUIDModel
 
-class PublicResultShare(models.Model):
+
+class PublicResultShare(UUIDModel):
     """
     Teacher-controlled public portal for sharing test results.
 
@@ -60,7 +62,7 @@ class PublicResultShare(models.Model):
         super().save(*args, **kwargs)
 
 
-class StudentResult(models.Model):
+class StudentResult(UUIDModel):
     """
     Graded result for one student on one test.
     Child-scoped via test; queryset must be filtered through test__user=request.user.
@@ -105,7 +107,7 @@ class StudentResult(models.Model):
         return f"StudentResult test={self.test_id} student={self.student_id} score={self.score}"
 
 
-class QuestionResponse(models.Model):
+class QuestionResponse(UUIDModel):
     """
     Per-question read + grading outcome within a StudentResult.
     """
@@ -142,7 +144,7 @@ class QuestionResponse(models.Model):
         return f"QuestionResponse result={self.student_result_id} q_pos={self.q_pos}"
 
 
-class ReviewItem(models.Model):
+class ReviewItem(UUIDModel):
     """
     Manual review queue entry — one per flag raised during scanning/grading.
     """

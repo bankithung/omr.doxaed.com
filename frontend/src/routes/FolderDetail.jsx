@@ -429,7 +429,7 @@ export default function FolderDetail() {
     }
     setCreating(true)
     try {
-      await createClass({ name: newName.trim(), folder: Number(id) })
+      await createClass({ name: newName.trim(), folder: id })
       toast.success("Class created in this folder")
       setCreateOpen(false)
       setNewName("")

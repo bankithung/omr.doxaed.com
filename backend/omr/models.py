@@ -1,8 +1,10 @@
 from django.conf import settings
 from django.db import models
 
+from common.models import UUIDModel
 
-class ScanBatch(models.Model):
+
+class ScanBatch(UUIDModel):
     """
     One upload batch — groups all ScanJobs created from a single upload call.
     Child-scoped via test; queryset must be filtered through test__user=request.user.
@@ -43,7 +45,7 @@ class ScanBatch(models.Model):
         return f"ScanBatch test={self.test_id} status={self.status} {self.processed}/{self.total}"
 
 
-class ScanJob(models.Model):
+class ScanJob(UUIDModel):
     """
     One page (one image file) within a ScanBatch.
     """
@@ -101,7 +103,7 @@ class ScanJob(models.Model):
         return f"ScanJob batch={self.batch_id} page={self.page_no} status={self.status}"
 
 
-class GenerationEvent(models.Model):
+class GenerationEvent(UUIDModel):
     """
     One row per generation call — used to enforce the ≤5 generations/day free-tier gate.
     organization is set when the generation happens in an org scope (null = solo user).
@@ -137,7 +139,7 @@ class GenerationEvent(models.Model):
         return f"GenerationEvent user={self.user_id} test={self.test_id} at {self.created_at}"
 
 
-class ScanEvent(models.Model):
+class ScanEvent(UUIDModel):
     """
     One row per scan job processed — used to enforce the monthly scan limit per org.
     organization is set when the scan happens in an org scope (null = solo user).
@@ -175,7 +177,7 @@ class ScanEvent(models.Model):
         return f"ScanEvent user={self.user_id} org={self.organization_id} at {self.created_at}"
 
 
-class OmrSheet(models.Model):
+class OmrSheet(UUIDModel):
     """
     One OMR answer sheet — child-scoped via its Test (no direct user FK).
 

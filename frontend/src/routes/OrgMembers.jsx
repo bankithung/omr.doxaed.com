@@ -114,7 +114,7 @@ export default function OrgMembers() {
     }
     setInviting(true)
     try {
-      await invite(orgId, inviteEmail.trim(), Number(roleId))
+      await invite(orgId, inviteEmail.trim(), roleId)
       toast.success(`Invitation sent to ${inviteEmail.trim()}`)
       setInviteOpen(false)
       setInviteEmail("")
@@ -143,7 +143,7 @@ export default function OrgMembers() {
         (b) => String(b.user) === String(userId) && !b.scope_group,
       )
       for (const b of existing) await deleteRoleBinding(b.id)
-      await createRoleBinding({ user: userId, role: Number(newRoleId), scope_group: null })
+      await createRoleBinding({ user: userId, role: newRoleId, scope_group: null })
       toast.success(`${member.email} is now ${role?.name}`)
       fetchAll()
     } catch (err) {

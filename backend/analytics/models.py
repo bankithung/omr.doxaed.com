@@ -12,8 +12,10 @@ Both tables are owner-scoped through their parent Test (no direct user FK).
 
 from django.db import models
 
+from common.models import UUIDModel
 
-class TestProfile(models.Model):
+
+class TestProfile(UUIDModel):
     """
     Persisted analytical profile for one Test.
 
@@ -60,7 +62,7 @@ class TestProfile(models.Model):
         return f"TestProfile test={self.test_id} n={self.cohort_size} status={self.status}"
 
 
-class StudentProfile(models.Model):
+class StudentProfile(UUIDModel):
     """
     Per-student psychometric summary within one test.
 

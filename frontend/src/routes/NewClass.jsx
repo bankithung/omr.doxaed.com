@@ -54,7 +54,7 @@ export default function NewClass() {
         description: description.trim(),
         kind_label: topLabel,
       }
-      if (folderId !== NO_FOLDER) payload.folder = Number(folderId)
+      if (folderId !== NO_FOLDER) payload.folder = folderId
       const created = await createClass(payload)
       toast.success("Class created")
       navigate(`/classes/${created.id}`)

@@ -46,7 +46,7 @@ export default function ClassOverview() {
       const secD = await listClasses({ parent: id })
       const secs = secD.results ?? secD
       const groups = [
-        { id: Number(id), label: null },
+        { id: id, label: null },
         ...secs.map((s) => ({ id: s.id, label: s.name })),
       ]
       const [perGroupTests, perGroupRosters, subjectsD] = await Promise.all([

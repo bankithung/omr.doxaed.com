@@ -36,7 +36,7 @@ async function rosterForGroup(groupId) {
   const rs = await listRosters({ class_group: groupId })
   const list = rs.results ?? rs
   if (list.length) return list[0]
-  return createRoster({ name: "Students", class_group: Number(groupId) })
+  return createRoster({ name: "Students", class_group: groupId })
 }
 
 function AddStudentDialog({ classId, sections, childLabel, onClose, onAdded }) {
@@ -63,7 +63,7 @@ function AddStudentDialog({ classId, sections, childLabel, onClose, onAdded }) {
       if (target === NEW) {
         const sec = await createClass({
           name: newName.trim(),
-          parent: Number(classId),
+          parent: classId,
           kind_label: childLabel,
         })
         groupId = sec.id
@@ -147,7 +147,7 @@ export default function ClassStudents() {
       const secs = secD.results ?? secD
       setSections(secs)
       const nodes = [
-        { id: Number(id), name: "Direct (no section)", isClass: true },
+        { id: id, name: "Direct (no section)", isClass: true },
         ...secs.map((s) => ({ id: s.id, name: s.name, kind: s.kind_label })),
       ]
       const withStudents = await Promise.all(

@@ -54,7 +54,7 @@ export function matchOrgScope(pathname) {
  */
 export function matchClassScope(pathname) {
   const m = pathname.match(
-    /^\/classes\/(\d+)(?:\/(groups|exams|students|subjects|access|settings))?\/?$/,
+    /^\/classes\/([^/]+)(?:\/(groups|exams|students|subjects|access|settings))?\/?$/,
   )
   if (!m) return null
   return { classId: m[1], current: m[2] || "overview" }

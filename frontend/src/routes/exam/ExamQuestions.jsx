@@ -84,7 +84,7 @@ export default function ExamQuestions() {
     const q = questions[idx]
     setSavingIdx(idx)
     const payload = {
-      test: Number(testId),
+      test: testId,
       order_index: idx,
       text: q.text.trim(),
       options: q.options.map((o) => ({

@@ -1,7 +1,9 @@
 from django.db import models
 
+from common.models import UUIDModel
 
-class Plan(models.Model):
+
+class Plan(UUIDModel):
     """Seeded plan tiers: free | team | business | enterprise."""
 
     FREE = "free"
@@ -34,7 +36,7 @@ class Plan(models.Model):
         return f"{self.name} (INR {self.price_inr})"
 
 
-class Subscription(models.Model):
+class Subscription(UUIDModel):
     """One active subscription per organization (OneToOne)."""
 
     CREATED = "created"

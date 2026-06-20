@@ -201,7 +201,7 @@ function StepDetails({ classId, onNext }) {
         test = await createTest(fd)
       } else {
         const payload = {
-          class_group: Number(groupId),
+          class_group: groupId,
           title: title.trim(),
           ...(subject.trim() && { subject: subject.trim() }),
           mode,

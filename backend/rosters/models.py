@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from common.encryption import EncryptedTextField
-from common.models import OwnerScopedModel
+from common.models import OwnerScopedModel, UUIDModel
 
 
 class Roster(OwnerScopedModel):
@@ -27,7 +27,7 @@ class Roster(OwnerScopedModel):
         return self.name
 
 
-class Student(models.Model):
+class Student(UUIDModel):
     roster = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="students")
     full_name = EncryptedTextField(blank=True, default="")
     roll_number = models.CharField(max_length=32)

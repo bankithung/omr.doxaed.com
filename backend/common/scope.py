@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 
@@ -25,13 +27,13 @@ def get_active_org(request):
         request._active_org_cache = None
         return None
 
-    # A malformed header (non-numeric / not a valid pk) is a bad request, NOT a
-    # server error: a stale or garbage `X-Organization-Id` (e.g. the string
-    # "undefined" left in localStorage) must never 500 the request — it would
-    # otherwise raise ValueError when cast to the membership FK's integer.
+    # A malformed header (not a valid UUID) is a bad request, NOT a server error:
+    # a stale or garbage `X-Organization-Id` (e.g. the string "undefined" left in
+    # localStorage) must never 500 the request — an invalid UUID would otherwise
+    # raise DataError when used in the membership FK lookup.
     try:
-        org_id = int(org_id)
-    except (TypeError, ValueError):
+        org_id = uuid.UUID(str(org_id))
+    except (TypeError, ValueError, AttributeError):
         raise PermissionDenied("Invalid organization.")
 
     m = (

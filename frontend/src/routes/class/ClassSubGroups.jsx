@@ -51,7 +51,7 @@ export default function ClassSubGroups() {
     }
     setAdding(true)
     try {
-      await createClass({ name: name.trim(), parent: Number(id), kind_label: childLabel })
+      await createClass({ name: name.trim(), parent: id, kind_label: childLabel })
       setName("")
       toast.success(`${childLabel} added`)
       fetchChildren()

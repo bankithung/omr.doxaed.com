@@ -51,7 +51,7 @@ export default function ClassSubjects() {
     }
     setAdding(true)
     try {
-      await createSubject({ class_group: Number(id), name: name.trim() })
+      await createSubject({ class_group: id, name: name.trim() })
       setName("")
       toast.success("Subject added")
       load()

@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
   // "undefined"/"null" left in localStorage) must never reach the server as a
   // header — it would otherwise break every scoped write ("could not create…").
   const org = localStorage.getItem("activeOrg")
-  if (org && /^[0-9]+$/.test(org)) config.headers["X-Organization-Id"] = org
+  if (org && org !== "undefined" && org !== "null") config.headers["X-Organization-Id"] = org
   return config
 })
 

@@ -57,7 +57,7 @@ export default function AddStudents() {
     setAdding(true)
     try {
       await addStudent({
-        roster: Number(id),
+        roster: id,
         full_name: fullName.trim(),
         roll_number: rollNumber.trim(),
       })
@@ -85,7 +85,7 @@ export default function AddStudents() {
     }
     setAddingBlanks(true)
     try {
-      await addCount(Number(id), n)
+      await addCount(id, n)
       toast.success(`Added ${n} blank sheet${n !== 1 ? "s" : ""}`)
       setCount("")
     } catch (err) {

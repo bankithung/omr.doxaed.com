@@ -2,7 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from common.models import OwnerScopedModel
+from common.models import OwnerScopedModel, UUIDModel
 from common.logo_validators import validate_logo_image
 
 
@@ -124,7 +124,7 @@ MULTI_MARK_POLICY_CHOICES = [
 ]
 
 
-class MarkingScheme(models.Model):
+class MarkingScheme(UUIDModel):
     test = models.OneToOneField(Test, on_delete=models.CASCADE, related_name="marking_scheme")
     marks_per_correct = models.DecimalField(max_digits=6, decimal_places=2, default=1)
     negative_marks_per_wrong = models.DecimalField(max_digits=6, decimal_places=2, default=0)
@@ -135,7 +135,7 @@ class MarkingScheme(models.Model):
     )
 
 
-class Section(models.Model):
+class Section(UUIDModel):
     POLICY_ALL = "all"
     POLICY_CHOOSE_K = "choose_k"
     POLICY_CHOICES = [(POLICY_ALL, "All"), (POLICY_CHOOSE_K, "Choose K")]
@@ -186,7 +186,7 @@ class Section(models.Model):
         ).update(section=self)
 
 
-class SectionMarkingScheme(models.Model):
+class SectionMarkingScheme(UUIDModel):
     NEG_FLAT = "flat"
     NEG_FRACTIONAL = "fractional"
     NEG_KIND_CHOICES = [(NEG_FLAT, "Flat"), (NEG_FRACTIONAL, "Fractional")]
@@ -206,7 +206,7 @@ class SectionMarkingScheme(models.Model):
         return f"SectionMarkingScheme section={self.section_id}"
 
 
-class Question(models.Model):
+class Question(UUIDModel):
     test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name="questions")
     order_index = models.PositiveIntegerField(default=0)
     text = models.TextField()
@@ -222,7 +222,7 @@ class Question(models.Model):
         ordering = ["order_index", "id"]
 
 
-class Option(models.Model):
+class Option(UUIDModel):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options")
     label = models.CharField(max_length=4)
     text = models.CharField(max_length=500, blank=True)
@@ -233,7 +233,7 @@ class Option(models.Model):
         ordering = ["label", "id"]
 
 
-class Subject(models.Model):
+class Subject(UUIDModel):
     class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="subjects")
     name = models.CharField(max_length=255)
     order_index = models.PositiveIntegerField(default=0)
