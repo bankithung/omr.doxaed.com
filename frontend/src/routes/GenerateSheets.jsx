@@ -3,10 +3,12 @@ import { useParams, Link } from "react-router-dom"
 import { toast } from "sonner"
 import { ArrowLeft, Printer, Download, FileText } from "lucide-react"
 import { getTest, updateTest, listClasses } from "@/api/assessments"
-import { listRosters, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
+import { listRosters, listStudents, generateSheets, mediaUrl, downloadAuthedBlob } from "@/api/omr"
+import { useClass } from "@/features/class/useClass"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import {
   Select,
@@ -76,9 +78,23 @@ export default function GenerateSheets() {
   const [savingBrand, setSavingBrand] = useState(false)
   const logoInputRef = useRef(null)
 
+  // Group names for human-readable roster labels (class / section).
+  const ownGroup = useClass(test?.class_group)
+  const parentClass = useClass(ownGroup?.parent ?? null)
+  const topClassName = (ownGroup?.parent ? parentClass?.name : ownGroup?.name) ?? "Class"
+  const ownGroupSectionName = ownGroup?.parent ? ownGroup?.name : null
+  const rosterLabel = (r) => {
+    const sec = r._section ?? ownGroupSectionName
+    return sec ? `${topClassName} · ${sec}` : topClassName
+  }
+
   // Generation
   const [rosters, setRosters] = useState([])
   const [rosterId, setRosterId] = useState("")
+  // Per-student selection (default: all in the chosen roster).
+  const [students, setStudents] = useState([])
+  const [selectedStudentIds, setSelectedStudentIds] = useState([])
+  const [studentsLoading, setStudentsLoading] = useState(false)
   const [shuffleQuestions, setShuffleQuestions] = useState(true)
   const [shuffleOptions, setShuffleOptions] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -129,6 +145,46 @@ export default function GenerateSheets() {
   useEffect(() => {
     loadTest()
   }, [loadTest])
+
+  // Load the selected roster's students for per-student selection (default: all).
+  useEffect(() => {
+    if (!rosterId) {
+      setStudents([])
+      setSelectedStudentIds([])
+      return
+    }
+    let cancelled = false
+    setStudentsLoading(true)
+    listStudents(rosterId)
+      .then((d) => {
+        if (cancelled) return
+        const list = d.results ?? d
+        setStudents(list)
+        setSelectedStudentIds(list.map((s) => String(s.id)))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStudents([])
+          setSelectedStudentIds([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStudentsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [rosterId])
+
+  const allSelected = students.length > 0 && selectedStudentIds.length === students.length
+  function toggleAllStudents() {
+    setSelectedStudentIds(allSelected ? [] : students.map((s) => String(s.id)))
+  }
+  function toggleStudent(sid) {
+    setSelectedStudentIds((ids) =>
+      ids.includes(sid) ? ids.filter((x) => x !== sid) : [...ids, sid],
+    )
+  }
 
   async function handleSaveBranding() {
     setSavingBrand(true)
@@ -187,6 +243,7 @@ export default function GenerateSheets() {
       const resp = await generateSheets({
         test: testId,
         roster: rosterId,
+        student_ids: selectedStudentIds,
         shuffle_questions: shuffleQuestions,
         shuffle_options: shuffleOptions,
       })
@@ -406,13 +463,62 @@ export default function GenerateSheets() {
               <SelectContent>
                 {rosters.map((r) => (
                   <SelectItem key={r.id} value={String(r.id)}>
-                    {r._section ? `${r._section} · ${r.name}` : r.name}
+                    {rosterLabel(r)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )}
         </div>
+
+        {/* Per-student selection — generate for all, or pick specific students */}
+        {rosterId && (
+          <div className="space-y-2 sm:max-w-sm">
+            <div className="flex items-center justify-between">
+              <Label>Students</Label>
+              {students.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleAllStudents}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  {allSelected ? "Clear all" : "Select all"}
+                </button>
+              )}
+            </div>
+            {studentsLoading ? (
+              <Skeleton className="h-24 w-full rounded-lg" />
+            ) : students.length === 0 ? (
+              <p className="text-sm text-muted-foreground">This roster has no students yet.</p>
+            ) : (
+              <>
+                <div className="max-h-56 space-y-0.5 overflow-y-auto rounded-lg border border-border p-2">
+                  {students.map((s) => {
+                    const sid = String(s.id)
+                    return (
+                      <label
+                        key={sid}
+                        className="flex min-h-[36px] cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
+                      >
+                        <Checkbox
+                          checked={selectedStudentIds.includes(sid)}
+                          onCheckedChange={() => toggleStudent(sid)}
+                        />
+                        <span className="w-10 shrink-0 font-mono text-xs tabular-nums">
+                          {s.roll_number}
+                        </span>
+                        <span className="truncate text-sm">{s.full_name || "—"}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedStudentIds.length} of {students.length} selected
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 sm:max-w-sm">
           <div className="flex items-center justify-between">
@@ -440,10 +546,14 @@ export default function GenerateSheets() {
         <div>
           <Button
             onClick={handleGenerate}
-            disabled={generating || !rosterId}
+            disabled={generating || !rosterId || selectedStudentIds.length === 0}
             className="min-h-[44px]"
           >
-            {generating ? "Generating…" : "Generate sheets"}
+            {generating
+              ? "Generating…"
+              : selectedStudentIds.length > 0 && !allSelected
+                ? `Generate ${selectedStudentIds.length} sheet${selectedStudentIds.length === 1 ? "" : "s"}`
+                : "Generate sheets"}
           </Button>
         </div>
 

@@ -142,7 +142,18 @@ class GenerateView(APIView):
             )
 
         # ---- generation gates (org-aware) --------------------------------
-        students = list(roster.students.order_by("roll_number", "id"))
+        # Optional per-student subset: generate only for the chosen students, or
+        # the whole roster when none are specified.
+        students_qs = roster.students.order_by("roll_number", "id")
+        selected_ids = data.get("student_ids") or []
+        if selected_ids:
+            students_qs = students_qs.filter(id__in=selected_ids)
+        students = list(students_qs)
+        if not students:
+            return Response(
+                {"detail": "No students to generate for."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         org = get_active_org(request)
 
         if org is not None:

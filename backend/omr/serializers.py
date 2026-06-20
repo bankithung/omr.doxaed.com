@@ -59,6 +59,10 @@ class GenerateSerializer(serializers.Serializer):
 
     test = serializers.UUIDField()
     roster = serializers.UUIDField()
+    # Optional subset of student ids to generate for. Empty/absent → whole roster.
+    student_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, default=list
+    )
     shuffle_questions = serializers.BooleanField(default=False)
     shuffle_options = serializers.BooleanField(default=False)
     emit_question_paper = serializers.BooleanField(default=False)
