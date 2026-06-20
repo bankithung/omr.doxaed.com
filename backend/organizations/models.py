@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils.text import slugify
 
 from common.logo_validators import validate_logo_image
 
@@ -26,6 +27,9 @@ class Organization(models.Model):
     ]
 
     name = models.CharField(max_length=255)
+    # URL slug for Supabase-style org links (/org/<slug>/…). Auto-derived from the
+    # name on create, editable in Settings; unique app-wide.
+    slug = models.SlugField(max_length=63, unique=True, blank=True)
     # Org type seeds the default level labels for the nested-group tree
     # (school → Class/Section, university → Department/Program/Batch, …).
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=OTHER)
@@ -43,6 +47,20 @@ class Organization(models.Model):
         validators=[validate_logo_image],
     )
     default_sheet_heading = models.CharField(max_length=255, blank=True, default="")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self._unique_slug()
+        super().save(*args, **kwargs)
+
+    def _unique_slug(self):
+        base = slugify(self.name)[:55] or "org"
+        slug = base
+        n = 2
+        while Organization.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            slug = f"{base}-{n}"
+            n += 1
+        return slug
 
     def __str__(self):
         return self.name

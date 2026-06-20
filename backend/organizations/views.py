@@ -140,6 +140,8 @@ class OrgDetailView(APIView):
             org.name = serializer.validated_data["name"]
         if "type" in serializer.validated_data:
             org.type = serializer.validated_data["type"]
+        if "slug" in serializer.validated_data:
+            org.slug = serializer.validated_data["slug"]
         org.save()
         _log(org, request.user, "org.updated", target_type="organization", target_id=org.id)
         out = OrganizationSerializer(org).data

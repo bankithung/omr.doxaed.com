@@ -24,8 +24,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ["id", "name", "type", "owner", "role", "created_at", "updated_at"]
+        fields = ["id", "name", "slug", "type", "owner", "role", "created_at", "updated_at"]
         read_only_fields = ["id", "owner", "role", "created_at", "updated_at"]
+        extra_kwargs = {"slug": {"required": False}}
 
 
 class MembershipSerializer(serializers.ModelSerializer):
