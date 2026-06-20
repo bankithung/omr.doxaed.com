@@ -20,6 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 export default function ClassSubjects() {
   const { id } = useParams()
   const cls = useClass(id)
+  // Subjects are class-wide. When viewing a SECTION, manage the PARENT class's
+  // subjects so they're shared across the class and every section.
+  const subjectsClassId = cls?.parent ?? id
   const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState("")
@@ -30,14 +33,14 @@ export default function ClassSubjects() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const d = await listSubjects(id)
+      const d = await listSubjects(subjectsClassId)
       setSubjects(d.results ?? d)
     } catch {
       toast.error("Failed to load subjects")
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [subjectsClassId])
 
   useEffect(() => {
     load()
@@ -51,7 +54,7 @@ export default function ClassSubjects() {
     }
     setAdding(true)
     try {
-      await createSubject({ class_group: id, name: name.trim() })
+      await createSubject({ class_group: subjectsClassId, name: name.trim() })
       setName("")
       toast.success("Subject added")
       load()
@@ -82,6 +85,7 @@ export default function ClassSubjects() {
       <PageHeader title="Subjects" description={cls?.name} />
       <p className="text-sm text-muted-foreground">
         Subjects let you tag exams (e.g. Physics, Chemistry) so results group by subject.
+        They're shared across the whole class and every section.
       </p>
 
       <form onSubmit={add} className="flex items-center gap-2 sm:max-w-md">

@@ -113,7 +113,12 @@ export default function GenerateSheets() {
           return (r.results ?? r).map((ro) => ({ ...ro, _section: g.label }))
         }),
       )
-      setRosters(perGroup.flat())
+      const allRosters = perGroup.flat()
+      setRosters(allRosters)
+      // Pre-select the roster for the exam's OWN group (the current section's
+      // students), so a section test defaults to that section's roster.
+      const own = allRosters.find((ro) => String(ro.class_group) === String(t.class_group))
+      if (own) setRosterId(String(own.id))
     } catch {
       setError(true)
     } finally {
