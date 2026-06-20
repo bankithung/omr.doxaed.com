@@ -17,14 +17,64 @@ api.interceptors.request.use((config) => {
 
 let refreshPromise = null
 
+// Public/auth routes that must NOT be force-redirected (avoids redirect loops).
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/accept-invite",
+  "/terms",
+  "/privacy",
+  "/r/", // public result portal
+]
+
+// Session is dead (no/invalid refresh token): clear it and send the user to the
+// login page. Without this, a 401 mid-session leaves the app broken-but-rendered
+// — a security/UX hole. Hard-replace so the stale page isn't left in history.
+function forceLogout() {
+  try {
+    localStorage.removeItem("access")
+    localStorage.removeItem("refresh")
+    localStorage.removeItem("activeOrg")
+  } catch {
+    /* ignore */
+  }
+  const path = window.location.pathname
+  const onPublic = path === "/" || PUBLIC_PREFIXES.some((p) => path.startsWith(p))
+  if (!onPublic) {
+    window.location.replace("/login")
+  }
+}
+
+// Auth endpoints handle their own errors (bad login, expired refresh) — never
+// run the refresh-or-logout flow for them.
+function isAuthCall(url = "") {
+  return (
+    url.includes("/auth/login") ||
+    url.includes("/auth/register") ||
+    url.includes("/auth/token/refresh") ||
+    url.includes("/auth/google")
+  )
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    if (
+      error.response?.status === 401 &&
+      original &&
+      !original._retry &&
+      !isAuthCall(original.url)
+    ) {
       original._retry = true
       const refresh = localStorage.getItem("refresh")
-      if (!refresh) return Promise.reject(error)
+      if (!refresh) {
+        forceLogout()
+        return Promise.reject(error)
+      }
       try {
         refreshPromise =
           refreshPromise || axios.post(`${baseURL}/auth/token/refresh/`, { refresh })
@@ -35,6 +85,8 @@ api.interceptors.response.use(
         return api(original)
       } catch (e) {
         refreshPromise = null
+        // Refresh failed → the session is unrecoverable. Log out + redirect.
+        forceLogout()
         return Promise.reject(e)
       }
     }
