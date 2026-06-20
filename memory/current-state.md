@@ -14,8 +14,10 @@
   update/delete round-trip persists (API). **E2E harness (`e2e/run.mjs`) restored for the org-first IA** —
   it had been stale since the redesign (login → /organizations not /dashboard; rosters auto-create). Now
   drives auth + the whole OMR pipeline through the UI, seeds org/class/roster/students via the API, captures
-  the org-scoped testId via API (solo `latest-ids` can't see org rows). **Chromium full loop GREEN (14
-  steps)**; full cross-browser + modeB suite running. Lint 0 errors, build clean.
+  the org-scoped testId via API (solo `latest-ids` can't see org rows). Token-reuse fix (UI session token,
+  not a 2nd API login) avoids the auth throttle across back-to-back journeys. **Full E2E suite GREEN:
+  chromium 14 · chrome 14 · edge 14 · chromium-modeB 15** (pre-bubbled roll + roll-tamper). Lint 0 errors,
+  build clean.
 - 2026-06-19: **Exam workspace nav made coherent** (on `main`, exam-lifecycle commit after `275806c`).
   Entering an exam now gives a proper Supabase-grade secondary nav. Three gaps fixed: (1) `matchTestScope`
   didn't match `/tests/:id/sheets` → the **Generate page showed NO exam nav**; (2) the "Generate" lifecycle
