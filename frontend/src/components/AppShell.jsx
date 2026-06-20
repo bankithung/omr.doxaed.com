@@ -15,7 +15,7 @@ import {
 } from "@/components/shell/use-section"
 import { useClass } from "@/features/class/useClass"
 import { useTest } from "@/features/test/useTest"
-import { childKindLabel, pluralize } from "@/features/class/typePresets"
+import { childKindLabel, pluralize, topKindLabel } from "@/features/class/typePresets"
 import { STAGES, stageHref } from "@/components/ui/test-progress-rail"
 
 import { Button } from "@/components/ui/button"
@@ -66,6 +66,7 @@ import {
   PlusIcon,
   UserIcon,
   LogOutIcon,
+  ArrowLeftIcon,
   LayoutGridIcon,
   UsersIcon,
   ShieldCheckIcon,
@@ -203,7 +204,10 @@ function usePanel(section) {
     items.push({ label: "Settings", to: `/classes/${id}/settings`, icon: SettingsIcon })
     return {
       title: cls?.name ?? "Class",
-      back: { to: "/classes", label: "All classes" },
+      back: {
+        to: activeOrg?.slug ? `/org/${activeOrg.slug}` : "/classes",
+        label: `All ${pluralize(topKindLabel(activeOrg?.type)).toLowerCase()}`,
+      },
       groups: [{ title: "Class", items }],
     }
   }
@@ -302,6 +306,18 @@ function PrimaryRail({ panel }) {
             DoxaEd OMR
           </span>
         </Link>
+        {panel?.back && (
+          <Link
+            to={panel.back.to}
+            aria-label={panel.back.label}
+            className="mx-2 mb-1 flex h-9 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground motion-safe-card hover:bg-sidebar-accent/60 hover:text-foreground"
+          >
+            <ArrowLeftIcon className="size-5 shrink-0" aria-hidden="true" />
+            <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
+              {panel.back.label}
+            </span>
+          </Link>
+        )}
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label="Sections">
           {items.map((item) => (
             <RailItem key={item.to} item={item} />
