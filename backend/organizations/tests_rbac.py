@@ -31,7 +31,7 @@ class RoleSeedTests(TestCase):
         seed_org_roles(org, owner)
         self.assertEqual(
             sorted(Role.objects.filter(organization=org).values_list("name", flat=True)),
-            ["Admin", "Owner", "Teacher", "Viewer"],
+            ["Admin", "Office", "Owner", "Supervisor", "Teacher", "Viewer"],
         )
         self.assertTrue(
             RoleBinding.objects.filter(organization=org, user=owner, role__name="Owner").exists()

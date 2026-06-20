@@ -84,17 +84,35 @@ EDIT_CODES = {
     EXAM_GRADE,
 }
 
-# Seeded per organization on creation. Owner/Admin get everything; Teacher gets
-# the day-to-day teaching set (normally scoped to assigned groups); Viewer reads.
+# Seeded per organization on creation. Each is fully editable, and admins can add
+# custom roles. WHICH classes a role reaches is the binding's scope (org-wide for
+# Supervisor/Office; assigned-groups for Teacher) — the codes say WHAT they can do.
 _TEACHER = [
     GROUP_CREATE, GROUP_EDIT, SUBJECT_MANAGE, STUDENT_MANAGE,
     EXAM_CREATE, EXAM_EDIT, EXAM_DELETE, EXAM_GENERATE, EXAM_SCAN, EXAM_GRADE,
     EXAM_RESULTS_VIEW, EXAM_ANALYTICS_VIEW, EXAM_SHARE,
 ]
 
+# Supervisor — runs all classes/exams across the org (bind org-wide), but no
+# control over members, roles, billing or org settings.
+_SUPERVISOR = [
+    GROUP_CREATE, GROUP_EDIT, GROUP_DELETE, SUBJECT_MANAGE, STUDENT_MANAGE,
+    EXAM_CREATE, EXAM_EDIT, EXAM_DELETE, EXAM_GENERATE, EXAM_SCAN, EXAM_GRADE,
+    EXAM_RESULTS_VIEW, EXAM_ANALYTICS_VIEW, EXAM_SHARE, AUDIT_VIEW,
+]
+
+# Office / staff — manages members + students + structure across the org; does
+# not create or grade exams, and no billing/roles/org-settings.
+_OFFICE = [
+    MEMBER_INVITE, MEMBER_MANAGE, GROUP_CREATE, GROUP_EDIT, SUBJECT_MANAGE,
+    STUDENT_MANAGE, EXAM_RESULTS_VIEW, AUDIT_VIEW,
+]
+
 SYSTEM_ROLES = [
     ("Owner", list(ALL_CODES)),
     ("Admin", [c for c in ALL_CODES if c != ORG_BILLING_MANAGE]),
+    ("Supervisor", _SUPERVISOR),
+    ("Office", _OFFICE),
     ("Teacher", _TEACHER),
     ("Viewer", [EXAM_RESULTS_VIEW, EXAM_ANALYTICS_VIEW]),
 ]
