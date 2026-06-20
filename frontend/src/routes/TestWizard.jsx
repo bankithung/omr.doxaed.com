@@ -130,23 +130,32 @@ function StepDetails({ classId, onNext }) {
 
   // Which group this test belongs to — the class itself, or one of its sections.
   const cls = useClass(classId)
+  // When opened from a section, cls.parent is the class — used for the target
+  // header and to load class-wide subjects.
+  const parentCls = useClass(cls?.parent ?? null)
   const { activeOrg } = useOrg() ?? {}
-  const sectionLabel = childKindLabel(activeOrg?.type, cls?.kind_label)
+  // The top-level class context. When opened from a SECTION we use its parent
+  // class, so the section dropdown lists all siblings (current one pre-selected)
+  // and class-wide subjects load — making both entry points identical.
+  const contextClassId = cls?.parent ?? classId
+  const contextClass = cls?.parent ? parentCls : cls
+  const sectionLabel = childKindLabel(activeOrg?.type, contextClass?.kind_label)
+  // groupId = the test's target group; defaults to the URL's classId, which is
+  // the current section when opened from one (so it's pre-selected below).
   const [groupId, setGroupId] = useState(String(classId))
   const [sections, setSections] = useState([])
   useEffect(() => {
     let cancelled = false
-    listClasses({ parent: classId })
+    listClasses({ parent: contextClassId })
       .then((d) => { if (!cancelled) setSections(d.results ?? d) })
       .catch(() => { if (!cancelled) setSections([]) })
     return () => { cancelled = true }
-  }, [classId])
+  }, [contextClassId])
 
-  // Load the class's subjects. Optional + additive — failure is silent so the
-  // free-text fallback always works (E2E drives the no-subjects path).
+  // Subjects are class-wide — load them from the top-level class.
   useEffect(() => {
     let cancelled = false
-    listSubjects(classId)
+    listSubjects(contextClassId)
       .then((data) => {
         if (!cancelled) setSubjects(data.results ?? data)
       })
@@ -156,7 +165,7 @@ function StepDetails({ classId, onNext }) {
     return () => {
       cancelled = true
     }
-  }, [classId])
+  }, [contextClassId])
 
   // Picking a subject from the Select fills `subject` directly; "Other" clears it
   // so the free-text input takes over.
@@ -170,6 +179,11 @@ function StepDetails({ classId, onNext }) {
   }
 
   const useFreeText = subjects.length === 0 || subjectChoice === SUBJECT_OTHER
+
+  // Target context for the header: which class (and section) this test is for.
+  const ctxClassName = contextClass?.name ?? "Class"
+  const pickedSection = sections.find((s) => String(s.id) === String(groupId))
+  const targetParts = [ctxClassName, pickedSection ? pickedSection.name : "Whole class"]
 
   async function handleNext(e) {
     e.preventDefault()
@@ -233,6 +247,20 @@ function StepDetails({ classId, onNext }) {
 
   return (
     <form onSubmit={handleNext} className="space-y-6 max-w-lg">
+      {/* Target context — which class/section this test is being created for. */}
+      <div className="rounded-lg border border-border bg-surface-2/40 px-4 py-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          New test for
+        </p>
+        <p className="mt-1 flex flex-wrap items-center gap-1.5 font-semibold">
+          {targetParts.filter(Boolean).map((part, i) => (
+            <span key={i} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-muted-foreground">›</span>}
+              {part}
+            </span>
+          ))}
+        </p>
+      </div>
       <div className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="test-title">Title</Label>
@@ -253,7 +281,7 @@ function StepDetails({ classId, onNext }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={String(classId)}>
+                <SelectItem value={String(contextClassId)}>
                   Whole class (all {sectionLabel.toLowerCase()}s)
                 </SelectItem>
                 {sections.map((s) => (

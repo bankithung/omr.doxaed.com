@@ -33,6 +33,8 @@ export default function ClassOverview() {
   const { id } = useParams()
   const navigate = useNavigate()
   const cls = useClass(id)
+  // When viewing a section, show its parent class as context above the title.
+  const parentCls = useClass(cls?.parent ?? null)
   const { activeOrg } = useOrg() ?? {}
   const childLabel = childKindLabel(activeOrg?.type, cls?.kind_label)
   const [stats, setStats] = useState(null)
@@ -101,6 +103,15 @@ export default function ClassOverview() {
     <PageShell>
       {/* Header */}
       <div>
+        {parentCls && (
+          <Link
+            to={`/classes/${parentCls.id}`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {parentCls.name}
+            <span aria-hidden="true">›</span>
+          </Link>
+        )}
         <h1 className="text-3xl font-bold tracking-tight">{cls?.name ?? "Class"}</h1>
         <p className="mt-2 text-muted-foreground">{cls?.description || "No description"}</p>
       </div>
