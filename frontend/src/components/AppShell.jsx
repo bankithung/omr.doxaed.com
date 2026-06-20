@@ -15,7 +15,7 @@ import {
 } from "@/components/shell/use-section"
 import { useClass } from "@/features/class/useClass"
 import { useTest } from "@/features/test/useTest"
-import { childKindLabel, pluralize, topKindLabel } from "@/features/class/typePresets"
+import { pluralize, topKindLabel } from "@/features/class/typePresets"
 import { STAGES, stageHref } from "@/components/ui/test-progress-rail"
 
 import { Button } from "@/components/ui/button"
@@ -74,7 +74,6 @@ import {
   CreditCardIcon,
   SettingsIcon,
   HomeIcon,
-  LayersIcon,
   BookOpenIcon,
 } from "lucide-react"
 
@@ -190,10 +189,8 @@ function usePanel(section) {
   // Class workspace = the Supabase "project" view: a section sidebar for the class.
   if (classScope) {
     const id = classScope.classId
-    const subLabel = pluralize(childKindLabel(activeOrg?.type, cls?.kind_label))
     const items = [
       { label: "Overview", to: `/classes/${id}`, end: true, icon: HomeIcon },
-      { label: subLabel, to: `/classes/${id}/groups`, icon: LayersIcon },
       { label: "Exams", to: `/classes/${id}/exams`, icon: FileTextIcon },
       { label: "Students", to: `/classes/${id}/students`, icon: UsersIcon },
       { label: "Subjects", to: `/classes/${id}/subjects`, icon: BookOpenIcon },
@@ -204,10 +201,17 @@ function usePanel(section) {
     items.push({ label: "Settings", to: `/classes/${id}/settings`, icon: SettingsIcon })
     return {
       title: cls?.name ?? "Class",
-      back: {
-        to: activeOrg?.slug ? `/org/${activeOrg.slug}` : "/classes",
-        label: `All ${pluralize(topKindLabel(activeOrg?.type)).toLowerCase()}`,
-      },
+      // Inside a section (a class with a parent), "back" returns to the parent
+      // class; at the top level it returns to all classes.
+      back: cls?.parent
+        ? {
+            to: `/classes/${cls.parent}`,
+            label: `Back to ${topKindLabel(activeOrg?.type).toLowerCase()}`,
+          }
+        : {
+            to: activeOrg?.slug ? `/org/${activeOrg.slug}` : "/classes",
+            label: `All ${pluralize(topKindLabel(activeOrg?.type)).toLowerCase()}`,
+          },
       groups: [{ title: "Class", items }],
     }
   }

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PageShell } from "@/components/ui/page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
+import AddSectionDialog from "@/features/class/AddSectionDialog"
 
 // A Supabase-style stat tile: a 64px icon tile + label + big mono number.
 function StatTile({ icon: Icon, label, value }) {
@@ -36,6 +37,8 @@ export default function ClassOverview() {
   const childLabel = childKindLabel(activeOrg?.type, cls?.kind_label)
   const [stats, setStats] = useState(null)
   const [recent, setRecent] = useState([])
+  const [sections, setSections] = useState([])
+  const [addSecOpen, setAddSecOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Counts span the whole subtree — exams and students can live on the class
@@ -45,6 +48,7 @@ export default function ClassOverview() {
     try {
       const secD = await listClasses({ parent: id })
       const secs = secD.results ?? secD
+      setSections(secs)
       const groups = [
         { id: id, label: null },
         ...secs.map((s) => ({ id: s.id, label: s.name })),
@@ -126,6 +130,49 @@ export default function ClassOverview() {
         </Button>
       </div>
 
+      {/* Sections (sub-groups) — shown here instead of a separate page */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">{pluralize(childLabel)}</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-[36px]"
+            onClick={() => setAddSecOpen(true)}
+          >
+            <Plus className="size-4" aria-hidden="true" /> Add {childLabel.toLowerCase()}
+          </Button>
+        </div>
+        {loading ? (
+          <Skeleton className="h-20 w-full rounded-lg" />
+        ) : sections.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              No {pluralize(childLabel).toLowerCase()} yet. Add one to scope students and exams.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {sections.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => navigate(`/classes/${s.id}`)}
+                className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left transition-colors hover:border-primary/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+                  {(s.name?.[0] ?? "?").toUpperCase()}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold group-hover:text-primary">{s.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{s.kind_label || childLabel}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Recent exams */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -172,6 +219,18 @@ export default function ClassOverview() {
           </ul>
         )}
       </section>
+
+      {addSecOpen && (
+        <AddSectionDialog
+          classId={id}
+          childLabel={childLabel}
+          onClose={() => setAddSecOpen(false)}
+          onCreated={() => {
+            setAddSecOpen(false)
+            load()
+          }}
+        />
+      )}
     </PageShell>
   )
 }
