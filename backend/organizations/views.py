@@ -119,6 +119,21 @@ class OrganizationListCreateView(APIView):
         from organizations.role_seed import seed_org_roles
 
         seed_org_roles(org, request.user)
+        # Apply the chosen plan so it reflects in Billing/Usage. Free needs no
+        # subscription (it's the default). Paid plans record an ACTIVE subscription
+        # — live payment (Razorpay) is integrated separately via the Billing flow.
+        plan_code = request.data.get("plan")
+        if plan_code and plan_code != "free":
+            from billing.models import Plan, Subscription
+
+            plan = Plan.objects.filter(code=plan_code).first()
+            if plan:
+                Subscription.objects.create(
+                    organization=org,
+                    plan=plan,
+                    status=Subscription.ACTIVE,
+                    seats_purchased=plan.seat_limit or 1,
+                )
         _log(org, request.user, "org.created", target_type="organization", target_id=org.id)
         out = OrganizationSerializer(org).data
         out["role"] = OrganizationMembership.ADMIN

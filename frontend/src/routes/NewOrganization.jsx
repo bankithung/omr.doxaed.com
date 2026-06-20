@@ -34,6 +34,9 @@ const PLANS = [
   { value: "enterprise", name: "Enterprise", price: "Custom", caps: ["Unlimited", "SSO", "Priority support"] },
 ]
 
+// Display value → backend plan code ("Pro" is stored as "team").
+const PLAN_CODE = { free: "free", pro: "team", business: "business", enterprise: "enterprise" }
+
 export default function NewOrganization() {
   const navigate = useNavigate()
   const { setActiveOrg, refreshOrgs } = useOrg()
@@ -50,14 +53,13 @@ export default function NewOrganization() {
     }
     setSubmitting(true)
     try {
-      const org = await createOrg({ name: name.trim(), type })
+      const org = await createOrg({ name: name.trim(), type, plan: PLAN_CODE[plan] ?? plan })
       await refreshOrgs({ force: true })
       setActiveOrg(String(org.id))
-      if (plan !== "free") {
-        toast.success(`Organization created — activate ${PLANS.find((p) => p.value === plan)?.name} in Billing`)
-      } else {
-        toast.success("Organization created")
-      }
+      const planName = PLANS.find((p) => p.value === plan)?.name
+      toast.success(
+        plan === "free" ? "Organization created" : `Organization created on the ${planName} plan`,
+      )
       navigate(`/org/${org.slug}`)
     } catch {
       toast.error("Could not create organization")
