@@ -95,7 +95,7 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
                 key={t}
                 className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"
               >
-                <Check className="size-3 text-primary" aria-hidden="true" />
+                <Check className="size-3 text-indigo" aria-hidden="true" />
                 {t}
               </span>
             ))}
@@ -114,11 +114,11 @@ export function LegalFooter() {
   return (
     <p className="text-center text-xs leading-relaxed text-muted-foreground">
       By continuing you agree to our{" "}
-      <Link to="/terms" className="text-primary underline-offset-4 hover:underline">
+      <Link to="/terms" className="text-indigo underline-offset-4 hover:underline">
         Terms
       </Link>{" "}
       and{" "}
-      <Link to="/privacy" className="text-primary underline-offset-4 hover:underline">
+      <Link to="/privacy" className="text-indigo underline-offset-4 hover:underline">
         Privacy Policy
       </Link>
       .

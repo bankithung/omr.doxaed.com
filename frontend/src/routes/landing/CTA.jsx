@@ -21,17 +21,17 @@ export default function CTA() {
         }}
       />
       <SectionContainer>
-        <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
           <RevealItem>
-            <span className="mx-auto flex size-12 items-center justify-center rounded-xl border border-border bg-card text-primary">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-xl border border-border bg-card text-indigo">
               <MaterialIcon name="layers" className="size-6" />
             </span>
           </RevealItem>
           <RevealItem as="h2" className="mx-auto mt-6 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
             Stop grading by hand.
           </RevealItem>
-          <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Create your first test free and grade your next exam in minutes — shuffled sheets,
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
+            Create your first test free and grade your next exam in minutes, shuffled sheets,
             auto-grading and analytics included.
           </RevealItem>
           <RevealItem className="mt-8 flex justify-center">

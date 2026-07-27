@@ -18,7 +18,7 @@ const STEPS = [
   {
     icon: "checklist",
     title: "Create a class and question bank",
-    body: "Start by creating a class and building its question bank — the pool of questions a test draws from. This is the source of truth a generated sheet's stored answer key comes from.",
+    body: "Start by creating a class and building its question bank, the pool of questions a test draws from. This is the source of truth a generated sheet's stored answer key comes from.",
   },
   {
     icon: "groups",
@@ -28,12 +28,12 @@ const STEPS = [
   {
     icon: "shuffle",
     title: "Generate shuffled OMR sheets and print",
-    body: "Generate the answer sheets for the test. Per-student shuffle gives each student a unique question and option order to deter copying — then print the batch on plain paper.",
+    body: "Generate the answer sheets for the test. Per-student shuffle gives each student a unique question and option order to deter copying, then print the batch on plain paper.",
   },
   {
     icon: "task",
     title: "Students fill the bubbles",
-    body: "Hand out the printed sheets. Students fill the bubbles with a pen or pencil on paper — there's no app for them to install and no account for them to create.",
+    body: "Hand out the printed sheets. Students fill the bubbles with a pen or pencil on paper, there's no app for them to install and no account for them to create.",
   },
   {
     icon: "scan",
@@ -43,12 +43,12 @@ const STEPS = [
   {
     icon: "shield",
     title: "Review low-confidence reads",
-    body: "Anything the grader isn't sure about — faint, double-marked or empty bubbles — lands in the review queue with the cropped image, so you confirm the call. Nothing is silently guessed.",
+    body: "Anything the grader isn't sure about, faint, double-marked or empty bubbles, lands in the review queue with the cropped image, so you confirm the call. Nothing is silently guessed.",
   },
   {
     icon: "analytics",
     title: "Publish results, analytics and report cards",
-    body: "Publish the graded results. Each test gets item analysis and two-page report cards, and you can share results through the public result portal — which exposes only what a result needs.",
+    body: "Publish the graded results. Each test gets item analysis and two-page report cards, and you can share results through the public result portal, which exposes only what a result needs.",
   },
 ]
 
@@ -56,7 +56,7 @@ const TIPS = [
   {
     icon: "devices",
     title: "Any device works",
-    body: "There's nothing to install for scanning — a regular phone camera is enough, as long as the whole sheet (and its QR + markers) is in frame and reasonably lit.",
+    body: "There's nothing to install for scanning, a regular phone camera is enough, as long as the whole sheet (and its QR + markers) is in frame and reasonably lit.",
   },
   {
     icon: "shuffle",
@@ -66,12 +66,12 @@ const TIPS = [
   {
     icon: "task",
     title: "Trust the review queue",
-    body: "If a read is ambiguous, let it go to review rather than re-bubbling — confirming it there keeps the result auditable and explainable later.",
+    body: "If a read is ambiguous, let it go to review rather than re-bubbling, confirming it there keeps the result auditable and explainable later.",
   },
   {
     icon: "lock",
     title: "Share only what's needed",
-    body: "The public result portal surfaces just the fields a result needs. Student PII stays encrypted and scoped to you — you control what's shared.",
+    body: "The public result portal surfaces just the fields a result needs. Student PII stays encrypted and scoped to you, you control what's shared.",
   },
 ]
 
@@ -82,13 +82,13 @@ function StepRow({ step, index }) {
       className="relative flex gap-5 rounded-xl border border-border bg-card p-5 transition-colors hover:border-border-strong sm:p-6"
     >
       <div className="flex flex-col items-center">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 font-mono text-sm font-medium text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 font-mono text-sm font-medium text-indigo">
           {index + 1}
         </span>
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex items-center gap-2">
-          <MaterialIcon name={step.icon} className="size-4 shrink-0 text-primary" />
+          <MaterialIcon name={step.icon} className="size-4 shrink-0 text-indigo" />
           <h3 className="text-base font-medium text-foreground">{step.title}</h3>
         </div>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
@@ -111,15 +111,15 @@ export default function Help() {
           }}
         />
         <SectionContainer className="pt-14 pb-8 sm:pt-16 text-center">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Help
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-              Getting started, <span className="text-primary">step by step</span>
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+              Getting started, <span className="text-indigo">step by step</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-              The full loop from setting up a class to publishing results — seven
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
+              The full loop from setting up a class to publishing results, seven
               steps that mirror exactly how DoxaEd OMR works.
             </p>
           </FadeInUp>
@@ -128,12 +128,12 @@ export default function Help() {
 
       {/* ── Numbered flow ──────────────────────────────────────────────────── */}
       <SectionContainer className="pt-0">
-        <Reveal as="ol" className="mx-auto grid max-w-3xl grid-cols-1 gap-3">
+ <Reveal as="ol" className="mx-auto grid grid-cols-1 gap-3">
           {STEPS.map((step, i) => (
             <StepRow key={step.title} step={step} index={i} />
           ))}
         </Reveal>
-        <FadeInUp className="mx-auto mt-8 max-w-3xl">
+ <FadeInUp className="mx-auto mt-8 ">
           <div className="flex flex-col items-center justify-between gap-3 rounded-xl border border-border bg-surface-1 p-5 sm:flex-row">
             <p className="text-sm text-muted-foreground">
               Ready to run your first test? Create a free account and start at
@@ -148,26 +148,26 @@ export default function Help() {
 
       {/* ── Tips ───────────────────────────────────────────────────────────── */}
       <SectionContainer className="border-t border-border pt-16">
-        <FadeInUp className="mx-auto max-w-2xl text-center">
+ <FadeInUp className="mx-auto text-center">
           <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Tips
           </span>
           <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
             Get the most from each scan
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
+ <p className="mx-auto mt-4 text-base text-muted-foreground">
             A few honest pointers that make grading smoother and results easier to
             defend.
           </p>
         </FadeInUp>
 
-        <Reveal as="div" className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2">
+ <Reveal as="div" className="mx-auto mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {TIPS.map((tip) => (
             <RevealItem
               key={tip.title}
               className="flex h-full gap-4 rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong"
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
                 <MaterialIcon name={tip.icon} className="size-5" />
               </span>
               <div className="min-w-0">
@@ -190,11 +190,11 @@ export default function Help() {
           }}
         />
         <SectionContainer>
-          <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
             <RevealItem as="h2" className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               Need a hand?
             </RevealItem>
-            <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
               Browse common questions in the FAQ, or reach out and we'll help you
               get your first exam graded.
             </RevealItem>

@@ -149,7 +149,7 @@ function AnswerToggleGrid({ answers, onChange, numQuestions }) {
                         onClick={() => toggle(qPos, lbl)}
                         className={`inline-flex min-h-[32px] min-w-[32px] items-center justify-center rounded border text-xs font-semibold transition-colors ${
                           isOn
-                            ? "border-primary bg-primary text-primary-foreground"
+                            ? "border-indigo bg-primary text-primary-foreground"
                             : "border-input bg-transparent text-foreground hover:bg-muted"
                         }`}
                       >
@@ -257,7 +257,7 @@ export function SheetCorrectorPanel({ sheet, open, onClose, onRegraded }) {
 
   async function handleSave() {
     if (!sheet?.omr_sheet_id) {
-      toast.error("No sheet ID — cannot regrade")
+      toast.error("No sheet ID, cannot regrade")
       return
     }
     setSaving(true)
@@ -285,19 +285,19 @@ export function SheetCorrectorPanel({ sheet, open, onClose, onRegraded }) {
   if (!sheet) return null
 
   const studentName = sheet.student?.name ?? "Unknown student"
-  const studentRoll = sheet.student?.roll ?? sheet.detected?.roll ?? "—"
+  const studentRoll = sheet.student?.roll ?? sheet.detected?.roll ?? "n/a"
   const detectedAnswers = sheet.detected?.answers ?? {}
   const bubbleGeometry = sheet.bubble_geometry ?? []
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent
-        className="flex flex-col max-h-[95dvh] overflow-hidden w-full max-w-5xl p-0"
+ className="flex flex-col max-h-[95dvh] overflow-hidden w-full p-0"
         showCloseButton={true}
       >
         <DialogHeader className="px-4 pt-4 pb-3 border-b">
           <DialogTitle className="text-base font-semibold">
-            Correct sheet — {studentName}
+            Correct sheet, {studentName}
           </DialogTitle>
           <div className="flex flex-wrap gap-2 mt-1">
             <Badge variant="neutral">Roll: {studentRoll}</Badge>

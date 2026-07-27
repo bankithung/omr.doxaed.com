@@ -16,12 +16,12 @@ const PRINCIPLES = [
   {
     icon: "shield",
     title: "Server-side grading",
-    body: "Every sheet is graded against its own stored answer key on the server, never in the browser — so a score can't be tampered with client-side.",
+    body: "Every sheet is graded against its own stored answer key on the server, never in the browser, so a score can't be tampered with client-side.",
   },
   {
     icon: "task",
     title: "Never guessed",
-    body: "Faint, double-marked or missing reads are routed to a review queue with the cropped bubble image — not silently guessed. You stay in control of the call.",
+    body: "Faint, double-marked or missing reads are routed to a review queue with the cropped bubble image, not silently guessed. You stay in control of the call.",
   },
   {
     icon: "lock",
@@ -39,7 +39,7 @@ const FACTS = [
   { icon: "shuffle", label: "A unique, shuffled sheet for every student" },
   { icon: "scan", label: "Scan from any phone or scanner" },
   { icon: "analytics", label: "Item analysis & two-page report cards" },
-  { icon: "devices", label: "Works at omr.doxaed.com — nothing to install" },
+  { icon: "devices", label: "Works at omr.doxaed.com, nothing to install" },
 ]
 
 export default function About() {
@@ -56,17 +56,17 @@ export default function About() {
           }}
         />
         <SectionContainer className="pt-14 pb-8 sm:pt-16 text-center">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               About
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-              Fair, fast, <span className="text-primary">auditable</span> grading
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+              Fair, fast, <span className="text-indigo">auditable</span> grading
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
               DoxaEd OMR is an optical-mark-recognition platform for generating
               shuffled exam answer sheets, scanning them, and producing
-              auto-graded results and analytics — for tutors, coaching centres and
+              auto-graded results and analytics, for tutors, coaching centres and
               schools.
             </p>
           </FadeInUp>
@@ -75,7 +75,7 @@ export default function About() {
 
       {/* ── Mission ────────────────────────────────────────────────────────── */}
       <SectionContainer className="pt-0">
-        <div className="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+ <div className="mx-auto grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
           <FadeInUp>
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Our mission
@@ -87,7 +87,7 @@ export default function About() {
               <p>
                 Grading a stack of bubble sheets by hand is slow, error-prone and
                 hard to defend when a student questions a mark. DoxaEd OMR exists
-                to take that work off the table — without trading away rigour.
+                to take that work off the table, without trading away rigour.
               </p>
               <p>
                 The same generate → scan → grade → analyse loop scales from a
@@ -112,7 +112,7 @@ export default function About() {
               <ul className="mt-4 space-y-3.5">
                 {FACTS.map((f) => (
                   <li key={f.label} className="flex items-start gap-3 text-sm text-foreground">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
                       <MaterialIcon name={f.icon} className="size-4" />
                     </span>
                     <span className="pt-1.5">{f.label}</span>
@@ -126,25 +126,25 @@ export default function About() {
 
       {/* ── Principles ─────────────────────────────────────────────────────── */}
       <SectionContainer className="border-t border-border">
-        <FadeInUp className="mx-auto max-w-2xl text-center">
+ <FadeInUp className="mx-auto text-center">
           <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Principles
           </span>
           <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
             How we build
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <p className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
             Four commitments that shape every grading decision the platform makes.
           </p>
         </FadeInUp>
 
-        <Reveal as="div" className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+ <Reveal as="div" className="mx-auto mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PRINCIPLES.map((p) => (
             <RevealItem
               key={p.title}
               className="flex h-full flex-col rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong"
             >
-              <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+              <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
                 <MaterialIcon name={p.icon} className="size-5" />
               </span>
               <h3 className="mt-4 text-base font-medium text-foreground">{p.title}</h3>
@@ -165,11 +165,11 @@ export default function About() {
           }}
         />
         <SectionContainer>
-          <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
             <RevealItem as="h2" className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               Questions about DoxaEd OMR?
             </RevealItem>
-            <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
               We're happy to help you decide if it fits your tests. Reach out, or
               just create a free account and try it on your next exam.
             </RevealItem>

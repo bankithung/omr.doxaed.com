@@ -20,13 +20,13 @@ function ClassCard({ cls }) {
   return (
     <Link
       to={`/classes/${cls.id}`}
-      className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 transition-colors hover:border-primary/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 transition-colors hover:border-indigo/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-indigo/10 text-sm font-bold text-indigo">
         {(cls.name?.[0] ?? "C").toUpperCase()}
       </span>
       <div className="min-w-0">
-        <p className="truncate font-semibold group-hover:text-primary">{cls.name}</p>
+        <p className="truncate font-semibold group-hover:text-indigo">{cls.name}</p>
         <p className="truncate text-xs text-muted-foreground">
           {cls.description || "No description"}
         </p>

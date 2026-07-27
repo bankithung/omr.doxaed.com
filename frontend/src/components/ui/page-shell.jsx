@@ -1,22 +1,27 @@
 import { cn } from "@/lib/utils"
 
 /**
- * PageShell — the shared page rhythm wrapper for every authenticated route.
+ * PageShell — the shared page rhythm wrapper for every route.
  *
- * Centers content, applies the standard max-width (max-w-5xl), vertical rhythm
- * (space-y-8) and responsive padding (p-6 md:p-8). Workbench / data-heavy pages
- * can widen by passing a different max-width via `className` (e.g. "max-w-6xl"),
- * which overrides the default thanks to tailwind-merge.
+ * Matches fet's `.page`: 90% of the available width, capped at 1600px, centred,
+ * with responsive padding and a soft rise on mount. The width steps up on
+ * smaller screens (94% tablet, 96% phone, 100% small phone) so narrow viewports
+ * do not waste their margins.
  *
  * Props:
  *   children  — page content
- *   className — extra classes (e.g. a wider max-width for workbench pages)
+ *   className — extra classes
  */
 function PageShell({ children, className, ...props }) {
   return (
     <div
       data-slot="page-shell"
-      className={cn("mx-auto max-w-5xl space-y-8 p-6 md:p-8", className)}
+      className={cn(
+        /* px matches the `-mx-4` / `sm:-mx-6` full bleed rows (sticky action
+           bars, scroll rails) so they sit flush instead of overflowing */
+        "page-width fet-rise space-y-6 px-4 py-4 sm:px-6 md:space-y-8 md:py-6",
+        className
+      )}
       {...props}
     >
       {children}

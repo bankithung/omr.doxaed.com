@@ -42,7 +42,7 @@ function CopyButton({ value, label }) {
       await navigator.clipboard.writeText(value)
       toast.success(`Copied ${value}`)
     } catch {
-      toast.error("Couldn't copy — please select and copy manually")
+      toast.error("Couldn't copy, please select and copy manually")
     }
   }
   return (
@@ -77,7 +77,7 @@ function ContactForm() {
     const bodyLines = [
       form.message,
       "",
-      "—",
+      "n/a",
       form.name ? `Name: ${form.name}` : null,
       form.email ? `Email: ${form.email}` : null,
     ].filter(Boolean)
@@ -140,7 +140,7 @@ function ContactForm() {
           Compose email
         </Button>
         <p className="font-mono text-[11px] text-muted-foreground">
-          Opens your email app — nothing is sent automatically.
+          Opens your email app, nothing is sent automatically.
         </p>
       </div>
     </form>
@@ -161,16 +161,16 @@ export default function Contact() {
           }}
         />
         <SectionContainer className="pt-14 pb-8 sm:pt-16 text-center">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Contact
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-              Let's <span className="text-primary">talk</span>
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+              Let's <span className="text-indigo">talk</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
               Questions about plans, a demo for your coaching centre, or help
-              getting set up? Send us a note — we read every message.
+              getting set up? Send us a note, we read every message.
             </p>
           </FadeInUp>
         </SectionContainer>
@@ -178,7 +178,7 @@ export default function Contact() {
 
       {/* ── Form + channels ────────────────────────────────────────────────── */}
       <SectionContainer className="pt-0">
-        <div className="mx-auto grid max-w-5xl items-start gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:gap-12">
+ <div className="mx-auto grid items-start gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:gap-12">
           <FadeInUp>
             <ContactForm />
           </FadeInUp>
@@ -197,7 +197,7 @@ export default function Contact() {
                   key={c.value}
                   className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-border-strong"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
                     <MaterialIcon name={c.icon} className="size-[18px]" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -207,7 +207,7 @@ export default function Contact() {
                     <a
                       href={c.href}
                       {...(c.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                      className="block truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
+                      className="block truncate text-sm font-medium text-foreground transition-colors hover:text-indigo"
                     >
                       {c.value}
                     </a>
@@ -219,11 +219,11 @@ export default function Contact() {
               <RevealItem className="rounded-xl border border-border bg-surface-1 p-4">
                 <p className="text-sm text-muted-foreground">
                   Already have an account?{" "}
-                  <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+                  <Link to="/login" className="font-medium text-indigo underline-offset-4 hover:underline">
                     Sign in
                   </Link>{" "}
                   or{" "}
-                  <Link to="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+                  <Link to="/register" className="font-medium text-indigo underline-offset-4 hover:underline">
                     start free
                   </Link>
                   .

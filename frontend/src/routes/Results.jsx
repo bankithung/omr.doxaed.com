@@ -109,10 +109,10 @@ function StudentResultRow({ result, testId }) {
         onClick={() => setExpanded((v) => !v)}
       >
         <TableCell className="font-mono text-xs tabular">
-          {result.student_roll ?? result.student?.roll_number ?? result.omr_sheet ?? "—"}
+          {result.student_roll ?? result.student?.roll_number ?? result.omr_sheet ?? "n/a"}
         </TableCell>
         <TableCell>
-          {result.student_name ?? result.student?.name ?? result.student?.full_name ?? "—"}
+          {result.student_name ?? result.student?.name ?? result.student?.full_name ?? "n/a"}
         </TableCell>
         <TableCell>
           <ScoreBadge score={result.score ?? 0} maxScore={result.max_score ?? 0} />
@@ -141,7 +141,7 @@ function StudentResultRow({ result, testId }) {
             {studentId != null && (
               <Link
                 to={`/tests/${testId}/students/${studentId}`}
-                className="text-primary hover:underline"
+                className="text-indigo hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 Detail
@@ -184,9 +184,9 @@ function StudentResultCard({ result, testId }) {
   const responses = result.responses ?? result.question_responses ?? []
   const studentId = result.student?.id ?? result.student
   const roll =
-    result.student_roll ?? result.student?.roll_number ?? result.omr_sheet ?? "—"
+    result.student_roll ?? result.student?.roll_number ?? result.omr_sheet ?? "n/a"
   const name =
-    result.student_name ?? result.student?.name ?? result.student?.full_name ?? "—"
+    result.student_name ?? result.student?.name ?? result.student?.full_name ?? "n/a"
 
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -238,7 +238,7 @@ function StudentResultCard({ result, testId }) {
             <div className="border-t px-4 py-2">
               <Link
                 to={`/tests/${testId}/students/${studentId}`}
-                className="text-sm text-primary hover:underline"
+                className="text-sm text-indigo hover:underline"
               >
                 Detail
               </Link>
@@ -590,7 +590,7 @@ export default function Results() {
                       results.reduce((s, r) => s + Number(r.score ?? 0), 0) /
                       results.length
                     ).toFixed(1)
-                  : "—"}
+                  : "n/a"}
               </strong>
             </span>
             <span>

@@ -156,7 +156,7 @@ export default function Dashboard() {
           Verify your email to unlock all features.{" "}
           <Link
             to="/profile"
-            className="text-primary underline-offset-4 hover:underline"
+            className="text-indigo underline-offset-4 hover:underline"
           >
             Go to profile
           </Link>
@@ -187,7 +187,7 @@ export default function Dashboard() {
             label="Classes"
             value={classes.length}
             sub={
-              <Link to="/classes" className="text-primary hover:underline">
+              <Link to="/classes" className="text-indigo hover:underline">
                 View all
               </Link>
             }
@@ -196,7 +196,7 @@ export default function Dashboard() {
             label="Rosters"
             value={rosters.length}
             sub={
-              <Link to="/rosters" className="text-primary hover:underline">
+              <Link to="/rosters" className="text-indigo hover:underline">
                 View all
               </Link>
             }
@@ -205,14 +205,14 @@ export default function Dashboard() {
             label="Organizations"
             value={orgs.length}
             sub={
-              <Link to="/organizations" className="text-primary hover:underline">
+              <Link to="/organizations" className="text-indigo hover:underline">
                 Manage
               </Link>
             }
           />
           <StatCard
             label="Account"
-            value={user?.email ?? "—"}
+            value={user?.email ?? "n/a"}
             sub={user?.is_email_verified ? "Verified" : "Unverified"}
           />
         </div>
@@ -223,7 +223,7 @@ export default function Dashboard() {
         <EmptyState
           icon={FileText}
           title="Create your first test"
-          description="Add a class, build an MCQ test, then generate and scan sheets to auto-grade."
+          description="Add a class, build a test, then scan to grade."
           action={
             <Button asChild>
               <Link to="/classes">Create your first test</Link>
@@ -236,7 +236,7 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Recent classes</CardTitle>
-              <Link to="/classes" className="text-sm text-primary hover:underline">
+              <Link to="/classes" className="text-sm text-indigo hover:underline">
                 View all
               </Link>
             </CardHeader>
@@ -273,7 +273,7 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Recent rosters</CardTitle>
-              <Link to="/rosters" className="text-sm text-primary hover:underline">
+              <Link to="/rosters" className="text-sm text-indigo hover:underline">
                 View all
               </Link>
             </CardHeader>

@@ -21,13 +21,13 @@ function OrgCard({ org, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(org)}
-      className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left transition-colors hover:border-primary/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left transition-colors hover:border-indigo/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-indigo/10 text-sm font-bold text-indigo">
         {(org.name?.[0] ?? "O").toUpperCase()}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold group-hover:text-primary">{org.name}</p>
+        <p className="truncate font-semibold group-hover:text-indigo">{org.name}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           {org.type && <Badge variant="neutral">{TYPE_LABEL[org.type] ?? org.type}</Badge>}
           {org.role && <Badge variant="info" className="capitalize">{org.role}</Badge>}
@@ -70,7 +70,7 @@ export default function OrgList() {
     <div className="min-h-screen bg-canvas">
       {/* Minimal top bar — no sidebar at this level */}
       <header className="flex h-14 items-center justify-between border-b border-border px-4 sm:px-6">
-        <span className="text-sm font-bold tracking-tight text-primary">DoxaEd OMR</span>
+        <span className="text-sm font-bold tracking-tight text-indigo">DoxaEd OMR</span>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -78,7 +78,7 @@ export default function OrgList() {
             className="flex min-h-[40px] items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Account settings"
           >
-            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-indigo/10 text-xs font-bold text-indigo">
               {(user?.email?.[0] ?? "U").toUpperCase()}
             </span>
             {user?.email && (
@@ -91,7 +91,7 @@ export default function OrgList() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+ <main className="mx-auto w-full px-4 py-10 sm:px-6">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Organizations</h1>

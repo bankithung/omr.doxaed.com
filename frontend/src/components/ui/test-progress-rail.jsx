@@ -88,7 +88,7 @@ function TestProgressRail({ testId, classId, current, className }) {
                   isCurrent
                     ? "bg-primary-foreground/20 text-primary-foreground"
                     : isDone
-                    ? "bg-primary/15 text-primary"
+                    ? "bg-indigo/15 text-indigo"
                     : "bg-muted text-muted-foreground"
                 )}
               >

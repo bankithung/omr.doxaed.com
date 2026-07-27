@@ -116,7 +116,7 @@ export function AnalyticsChart({ className = "", label = "Score distribution" })
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-medium text-foreground">{label}</p>
           <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-            <MaterialIcon name="trending" className="size-3.5 text-primary" />
+            <MaterialIcon name="trending" className="size-3.5 text-indigo" />
             +12% vs last test
           </span>
         </div>
@@ -175,7 +175,7 @@ function ScanStats() {
         <MaterialIcon name="shield" className="size-3 text-[var(--color-warning)]" /> 2 to review
       </span>
       <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground">
-        <MaterialIcon name="bolt" className="size-3 text-primary" /> aligned by QR
+        <MaterialIcon name="bolt" className="size-3 text-indigo" /> aligned by QR
       </span>
     </div>
   )
@@ -183,8 +183,8 @@ function ScanStats() {
 
 // 20 deterministic answers (filled option A–D index 0..3) for the full sheet.
 const FULL_ANSWERS = [
-  3, 0, 2, 1, 0, 3, 1, 2, 0, 3, // Q1–Q10
-  1, 2, 3, 0, 2, 1, 3, 0, 2, 1, // Q11–Q20
+  3, 0, 2, 1, 0, 3, 1, 2, 0, 3, // Q1, Q10
+  1, 2, 3, 0, 2, 1, 3, 0, 2, 1, // Q11, Q20
 ]
 const REVIEW_ROWS = new Set([5, 14]) // 0-based → Q6 & Q15 get a double-mark flag
 const FAINT_ROWS = new Set([9]) // Q10 reads faint / low-confidence
@@ -215,8 +215,8 @@ function FullRow({ q, marked, review, faint, delay }) {
                 "flex size-[13px] items-center justify-center rounded-full border text-[7px] font-medium leading-none",
                 isMarked
                   ? faint
-                    ? "border-primary/50 bg-primary/40 text-primary-foreground/80"
-                    : "border-primary bg-primary text-primary-foreground"
+                    ? "border-indigo/50 bg-indigo/40 text-primary-foreground/80"
+                    : "border-indigo bg-primary text-primary-foreground"
                   : isGhost
                     ? "border-[var(--color-warning)] bg-[color-mix(in_oklch,var(--color-warning)_45%,transparent)] text-foreground"
                     : "border-border-stronger text-transparent",
@@ -452,7 +452,7 @@ export function DealOut({ className = "" }) {
         {/* source: one bank + one roster */}
         <div className="flex w-full flex-col gap-3 @lg:w-auto @lg:flex-none">
           <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-2 px-3 py-2.5">
-            <span className="flex size-8 items-center justify-center rounded-md border border-border bg-card text-primary">
+            <span className="flex size-8 items-center justify-center rounded-md border border-border bg-card text-indigo">
               <MaterialIcon name="checklist" className="size-4" />
             </span>
             <div>
@@ -461,7 +461,7 @@ export function DealOut({ className = "" }) {
             </div>
           </div>
           <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-2 px-3 py-2.5">
-            <span className="flex size-8 items-center justify-center rounded-md border border-border bg-card text-primary">
+            <span className="flex size-8 items-center justify-center rounded-md border border-border bg-card text-indigo">
               <MaterialIcon name="groups" className="size-4" />
             </span>
             <div>
@@ -471,7 +471,7 @@ export function DealOut({ className = "" }) {
           </div>
           <div className="flex items-center gap-1.5 self-center font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             shuffle
-            <MaterialIcon name="arrow" className="size-3.5 rotate-90 text-primary @lg:rotate-0" />
+            <MaterialIcon name="arrow" className="size-3.5 rotate-90 text-indigo @lg:rotate-0" />
           </div>
         </div>
 

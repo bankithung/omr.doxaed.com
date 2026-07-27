@@ -80,7 +80,7 @@ const COLUMNS = [
     cell: (roster) => (
       <Link
         to={`/rosters/${roster.id}`}
-        className="font-medium hover:text-primary hover:underline"
+        className="font-medium hover:text-indigo hover:underline"
       >
         {roster.name}
       </Link>
@@ -91,7 +91,7 @@ const COLUMNS = [
     header: "Students",
     cell: (roster) => (
       <span className="text-muted-foreground tabular">
-        {roster.student_count ?? roster.students_count ?? "—"}
+        {roster.student_count ?? roster.students_count ?? "n/a"}
       </span>
     ),
   },

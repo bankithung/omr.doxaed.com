@@ -8,7 +8,7 @@
  * sized, consistently styled, and cost zero network. This is the cohesive icon
  * language for the landing — there is ZERO emoji anywhere on the page.
  *
- * Usage: <MaterialIcon name="trophy" className="size-5 text-primary" />
+ * Usage: <MaterialIcon name="trophy" className="size-5 text-indigo" />
  */
 
 const PATHS = {

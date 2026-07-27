@@ -143,11 +143,11 @@ export default function ExamOverview() {
         <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <span>
-            Some questions have no correct answer set — grading will skip them.{" "}
+            Some questions have no correct answer set, grading will skip them.{" "}
             <button
               type="button"
               onClick={() => navigate(`/tests/${testId}/questions`)}
-              className="font-medium text-primary hover:underline"
+              className="font-medium text-indigo hover:underline"
             >
               Fix the answer key
             </button>
@@ -166,7 +166,7 @@ export default function ExamOverview() {
               onClick={() => navigate(a.to)}
               className="flex min-h-[40px] items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left motion-safe-card outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-indigo/10 text-indigo">
                 <a.icon className="size-4.5" aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">

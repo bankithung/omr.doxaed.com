@@ -235,7 +235,7 @@ export default function OrgSettings() {
         <form onSubmit={saveBranding}>
           <SettingsSection
             title="Sheet branding"
-            description="The default heading and logo printed on OMR sheets across this organization."
+            description="Default heading and logo on every OMR sheet."
             footer={
               <Button type="submit" disabled={savingBrand} className="min-h-[40px]">
                 {savingBrand ? "Saving…" : "Save branding"}

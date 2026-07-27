@@ -72,14 +72,14 @@ function StatusBadge({ sheet }) {
 
 function SheetCard({ sheet, onOpenCorrector }) {
   const studentName = sheet.student?.name ?? "Unknown student"
-  const studentRoll = sheet.student?.roll ?? sheet.detected?.roll ?? "—"
+  const studentRoll = sheet.student?.roll ?? sheet.detected?.roll ?? "n/a"
   const result = sheet.student_result
   const score = result?.score ?? null
   const maxScore = result?.max_score ?? null
   const scoreLabel =
     score != null && maxScore != null
       ? `${score} / ${maxScore}`
-      : "—"
+      : "n/a"
 
   const st = sheetStatus(sheet)
 
@@ -240,10 +240,10 @@ function DropZone({ onFiles, disabled, files }) {
         onClick={() => !disabled && fileInputRef.current?.click()}
         className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 transition-colors ${
           dragging
-            ? "border-primary bg-primary/5"
+            ? "border-indigo bg-indigo/5"
             : disabled
             ? "cursor-not-allowed border-border opacity-50"
-            : "border-border hover:border-primary hover:bg-muted/30"
+            : "border-border hover:border-indigo hover:bg-muted/30"
         }`}
         role="button"
         tabIndex={disabled ? -1 : 0}
@@ -424,7 +424,7 @@ export default function Scan() {
     try {
       const resp = await uploadScan(testId, files)
       setBatch({ id: resp.batch_id, status: "processing", total: resp.total, processed: 0 })
-      toast.success(`Scan started — ${resp.total} image(s) queued`)
+      toast.success(`Scan started, ${resp.total} image(s) queued`)
       startPolling(resp.batch_id)
     } catch (err) {
       const msg =
@@ -590,7 +590,7 @@ export default function Scan() {
                 onClick={() => setFilter("all")}
                 className={`min-h-[40px] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
                   filter === "all"
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-indigo bg-primary text-primary-foreground"
                     : "border-border bg-transparent hover:bg-muted"
                 }`}
               >
@@ -601,7 +601,7 @@ export default function Scan() {
                 onClick={() => setFilter("attention")}
                 className={`min-h-[40px] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
                   filter === "attention"
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-indigo bg-primary text-primary-foreground"
                     : "border-border bg-transparent hover:bg-muted"
                 }`}
               >

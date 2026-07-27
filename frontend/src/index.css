@@ -1,41 +1,75 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 
-/* OMRFlow design tokens (DESIGN_SYSTEM.md). shadcn init (a later task) appends its own
-   :root / @theme color variables below this block — keep both. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   OMRFlow design tokens — ported 1:1 from the Doxaed Timetables (fet) design
+   system so both products read as one family.
+
+   Palette (fet/frontend/src/index.css):
+     canvas #F4F3EF · ground #F7F6F2 · tray #ECEBE7 · ink #130537
+     indigo #3F20FB (primary action + interactive tint)
+     lavender #DCB3F2 · danger #B42318 · success #1B7F4F
+   Radius 5px. Inter. Flat surfaces, hairline borders, no gradients.
+   Light only, exactly like fet (no dark variant exists in that system).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @theme {
-  /* Type scale: inherit Tailwind v4 defaults (xs…7xl + paired line-heights).
-     Supabase uses the unmodified scale; the px overrides were removed so the
-     hero's text-3xl…text-7xl and calc'd leading are available app-wide. */
+  /* Type scale locked to fet's rhythm: body 13px, labels 12px, badges 11px,
+     card titles 14px, section titles 16..18px, page title 20px, figures 26px.
+     Overriding only the font sizes keeps every rem based spacing utility
+     untouched, so layouts stay put while density matches fet. */
+  --text-xs: 0.6875rem;      /* 11px — badges, captions */
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.8125rem;      /* 13px — body, tables, buttons, inputs */
+  --text-sm--line-height: 1.5;
+  --text-base: 0.875rem;     /* 14px — card titles */
+  --text-base--line-height: 1.5;
+  --text-lg: 1rem;           /* 16px — section titles */
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.125rem;       /* 18px */
+  --text-xl--line-height: 1.35;
+  --text-2xl: 1.25rem;       /* 20px — page title */
+  --text-2xl--line-height: 1.3;
+  --text-3xl: 1.625rem;      /* 26px — figures, plan price */
+  --text-3xl--line-height: 1.2;
+  --text-4xl: 2rem;          /* 32px */
+  --text-4xl--line-height: 1.15;
+  --text-5xl: 2.5rem;        /* 40px — hero */
+  --text-5xl--line-height: 1.1;
+  --text-6xl: 3rem;          /* 48px */
+  --text-6xl--line-height: 1.05;
+  --text-7xl: 3.75rem;       /* 60px */
+  --text-7xl--line-height: 1;
 
-  /* Radius is governed by shadcn's --radius (see :root below); do not redefine
-     --radius-md/lg/xl here — shadcn's @theme inline would override them anyway. */
+  /* Semantic status tokens — fet's danger / success, plus a distinct amber for
+     "needs review" so it never reads as either. */
+  --color-success: #1B7F4F;
+  --color-warning: #7A5C00;
+  --color-error: #B42318;
+  --color-info: #3F20FB;
 
-  /* Semantic status tokens */
-  --color-success: oklch(0.527 0.154 150.1);
-  --color-warning: oklch(0.63 0.195 47);     /* orange — pushed redder so 'needs review' stays distinct from the amber brand */
-  --color-error: oklch(0.534 0.218 27.3);
-  --color-info: oklch(0.537 0.196 256.8);
+  /* Raw brand values, available as utilities (text-ink, text-indigo, …) */
+  --color-ink: #130537;
+  --color-indigo: #3F20FB;
+  --color-lavender: #DCB3F2;
 }
 
 @theme inline {
-  /* heading: same Geist Variable but with tighter tracking defined at usage */
-  --font-heading: 'Geist Variable', sans-serif;
-  --font-sans: 'Geist Variable', sans-serif;
-  /* Mono — Geist Mono for OMR data (scores, roll numbers, exam IDs, keys) */
-  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  /* Elevation ladder + border ramp + nav-active + overlay shadow (App-shell v2) */
+  --font-heading: 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Elevation ladder + border ramp + nav active + overlay shadow */
   --color-canvas: var(--canvas);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-border-strong: var(--border-strong);
   --color-border-stronger: var(--border-stronger);
-  /* shorthand so `border-strong` / `border-stronger` resolve (spec §1c) */
   --color-strong: var(--border-strong);
   --color-stronger: var(--border-stronger);
   --color-nav-active-bg: var(--nav-active-bg);
@@ -75,177 +109,374 @@
   --color-foreground: var(--foreground);
   --color-foreground-lighter: var(--foreground-lighter);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+
+  /* fet uses ONE radius everywhere (5px). Keep the ladder flat so nothing
+     rounds into a pill by accident. */
+  --radius-sm: 3px;
+  --radius-md: 4px;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+  --radius-4xl: var(--radius);
 }
 
 :root {
-  /* ── LIGHT (the alternate). Supabase light: near-white #fcfcfc canvas, pure
-     achromatic gray ramp (chroma → 0). ── */
-  --background: oklch(0.985 0 0);            /* #fcfcfc page */
-  --foreground: oklch(0.205 0 0);           /* #171717 */
+  --radius: 5px;
 
-  /* Elevation ladder (flat surfaces; depth = surface step + hairline) */
-  --canvas:    oklch(0.985 0 0);            /* app/rail/main canvas */
-  --surface-1: oklch(1 0 0);               /* #ffffff cards (surface-75) */
-  --surface-2: oklch(0.985 0 0);           /* #fcfcfc popovers (surface-100) */
-  --surface-3: oklch(0.967 0 0);           /* #f3f3f3 nested */
+  /* ── canvas / ground / tray ── */
+  --background: #F4F3EF;
+  --foreground: #130537;
+  --canvas: #F4F3EF;
+  --surface-1: #F7F6F2;
+  --surface-2: #ECEBE7;
+  --surface-3: #E3E2DD;
 
-  --card: oklch(1 0 0);                       /* → --surface-1 */
-  --card-foreground: oklch(0.205 0 0);
-  --popover: oklch(0.985 0 0);                /* → --surface-2 */
-  --popover-foreground: oklch(0.205 0 0);
+  --card: #F7F6F2;
+  --card-foreground: #130537;
+  --popover: #F7F6F2;
+  --popover-foreground: #130537;
 
-  /* Brand — DoxaEd amber/gold #F5A623 (accent ONLY: buttons, ring, links, active-nav, dots).
-     Buttons read near-black on amber. Distinct from --color-success (green) + --color-warning (orange). */
-  --primary: oklch(0.72 0.15 73);           /* ≈ #F5A623 DoxaEd amber/gold (brand) */
-  --primary-foreground: oklch(0.205 0 0);   /* #161616 near-black on green */
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.27 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);     /* secondary text */
-  --foreground-lighter: oklch(0.65 0 0);    /* tertiary / placeholder #b2b2b2 */
+  /* ── primary action: indigo chip with white text.
+     fet's own CTA is lime, but lime reads as acid green on this canvas and is
+     unusable as a text or icon colour. Indigo is the same palette's interactive
+     tint, so the family holds and every CTA, active tab and link agree. ── */
+  --primary: #3F20FB;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #3418D9;
 
-  /* Accent — teal (secondary highlights/charts only) */
-  --accent: oklch(0.9 0.04 195);
-  --accent-foreground: oklch(0.3 0.06 195);
-  --destructive: oklch(0.637 0.205 25.3);   /* #e54d2e Supabase tomato */
+  --secondary: #ECEBE7;
+  --secondary-foreground: #130537;
+  --muted: #ECEBE7;
+  --muted-foreground: rgba(19, 5, 55, 0.55);
+  --foreground-lighter: rgba(19, 5, 55, 0.35);
+  --text-2: rgba(19, 5, 55, 0.78);
+  --text-soft: rgba(19, 5, 55, 0.62);
 
-  /* Border ramp — hairlines are the primary depth tool (Supabase #dfdfdf/#d4d4d4/#8f8f8f) */
-  --border: oklch(0.9 0 0);                 /* #dfdfdf default */
-  --border-strong: oklch(0.87 0 0);         /* #d4d4d4 structural */
-  --border-stronger: oklch(0.66 0 0);       /* #8f8f8f hover/active */
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.72 0.15 73);              /* crisp brand focus (amber) */
+  /* ── accent: the soft indigo wash fet uses for hover / active fills ── */
+  --accent: rgba(63, 32, 251, 0.08);
+  --accent-foreground: #130537;
+  --accent-solid: #3F20FB;
+  --lavender: #DCB3F2;
+  --lavender-tint: rgba(220, 179, 242, 0.35);
 
-  /* Active-nav: faint tinted fill + brand text (NOT a saturated pill) */
-  --nav-active-bg: oklch(0.96 0.03 80);
-  --nav-active-fg: var(--primary);
+  --destructive: #B42318;
+  --destructive-foreground: #FFFFFF;
 
-  /* Charts — amber brand series (chart-1) + sequential teal→blue (chart-2…5) */
-  --chart-1: oklch(0.72 0.15 73);
-  --chart-2: oklch(0.66 0.13 178);
-  --chart-3: oklch(0.60 0.12 200);
-  --chart-4: oklch(0.58 0.13 230);
-  --chart-5: oklch(0.62 0.16 264);
+  /* ── hairline border ramp ── */
+  --border: rgba(19, 5, 55, 0.18);
+  --border-strong: rgba(19, 5, 55, 0.32);
+  --border-stronger: rgba(19, 5, 55, 0.5);
 
-  --radius: 0.5rem;  /* 8px workhorse — matches Supabase */
+  /* ── form fields: white ground so editable controls separate from the
+     cards (--surface-1) and canvas (--background) they sit on ── */
+  --field: #FFFFFF;
+  --field-border: rgba(19, 5, 55, 0.32);
+  --field-border-hover: rgba(19, 5, 55, 0.5);
+  --field-border-focus: #130537;
+  --field-placeholder: rgba(19, 5, 55, 0.35);
+  --field-disabled: #ECEBE7;
+  --input: rgba(19, 5, 55, 0.32);
+  --ring: rgba(63, 32, 251, 0.45);       /* indigo focus halo */
 
-  /* Sidebar (rail + secondary panel) */
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.27 0 0);
-  --sidebar-primary: oklch(0.72 0.15 73);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.96 0.03 80);           /* matches --nav-active-bg */
-  --sidebar-accent-foreground: oklch(0.42 0.1 72);
-  --sidebar-border: oklch(0.87 0 0);                 /* = --border-strong */
-  --sidebar-ring: oklch(0.72 0.15 73);
+  /* ── active nav / active tab: solid indigo chip, white label ── */
+  --nav-active-bg: #3F20FB;
+  --nav-active-fg: #FFFFFF;
 
-  /* One restrained overlay shadow (dropdowns/dialogs in LIGHT only) */
-  --shadow-overlay: 0 1px 2px oklch(0 0 0 / 0.05),
-                    0 4px 12px oklch(0 0 0 / 0.1);
+  /* ── charts: indigo, lavender, success, amber, ink ── */
+  --chart-1: #3F20FB;
+  --chart-2: #DCB3F2;
+  --chart-3: #1B7F4F;
+  --chart-4: #7A5C00;
+  --chart-5: #130537;
 
-  /* Motion tokens */
+  /* ── sidebar / rail ── */
+  --sidebar: #F7F6F2;
+  --sidebar-foreground: #130537;
+  --sidebar-primary: #3F20FB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #3F20FB;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(19, 5, 55, 0.18);
+  --sidebar-ring: rgba(63, 32, 251, 0.45);
+
+  /* ── one restrained ink overlay shadow ── */
+  --shadow-overlay: 0 12px 32px -12px rgba(19, 5, 55, 0.3);
+  --shadow-modal: 0 24px 48px -24px rgba(19, 5, 55, 0.35),
+                  0 6px 16px -8px rgba(19, 5, 55, 0.12);
+  --shadow-lift: 0 0 0 1px rgba(19, 5, 55, 0.04),
+                 0 10px 34px -12px rgba(19, 5, 55, 0.22);
+
+  /* ── motion ── */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --dur-fast: 130ms;
   --dur: 180ms;
+
+  color-scheme: light;
 }
 
+/* fet has no dark variant. Any stray `.dark` on the tree resolves to the same
+   light palette so a toggle left in a bookmark or localStorage cannot produce
+   an unstyled screen. */
 .dark {
-  /* ── DARK (DEFAULT). Supabase achromatic gunmetal, chroma → 0. ── */
-  --background: oklch(0.145 0 0);            /* #0f0f0f page */
-  --foreground: oklch(0.985 0 0);           /* #fafafa */
-
-  --canvas:    oklch(0.165 0 0);            /* #121212 dash-canvas */
-  --surface-1: oklch(0.205 0 0);           /* #1f1f1f cards (surface-100) */
-  --surface-2: oklch(0.225 0 0);           /* #242424 muted/control (popovers) */
-  --surface-3: oklch(0.245 0 0);           /* #292929 surface-300 */
-
-  --card: oklch(0.205 0 0);                 /* #1f1f1f */
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);              /* dialog = surface, not raised */
-  --popover-foreground: oklch(0.985 0 0);
-
-  --primary: oklch(0.8 0.155 76);           /* ≈ #F5A623 amber/gold, brighter for the dark canvas (brand) */
-  --primary-foreground: oklch(0.205 0 0);   /* #161616 near-black on green (Supabase) */
-  --secondary: oklch(0.225 0 0);            /* #242424 */
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.225 0 0);                /* #242424 control/muted */
-  --muted-foreground: oklch(0.72 0 0);      /* #b4b4b4 — NOT pure white (Supabase calm) */
-  --foreground-lighter: oklch(0.6 0 0);     /* #898989 placeholder/tertiary */
-
-  --accent: oklch(0.28 0.04 195);           /* teal — charts only */
-  --accent-foreground: oklch(0.85 0.06 195);
-  --destructive: oklch(0.637 0.205 25.3);   /* #e54d2e */
-
-  /* SOLID gunmetal borders — the single biggest premium lever (Supabase #2e2e2e/#363636/#454545) */
-  --border: oklch(0.27 0 0);                /* #2e2e2e default */
-  --border-strong: oklch(0.32 0 0);         /* #363636 strong */
-  --border-stronger: oklch(0.37 0 0);       /* #454545 stronger/hover */
-  --input: oklch(0.27 0 0);
-  --ring: oklch(0.8 0.155 76);
-
-  --nav-active-bg: oklch(0.25 0.04 75);     /* faint amber-tinted fill */
-  --nav-active-fg: oklch(0.84 0.13 78);
-
-  --chart-1: oklch(0.8 0.155 76);
-  --chart-2: oklch(0.7 0.13 178);
-  --chart-3: oklch(0.68 0.12 200);
-  --chart-4: oklch(0.67 0.13 230);
-  --chart-5: oklch(0.68 0.16 264);
-
-  --sidebar: oklch(0.165 0 0);              /* #121212 dash-sidebar (≈ canvas) */
-  --sidebar-foreground: oklch(0.85 0 0);
-  --sidebar-primary: oklch(0.8 0.155 76);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.25 0.04 75);
-  --sidebar-accent-foreground: oklch(0.84 0.13 78);
-  --sidebar-border: oklch(0.27 0 0);        /* = --border */
-  --sidebar-ring: oklch(0.8 0.155 76);
-
-  --shadow-overlay: none;  /* dark relies on border + surface step, never glow */
+  --background: #F4F3EF;
+  --foreground: #130537;
+  --canvas: #F4F3EF;
+  --surface-1: #F7F6F2;
+  --surface-2: #ECEBE7;
+  --surface-3: #E3E2DD;
+  --card: #F7F6F2;
+  --card-foreground: #130537;
+  --popover: #F7F6F2;
+  --popover-foreground: #130537;
+  --primary: #3F20FB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #ECEBE7;
+  --secondary-foreground: #130537;
+  --muted: #ECEBE7;
+  --muted-foreground: rgba(19, 5, 55, 0.55);
+  --foreground-lighter: rgba(19, 5, 55, 0.35);
+  --accent: rgba(63, 32, 251, 0.08);
+  --accent-foreground: #130537;
+  --destructive: #B42318;
+  --border: rgba(19, 5, 55, 0.18);
+  --border-strong: rgba(19, 5, 55, 0.32);
+  --border-stronger: rgba(19, 5, 55, 0.5);
+  --input: rgba(19, 5, 55, 0.32);
+  --ring: rgba(63, 32, 251, 0.45);
+  --nav-active-bg: #3F20FB;
+  --nav-active-fg: #FFFFFF;
+  --sidebar: #F7F6F2;
+  --sidebar-foreground: #130537;
+  --sidebar-border: rgba(19, 5, 55, 0.18);
+  --shadow-overlay: 0 12px 32px -12px rgba(19, 5, 55, 0.3);
+  color-scheme: light;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
+    box-sizing: border-box;
+    border-color: var(--border);
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-sans);
+    background: var(--background);
+    color-scheme: light;
   }
-  /* App shell adopts dense UI scale + refined Geist letterforms.
-     Set on the shell wrapper, NOT globally (keeps marketing copy at 16px). */
-  .app-density { font-size: 14px; font-feature-settings: "cv01" 1, "ss03" 1; }
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  #root {
+    min-height: 100vh;
+  }
+  h1, h2, h3, h4 {
+    font-weight: 600;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    font-family: inherit;
+  }
+  /* App shell density — fet's workspace scale. */
+  .app-density {
+    font-size: 13px;
+  }
+  /* Focus ring: indigo halo, the shape of fet's --field-ring. */
+  :focus-visible {
+    outline: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Layout primitives (fet parity)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Every page body is 90% of the available width, capped so ultra wide screens
+   do not stretch a table to an unreadable line length. */
+@utility page-width {
+  width: 90%;
+  max-width: 1600px;
+  margin-inline: auto;
+}
+
+@media (max-width: 1024px) {
+  .page-width { width: 94%; }
+}
+@media (max-width: 768px) {
+  .page-width { width: 96%; }
+}
+@media (max-width: 480px) {
+  .page-width { width: 100%; }
 }
 
 @utility tabular { font-variant-numeric: tabular-nums; }
 @utility tracking-tight-1 { letter-spacing: -0.01em; }
-/* Supabase-style white-alpha hairline — consistent edge over any dark surface (flat) */
-@utility border-hairline { border-color: oklch(1 0 0 / 0.08); }
-/* Brand focus glow (amber brand) — flat box-shadow, no gradient */
+@utility border-hairline { border-color: var(--border); }
+
+/* fet's lime focus ring */
 @utility ring-brand-glow {
-  box-shadow: 0 0 0 1px var(--ring), 0 0 6px 0 oklch(0.8 0.155 76 / 0.45);
+  box-shadow: 0 0 0 3px rgba(63, 32, 251, 0.35);
 }
+
 @utility motion-safe-card {
-  transition-property: background-color, border-color, transform;
+  transition-property: background-color, border-color, box-shadow, transform;
   transition-duration: var(--dur-fast);
   transition-timing-function: var(--ease-out);
 }
 
+/* The soft ink lift fet applies to every card and panel on hover. */
+@utility ink-lift {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  &:hover {
+    border-color: rgba(19, 5, 55, 0.38);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Motion — entrances, loading, reveals. Every one collapses under
+   prefers-reduced-motion.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fet-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fet-toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fet-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fet-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fet-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes fet-skeleton {
+  100% { transform: translateX(100%); }
+}
+
+/* Page and section entrance. Applied by PageShell and the landing sections. */
+.fet-rise {
+  animation: fet-rise 0.42s var(--ease-out) both;
+}
+.fet-fade {
+  animation: fet-fade-in 0.3s var(--ease-out) both;
+}
+/* Staggered children — set --i on each child. */
+.fet-stagger > * {
+  animation: fet-rise 0.45s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+/* Scroll reveal, driven by the IntersectionObserver in landing/motion/reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+.spin { animation: fet-spin 0.9s linear infinite; transform-origin: 50% 50%; }
+
+/* Skeleton shimmer — ink tint so it reads on both --surface-1 and --surface-2 */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: rgba(19, 5, 55, 0.085);
+}
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: fet-skeleton 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fet-rise,
+  .fet-fade,
+  .fet-stagger > *,
+  .spin,
+  .skeleton-shimmer::after {
+    animation: none !important;
+  }
+  .fet-rise,
+  .fet-stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Touch targets — every interactive control reaches 40px on handhelds, per the
+   owner rule. Layered as min-height so each control keeps its own padding.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  button:not([data-size='icon-xs']):not([data-slot='tab-dot']),
+  [role='button']:not([data-size='icon-xs']),
+  a[data-slot='button'],
+  select,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  [data-slot='select-trigger'],
+  [data-slot='dropdown-menu-trigger'],
+  [data-slot='tabs-trigger'],
+  [data-slot='popover-trigger'] {
+    min-height: 40px;
+  }
+  button[data-size^='icon'],
+  [data-slot='button'][data-size^='icon'] {
+    min-width: 40px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 18px;
+    height: 18px;
+  }
+  /* Menu and option rows are tappable rows, not dense list items. */
+  [data-slot='dropdown-menu-item'],
+  [data-slot='select-item'],
+  [data-slot='command-item'] {
+    min-height: 40px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Wide content scrolls inside its own box so the page never scrolls sideways.
+   ═══════════════════════════════════════════════════════════════════════════ */
+img, svg, video, canvas { max-width: 100%; }
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ───────────────────────────────────────────────────────────────────────────
-   LANDING MARQUEE — the trust strip (Supabase logo/trust marquee). Flat: a CSS
-   keyframe scroll + an edge-fade MASK (opacity feather, tints nothing) +
-   pause-on-hover. Used only by the landing's TrustStrip; nothing here is a
-   colored gradient surface, so the flat/no-gradient rule holds.
+   LANDING MARQUEE — flat CSS scroll with an alpha edge mask and pause on hover.
    ─────────────────────────────────────────────────────────────────────────── */
 @keyframes landing-marquee {
   from { transform: translateX(0); }
@@ -257,7 +488,6 @@
 .landing-marquee-mask:hover .landing-marquee {
   animation-play-state: paused;
 }
-/* edge fade — pure alpha mask (no color), so both light + dark read cleanly */
 .landing-marquee-mask {
   -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
           mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
@@ -273,14 +503,9 @@
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
-   LANDING PRODUCT GRAPHICS — restrained, premium, flat SVG animations (the
-   Supabase "images that animate" language). All run only when on-screen via a
-   `landing-anim` class toggled by an in-view observer (RevealItem / FadeInUp),
-   and ALL collapse to their finished frame under prefers-reduced-motion. No
-   colored gradients — these animate stroke/opacity/transform on flat shapes.
+   LANDING PRODUCT GRAPHICS — flat SVG animation language, gated on an in view
+   observer and fully collapsible under reduced motion.
    ─────────────────────────────────────────────────────────────────────────── */
-
-/* Scan-line sweep over a sheet — a thin band travels top→bottom, once. */
 @keyframes landing-scan {
   0%   { transform: translateY(0); opacity: 0; }
   10%  { opacity: 1; }
@@ -291,7 +516,6 @@
   animation: landing-scan 2.6s var(--ease-out) infinite;
 }
 
-/* Chart bars / line growth — drawn on first reveal. Bars scaleY from baseline. */
 @keyframes landing-grow {
   from { transform: scaleY(0); }
   to   { transform: scaleY(1); }
@@ -301,7 +525,7 @@
   transform-origin: bottom;
   animation: landing-grow 0.7s var(--ease-out) both;
 }
-/* Horizontal (width) bar growth — for HTML progress rows (scaleX from left). */
+
 @keyframes landing-grow-x {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
@@ -310,7 +534,7 @@
   transform-origin: left;
   animation: landing-grow-x 0.7s var(--ease-out) both;
 }
-/* Line path draws itself (dash offset → 0). */
+
 @keyframes landing-draw {
   from { stroke-dashoffset: var(--draw-len, 320); }
   to   { stroke-dashoffset: 0; }
@@ -320,7 +544,6 @@
   animation: landing-draw 1.1s var(--ease-out) both;
 }
 
-/* Deal-out — shuffled sheets fan out from the master, once on reveal. */
 @keyframes landing-deal {
   from { transform: translate(var(--deal-from-x, 0), 8px) scale(0.96); opacity: 0; }
   to   { transform: translate(0, 0) scale(1); opacity: 1; }
@@ -330,7 +553,6 @@
   animation-delay: var(--deal-delay, 0ms);
 }
 
-/* Soft pulse for a "live" status dot — opacity only (cheap, compositor-safe). */
 @keyframes landing-pulse {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
@@ -339,8 +561,6 @@
   animation: landing-pulse 2.2s var(--ease-standard) infinite;
 }
 
-/* Connector flow — marching dashes along the deal-out connector lines, so the
-   bridge between the source and the dealt sheets reads as live flow. */
 @keyframes landing-flow {
   to { stroke-dashoffset: -20; }
 }
@@ -359,7 +579,6 @@
   .landing-anim .landing-flow {
     animation: none !important;
   }
-  /* Show the finished frame, not the empty/start state. */
   .landing-anim .landing-bar,
   .landing-anim .landing-bar-x { transform: none !important; }
   .landing-anim .landing-draw { stroke-dashoffset: 0 !important; }
@@ -367,10 +586,10 @@
   .landing-anim .landing-scanline { display: none !important; }
 }
 
-/* ── Thin, subtle scrollbars everywhere ─────────────────────────────────────── */
+/* ── Thin ink scrollbars everywhere (fet parity) ───────────────────────────── */
 * {
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
@@ -380,20 +599,31 @@
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: var(--border-strong);
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  background-color: var(--border);
+  border-radius: 8px;
 }
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--muted-foreground);
 }
 
-/* Utility: fully hide a scrollbar (content still scrolls) — for the icon rail. */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ── Print: clean paper, chrome removed ────────────────────────────────────── */
+@media print {
+  [data-slot='app-nav'],
+  [data-slot='app-rail'],
+  [data-slot='button'],
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
 }

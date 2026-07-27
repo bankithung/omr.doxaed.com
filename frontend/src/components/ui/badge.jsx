@@ -1,34 +1,34 @@
 import { cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
+/* fet's .badge: an 11px uppercase chip on the tray surface with a hairline
+   border and 5px corners. Status variants tint the same shape. */
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+  "inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold tracking-[0.5px] uppercase",
   {
     variants: {
       variant: {
-        // semantic variants mapped to theme tokens
         success:
-          "bg-[color-mix(in_oklch,var(--color-success)_15%,transparent)] text-[var(--color-success)] dark:bg-[color-mix(in_oklch,var(--color-success)_20%,transparent)]",
+          "border-[var(--color-success)]/45 bg-[var(--color-success)]/[0.10] text-[var(--color-success)]",
         warning:
-          "bg-[color-mix(in_oklch,var(--color-warning)_15%,transparent)] text-[var(--color-warning)] dark:bg-[color-mix(in_oklch,var(--color-warning)_20%,transparent)]",
+          "border-[var(--color-warning)]/45 bg-[var(--color-warning)]/[0.14] text-[var(--color-warning)]",
         error:
-          "bg-[color-mix(in_oklch,var(--color-error)_12%,transparent)] text-[var(--color-error)] dark:bg-[color-mix(in_oklch,var(--color-error)_20%,transparent)]",
+          "border-destructive/50 bg-destructive/[0.10] text-destructive",
         info:
-          "bg-[color-mix(in_oklch,var(--color-info)_12%,transparent)] text-[var(--color-info)] dark:bg-[color-mix(in_oklch,var(--color-info)_20%,transparent)]",
+          "border-[var(--accent-solid)]/45 bg-[var(--accent-solid)]/[0.09] text-[var(--accent-solid)]",
         neutral:
-          "border border-border-strong bg-surface-1 text-muted-foreground",
-        // brand / live — pairs with StatusDot + animate-pulse for live status
+          "border-border bg-secondary text-muted-foreground",
+        // brand / live — pairs with StatusDot for live status
         brand:
-          "border border-primary/40 bg-primary/10 text-primary",
-        // shadcn-compatible default
+          "border-primary bg-primary text-primary-foreground",
         default:
-          "border border-transparent bg-primary text-primary-foreground",
+          "border-primary bg-primary text-primary-foreground",
         secondary:
-          "border border-transparent bg-secondary text-secondary-foreground",
+          "border-border bg-secondary text-secondary-foreground",
         destructive:
-          "border border-transparent bg-destructive text-primary-foreground",
+          "border-destructive/50 bg-destructive/[0.10] text-destructive",
         outline:
-          "border border-border text-foreground",
+          "border-border bg-transparent text-foreground",
       },
     },
     defaultVariants: {

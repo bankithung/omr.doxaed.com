@@ -34,7 +34,7 @@ export default function VerifyEmail() {
     <AuthLayout title="Verify email" subtitle={subtitle}>
       {status === "pending" && (
         <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
+          <Loader2 className="size-8 animate-spin text-indigo" aria-hidden="true" />
           <div className="space-y-1">
             <h2 className="text-base font-semibold">Verifying…</h2>
             <p className="text-sm text-muted-foreground">
@@ -59,7 +59,7 @@ export default function VerifyEmail() {
           </div>
           <Link
             to="/login"
-            className="block text-center text-sm text-primary underline-offset-4 hover:underline"
+            className="block text-center text-sm text-indigo underline-offset-4 hover:underline"
           >
             Continue to sign in
           </Link>
@@ -81,7 +81,7 @@ export default function VerifyEmail() {
           </div>
           <Link
             to="/login"
-            className="block text-center text-sm text-primary underline-offset-4 hover:underline"
+            className="block text-center text-sm text-indigo underline-offset-4 hover:underline"
           >
             Back to sign in
           </Link>

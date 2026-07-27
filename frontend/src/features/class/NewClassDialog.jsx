@@ -168,7 +168,7 @@ export default function NewClassDialog({ topLabel, onClose, onCreated }) {
 
           <ChipAdder
             label={`${childLabel}s (optional)`}
-            hint={`Add ${childLabel.toLowerCase()}s — students and exams can be scoped to each.`}
+            hint={`Add ${childLabel.toLowerCase()}s, students and exams can be scoped to each.`}
             placeholder={`e.g. ${childLabel} A`}
             items={sections}
             onAdd={(v) => setSections((s) => [...s, v])}

@@ -147,7 +147,7 @@ export default function Terms() {
           Questions about these Terms? Contact us at{" "}
           <a
             href="mailto:doxaed@gmail.com"
-            className="text-primary underline-offset-4 hover:underline"
+            className="text-indigo underline-offset-4 hover:underline"
           >
             doxaed@gmail.com
           </a>

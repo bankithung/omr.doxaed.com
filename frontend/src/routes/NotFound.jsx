@@ -23,10 +23,10 @@ export default function NotFound() {
           }}
         />
         <SectionContainer className="flex min-h-[60vh] flex-col items-center justify-center py-24 text-center">
-          <Reveal className="mx-auto max-w-xl">
+ <Reveal className="mx-auto ">
             <RevealItem
               as="p"
-              className="font-mono text-7xl font-semibold tracking-tight text-primary sm:text-8xl"
+              className="font-mono text-7xl font-semibold tracking-tight text-indigo sm:text-8xl"
             >
               404
             </RevealItem>

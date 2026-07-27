@@ -311,7 +311,7 @@ export function RostersSection({ classId }) {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         The student lists for this class. Add a roster, then add students (or a
-        roll count) to it — generated OMR sheets use this class's rosters.
+        roll count) to it, generated OMR sheets use this class's rosters.
       </p>
       <form onSubmit={handleAdd} className="flex items-center gap-2">
         <Input
@@ -342,7 +342,7 @@ export function RostersSection({ classId }) {
               <div className="min-w-0">
                 <Link
                   to={`/rosters/${r.id}`}
-                  className="font-medium hover:text-primary hover:underline"
+                  className="font-medium hover:text-indigo hover:underline"
                 >
                   {r.name}
                 </Link>
@@ -409,7 +409,7 @@ function NarrowSubjectsDialog({ grant, subjects, onClose, onSaved }) {
         </p>
         {subjects.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            This class has no subjects yet — add some in the Subjects tab to narrow
+            This class has no subjects yet, add some in the Subjects tab to narrow
             access.
           </p>
         ) : (
@@ -425,8 +425,8 @@ function NarrowSubjectsDialog({ grant, subjects, onClose, onSaved }) {
                   className={cn(
                     "min-h-[40px] rounded-full border px-4 text-sm font-medium transition-colors",
                     on
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-surface-2 text-foreground hover:border-primary/50",
+                      ? "border-indigo bg-primary text-primary-foreground"
+                      : "border-border bg-surface-2 text-foreground hover:border-indigo/50",
                   )}
                 >
                   {s.name}
@@ -537,7 +537,7 @@ export function AccessSection({ classId }) {
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
         Grant teachers access to this class. A grant covers all subjects by default
-        — use <span className="font-medium text-foreground">Subjects</span> on a row
+, use <span className="font-medium text-foreground">Subjects</span> on a row
         to limit a teacher to specific ones. Teachers without a grant can't see this
         class; admins always have full access.
       </p>
@@ -736,7 +736,7 @@ export function ExamsSection({ classId }) {
       key: "title",
       header: "Title",
       cell: (test) => (
-        <Link to={`/tests/${test.id}`} className="font-medium hover:text-primary hover:underline">
+        <Link to={`/tests/${test.id}`} className="font-medium hover:text-indigo hover:underline">
           {test.title}
         </Link>
       ),
@@ -748,7 +748,7 @@ export function ExamsSection({ classId }) {
         test.subject ? (
           <span className="text-muted-foreground">{test.subject}</span>
         ) : (
-          <span className="italic text-muted-foreground">—</span>
+          <span className="italic text-muted-foreground">n/a</span>
         ),
     },
     ...(hasSections
@@ -788,7 +788,7 @@ export function ExamsSection({ classId }) {
                 day: "numeric",
                 year: "numeric",
               })
-            : "—"}
+            : "n/a"}
         </span>
       ),
     },

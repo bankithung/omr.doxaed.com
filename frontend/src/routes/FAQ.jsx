@@ -29,18 +29,18 @@ const CATEGORIES = [
     items: [
       {
         q: "What is OMR, and what does DoxaEd OMR do?",
-        a: "OMR — optical mark recognition — is reading the filled bubbles on a paper answer sheet automatically. DoxaEd OMR generates shuffled bubble sheets for a test, lets you scan the filled sheets, and auto-grades them against each sheet's stored answer key — producing results, analytics and report cards.",
+        a: "OMR, optical mark recognition, is reading the filled bubbles on a paper answer sheet automatically. DoxaEd OMR generates shuffled bubble sheets for a test, lets you scan the filled sheets, and auto-grades them against each sheet's stored answer key, producing results, analytics and report cards.",
       },
       {
         q: "Do students need an app or an account?",
-        a: "No. Students do nothing digital. They fill a printed paper answer sheet with a pen or pencil, exactly as they would on any bubble exam. Only the teacher or centre uses DoxaEd OMR — to generate the sheets and to scan them afterwards.",
+        a: "No. Students do nothing digital. They fill a printed paper answer sheet with a pen or pencil, exactly as they would on any bubble exam. Only the teacher or centre uses DoxaEd OMR, to generate the sheets and to scan them afterwards.",
       },
       {
         q: "How are sheets scanned?",
         a: "From any phone camera or document scanner. Each sheet carries a QR code identity and fiducial alignment markers, so a photo is aligned and the bubbles are read from the correct positions regardless of which device captured it.",
       },
       {
-        q: "What can students fill — how many options?",
+        q: "What can students fill, how many options?",
         a: "Sheets support standard MCQ with 4 or 5 options, sectional and competitive-style papers, and roster pre-bubbled roll numbers for auto-identification. The mode is chosen when you create the test.",
       },
     ],
@@ -51,20 +51,20 @@ const CATEGORIES = [
     intro: "How a filled sheet becomes a trustworthy score.",
     items: [
       {
-        q: "How is grading done — and can it be tampered with?",
+        q: "How is grading done, and can it be tampered with?",
         a: "Grading happens on the server against that sheet's own stored answer key, never in the browser. Because the score isn't computed on the client, it can't be tampered with client-side, and every result traces back to the key the sheet was generated with.",
       },
       {
         q: "What happens to a bubble that's faint or double-marked?",
-        a: "It is never guessed. Low-confidence reads — faint, smudged, double-marked or empty — are routed to a review queue with the cropped image of that bubble, so a human makes the final call. A grade is either confidently read or explicitly reviewed.",
+        a: "It is never guessed. Low-confidence reads, faint, smudged, double-marked or empty, are routed to a review queue with the cropped image of that bubble, so a human makes the final call. A grade is either confidently read or explicitly reviewed.",
       },
       {
         q: "Does each student get a different sheet?",
-        a: "Yes — per-student shuffle generates a unique question (and option) order per student to deter copying, while every sheet is still graded against its own stored key. Shuffling never changes how a sheet is scored.",
+        a: "Yes, per-student shuffle generates a unique question (and option) order per student to deter copying, while every sheet is still graded against its own stored key. Shuffling never changes how a sheet is scored.",
       },
       {
         q: "Can I use negative marking or custom multi-mark rules?",
-        a: "Yes. Marking rules are configurable per test — including negative marking and how multi-mark (more than one bubble) situations are scored — so competitive and sectional papers grade the way your exam expects.",
+        a: "Yes. Marking rules are configurable per test, including negative marking and how multi-mark (more than one bubble) situations are scored, so competitive and sectional papers grade the way your exam expects.",
       },
       {
         q: "What counts as a \"scan\" for plan limits?",
@@ -83,11 +83,11 @@ const CATEGORIES = [
       },
       {
         q: "Can another account see my tests or students?",
-        a: "No. Every test, sheet, roster and result belongs to exactly one owner — a user or an organisation — and access is role-checked on every request. There is no path for one account to read another's data.",
+        a: "No. Every test, sheet, roster and result belongs to exactly one owner, a user or an organisation, and access is role-checked on every request. There is no path for one account to read another's data.",
       },
       {
         q: "What is exposed on the public result portal?",
-        a: "Only the minimal fields a result actually needs are surfaced on the public result portal — never a student's full record. The rest stays scoped to its owner.",
+        a: "Only the minimal fields a result actually needs are surfaced on the public result portal, never a student's full record. The rest stays scoped to its owner.",
       },
     ],
   },
@@ -102,7 +102,7 @@ const CATEGORIES = [
       },
       {
         q: "Is there a free plan, and what does it cost?",
-        a: "Yes — there's a genuinely free plan for a single tutor running weekly tests, with paid tiers as your batches grow. Full prices and limits are on the pricing page.",
+        a: "Yes, there's a genuinely free plan for a single tutor running weekly tests, with paid tiers as your batches grow. Full prices and limits are on the pricing page.",
       },
       {
         q: "Where can I get help if I'm stuck?",
@@ -126,15 +126,15 @@ export default function FAQ() {
           }}
         />
         <SectionContainer className="pt-14 pb-8 sm:pt-16 text-center">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               FAQ
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-              Questions, <span className="text-primary">answered honestly</span>
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+              Questions, <span className="text-indigo">answered honestly</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-              How DoxaEd OMR actually works — from what students fill on paper to
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
+              How DoxaEd OMR actually works, from what students fill on paper to
               how a scan becomes a trustworthy, auditable result.
             </p>
           </FadeInUp>
@@ -143,11 +143,11 @@ export default function FAQ() {
 
       {/* ── Grouped Q&A ────────────────────────────────────────────────────── */}
       <SectionContainer className="pt-0">
-        <div className="mx-auto max-w-3xl space-y-12">
+ <div className="mx-auto space-y-12">
           {CATEGORIES.map((cat) => (
             <FadeInUp key={cat.group}>
               <div className="flex items-center gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
                   <MaterialIcon name={cat.icon} className="size-[18px]" />
                 </span>
                 <div>
@@ -188,11 +188,11 @@ export default function FAQ() {
           }}
         />
         <SectionContainer>
-          <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
             <RevealItem as="h2" className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               Still have a question?
             </RevealItem>
-            <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
               Walk through setup on the Help page, compare plans on pricing, or
               reach out and we'll help you decide if it fits your tests.
             </RevealItem>

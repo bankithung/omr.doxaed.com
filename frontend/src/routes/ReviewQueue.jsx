@@ -21,8 +21,8 @@ const REASON_LABELS = {
   faint: "Faint / ambiguous bubble",
   missing_page: "Missing page",
   // Phase 1B — scan identity + roll reconciliation
-  test_mismatch: "Wrong test — sheet belongs to a different test",
-  roll_mismatch: "Roll number mismatch — verify student identity",
+  test_mismatch: "Wrong test, sheet belongs to a different test",
+  roll_mismatch: "Roll number mismatch, verify student identity",
 }
 
 function ReasonBadge({ reason }) {
@@ -91,7 +91,7 @@ function ReviewItemCard({ item, onResolved }) {
               onClick={() => toggleOption(label)}
               className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border text-sm font-semibold transition-colors ${
                 selected.includes(label)
-                  ? "border-primary bg-primary text-primary-foreground"
+                  ? "border-indigo bg-primary text-primary-foreground"
                   : "border-input bg-transparent text-foreground hover:bg-muted"
               }`}
             >
@@ -146,7 +146,7 @@ export default function ReviewQueue() {
   }
 
   return (
-    <PageShell className="max-w-3xl">
+ <PageShell className="">
       <PageHeader
         title="Review queue"
         description={`Test #${testId}`}
@@ -164,7 +164,7 @@ export default function ReviewQueue() {
         <EmptyState
           icon={CheckCircleIcon}
           title="All caught up"
-          description="All items resolved — no pending reviews."
+          description="All items resolved, no pending reviews."
           action={
             <Button asChild variant="outline">
               <Link to={`/tests/${testId}/results`}>View results</Link>

@@ -98,7 +98,7 @@ const PLANS = [
   {
     code: "enterprise",
     name: "Enterprise",
-    priceInr: null, // custom — no seeded price
+    priceInr: null, // custom, no seeded price
     tagline: "For multi-campus groups with custom needs.",
     cta: { label: "Contact sales", to: "/contact" },
     limits: {
@@ -163,7 +163,7 @@ const COMPARE = [
 const FAQ = [
   {
     q: "Is there a free plan?",
-    a: "Yes. The Free plan is genuinely free (₹0), with 1 seat, up to 10 students per sheet generation, 5 generations a day and 100 scans a month — enough for a single tutor to run weekly tests. No card is required to start.",
+    a: "Yes. The Free plan is genuinely free (₹0), with 1 seat, up to 10 students per sheet generation, 5 generations a day and 100 scans a month, enough for a single tutor to run weekly tests. No card is required to start.",
   },
   {
     q: "What counts as a scan?",
@@ -179,11 +179,11 @@ const FAQ = [
   },
   {
     q: "What happens when I hit a limit?",
-    a: "Nothing is silently dropped. When you reach a plan limit — seats, students per generation, generations per day or monthly scans — the action is blocked with a clear message, and you can upgrade to a higher tier to continue.",
+    a: "Nothing is silently dropped. When you reach a plan limit, seats, students per generation, generations per day or monthly scans, the action is blocked with a clear message, and you can upgrade to a higher tier to continue.",
   },
   {
     q: "Do you offer annual billing?",
-    a: "Subscriptions bill monthly by default. If you need annual invoicing or procurement support — common for schools and multi-campus groups — contact us and we'll arrange it on the Business or Enterprise tier.",
+    a: "Subscriptions bill monthly by default. If you need annual invoicing or procurement support, common for schools and multi-campus groups, contact us and we'll arrange it on the Business or Enterprise tier.",
   },
 ]
 
@@ -226,7 +226,7 @@ function BillingToggle({ value, onChange }) {
               <span
                 className={[
                   "rounded-full px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em]",
-                  active ? "bg-primary-foreground/15 text-primary-foreground" : "bg-surface-2 text-primary",
+                  active ? "bg-primary-foreground/15 text-primary-foreground" : "bg-surface-2 text-indigo",
                 ].join(" ")}
               >
                 on request
@@ -244,8 +244,7 @@ function Check({ ok }) {
     <MaterialIcon name="task" title="Included" className="mx-auto size-4 text-success" />
   ) : (
     <span aria-label="Not included" className="mx-auto block size-4 text-center text-muted-foreground">
-      —
-    </span>
+,     </span>
   )
 }
 
@@ -258,7 +257,7 @@ function PlanCard({ plan, billing }) {
       className={[
         "relative flex h-full flex-col rounded-xl border bg-card p-6 transition-colors",
         isPopular
-          ? "border-primary ring-1 ring-primary"
+          ? "border-indigo ring-1 ring-primary"
           : "border-border hover:border-border-strong",
       ].join(" ")}
     >
@@ -299,7 +298,7 @@ function PlanCard({ plan, billing }) {
       <ul className="mt-5 space-y-2.5 border-t border-border pt-5">
         {Object.values(plan.limits).map((line) => (
           <li key={line} className="flex items-start gap-2 text-sm text-foreground">
-            <MaterialIcon name="task" className="mt-0.5 size-3.5 shrink-0 text-primary" />
+            <MaterialIcon name="task" className="mt-0.5 size-3.5 shrink-0 text-indigo" />
             <span>{line}</span>
           </li>
         ))}
@@ -333,16 +332,16 @@ export default function Pricing() {
           }}
         />
         <SectionContainer className="pt-14 pb-10 sm:pt-16 text-center">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Pricing
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-              Simple, predictable pricing — <span className="text-primary">scales with you</span>
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+              Pricing that <span className="text-indigo">scales with you</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
               Start free, then move up as your batches grow. Every plan includes
-              the full grading engine — shuffled sheets, server-side auto-grading,
+              the full grading engine, shuffled sheets, server-side auto-grading,
               the review queue and analytics. You only pay for scale.
             </p>
           </FadeInUp>
@@ -351,7 +350,7 @@ export default function Pricing() {
             <BillingToggle value={billing} onChange={setBilling} />
             <p className="font-mono text-[11px] text-muted-foreground">
               {billing === "yearly"
-                ? "Prices are monthly — ask us about annual invoicing"
+                ? "Prices are monthly, ask us about annual invoicing"
                 : "Prices in INR, billed per month"}
             </p>
           </FadeInUp>
@@ -360,32 +359,32 @@ export default function Pricing() {
 
       {/* ── Tier cards ─────────────────────────────────────────────────────── */}
       <SectionContainer className="pt-0">
-        <Reveal className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+ <Reveal className="mx-auto grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PLANS.map((p) => (
             <PlanCard key={p.code} plan={p} billing={billing} />
           ))}
         </Reveal>
-        <FadeInUp className="mx-auto mt-6 max-w-6xl">
+ <FadeInUp className="mx-auto mt-6 ">
           <p className="text-center font-mono text-[11px] text-muted-foreground">
             All limits enforced server-side. Hit one and the action is blocked
-            with a clear message — never silently dropped.
+            with a clear message, never silently dropped.
           </p>
         </FadeInUp>
       </SectionContainer>
 
       {/* ── Feature comparison table ───────────────────────────────────────── */}
       <SectionContainer className="border-t border-border pt-16">
-        <FadeInUp className="mx-auto max-w-2xl text-center">
+ <FadeInUp className="mx-auto text-center">
           <h2 className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
             Compare every plan
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
-            The same grading engine across every tier — higher plans add seats,
+ <p className="mx-auto mt-4 text-base text-muted-foreground">
+            The same grading engine across every tier, higher plans add seats,
             throughput and team governance.
           </p>
         </FadeInUp>
 
-        <FadeInUp className="mx-auto mt-10 max-w-5xl overflow-x-auto">
+ <FadeInUp className="mx-auto mt-10 overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -444,16 +443,16 @@ export default function Pricing() {
 
       {/* ── Pricing FAQ ────────────────────────────────────────────────────── */}
       <SectionContainer className="border-t border-border pt-16">
-        <FadeInUp className="mx-auto max-w-2xl text-center">
+ <FadeInUp className="mx-auto text-center">
           <h2 className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
             Pricing FAQ
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
+ <p className="mx-auto mt-4 text-base text-muted-foreground">
             Honest answers, straight from how the product actually works.
           </p>
         </FadeInUp>
 
-        <FadeInUp className="mx-auto mt-10 max-w-3xl">
+ <FadeInUp className="mx-auto mt-10 ">
           <Accordion type="single" collapsible className="rounded-xl border border-border bg-card px-5">
             {FAQ.map((item) => (
               <AccordionItem key={item.q} value={item.q} className="border-border">
@@ -480,11 +479,11 @@ export default function Pricing() {
           }}
         />
         <SectionContainer>
-          <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
             <RevealItem as="h2" className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-              Start free — pay only when you scale.
+              Start free, pay only when you scale.
             </RevealItem>
-            <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
               Create your first test on the Free plan and grade your next exam in
               minutes. Upgrade for more seats, throughput and team governance.
             </RevealItem>

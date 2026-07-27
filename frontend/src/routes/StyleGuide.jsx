@@ -71,7 +71,7 @@ export default function StyleGuide() {
   ]
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-8">
+ <div className="mx-auto space-y-8 p-8">
       <h1 className="text-2xl font-bold">DoxaEd OMR Style Guide</h1>
       <Toaster />
 

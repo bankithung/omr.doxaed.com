@@ -20,12 +20,12 @@ const AUDIENCES = [
   {
     icon: "groups",
     label: "Private tutors",
-    title: "Weekly tests for a handful of students — graded the same evening",
+    title: "Weekly tests for a handful of students, graded the same evening",
     body: "Stop hand-marking quizzes or copying the same paper for everyone. Generate a unique, shuffled sheet for each student, scan the stack from your phone, and have scored results to share before the day is out.",
     points: [
-      "A unique shuffled sheet per student — no two identical orders",
-      "Scan with the phone you already have — no scanner needed",
-      "Auto-graded against the stored key — results the same evening",
+      "A unique shuffled sheet per student, no two identical orders",
+      "Scan with the phone you already have, no scanner needed",
+      "Auto-graded against the stored key, results the same evening",
       "Free to start: the free plan fits a single tutor's weekly tests",
     ],
     graphic: <ScanSheet />,
@@ -50,9 +50,9 @@ const AUDIENCES = [
     body: "Write one question bank and reuse it across sections so every class sits a comparable paper. Roster-native sheets identify students automatically, and parents get a clean public result with printable report cards.",
     points: [
       "One shared question bank across classes and sections",
-      "Roster-native sheets — students auto-identified by roll",
+      "Roster-native sheets, students auto-identified by roll",
       "Two-page printable report cards per student",
-      "A public result portal for parents — owner-scoped & auditable",
+      "A public result portal for parents, owner-scoped & auditable",
     ],
     graphic: <ScanSheet variant="full" />,
   },
@@ -74,10 +74,10 @@ const AUDIENCES = [
 function Audience({ icon, label, title, body, points, graphic, flip }) {
   return (
     <SectionContainer className="border-t border-border">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
+ <div className="mx-auto grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <FadeInUp className={cn(flip && "lg:order-2")}>
           <span className="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            <span className="flex size-7 items-center justify-center rounded-md border border-border bg-surface-2 text-primary">
+            <span className="flex size-7 items-center justify-center rounded-md border border-border bg-surface-2 text-indigo">
               <MaterialIcon name={icon} className="size-4" />
             </span>
             {label}
@@ -89,7 +89,7 @@ function Audience({ icon, label, title, body, points, graphic, flip }) {
           <ul className="mt-6 space-y-3">
             {points.map((p) => (
               <li key={p} className="flex items-start gap-2.5 text-sm text-foreground">
-                <MaterialIcon name="task" className="mt-0.5 size-4 shrink-0 text-primary" />
+                <MaterialIcon name="task" className="mt-0.5 size-4 shrink-0 text-indigo" />
                 <span>{p}</span>
               </li>
             ))}
@@ -116,15 +116,15 @@ export default function BuiltForPage() {
           }}
         />
         <SectionContainer className="pt-14 pb-6 text-center sm:pt-16">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Built for
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
               One workflow, from a single tutor to a whole{" "}
-              <span className="text-primary">school</span>
+              <span className="text-indigo">school</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
               The same generate → scan → grade → analyse loop scales from a weekly
               quiz to batch-graded competitive mocks. Here is what it looks like
               for each.
@@ -149,12 +149,12 @@ export default function BuiltForPage() {
           }}
         />
         <SectionContainer>
-          <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
             <RevealItem as="h2" className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               Whatever you teach, grading is the same loop
             </RevealItem>
-            <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Every plan includes the full engine — shuffled sheets, server-side
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
+              Every plan includes the full engine, shuffled sheets, server-side
               grading, the review queue and analytics. Start free and scale when
               your batches do.
             </RevealItem>

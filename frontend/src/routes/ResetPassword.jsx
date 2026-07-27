@@ -35,7 +35,7 @@ export default function ResetPassword() {
     setLoading(true)
     try {
       await authApi.passwordResetConfirm({ uid, token, new_password: newPassword })
-      toast.success("Password updated — you can now sign in")
+      toast.success("Password updated, you can now sign in")
       navigate("/login")
     } catch (err) {
       const data = err?.response?.data
@@ -43,7 +43,7 @@ export default function ResetPassword() {
       if (pwErr) {
         setFieldError(Array.isArray(pwErr) ? pwErr[0] : String(pwErr))
       } else {
-        setError(data?.detail ?? "Reset failed — the link may have expired.")
+        setError(data?.detail ?? "Reset failed, the link may have expired.")
       }
     } finally {
       setLoading(false)
@@ -58,7 +58,7 @@ export default function ResetPassword() {
       >
         <Link
           to="/forgot-password"
-          className="inline-block text-sm text-primary underline-offset-4 hover:underline"
+          className="inline-block text-sm text-indigo underline-offset-4 hover:underline"
         >
           Request a new link
         </Link>
@@ -94,7 +94,7 @@ export default function ResetPassword() {
         </Button>
 
         <p className="text-center text-sm">
-          <Link to="/login" className="text-primary underline-offset-4 hover:underline">
+          <Link to="/login" className="text-indigo underline-offset-4 hover:underline">
             Back to sign in
           </Link>
         </p>

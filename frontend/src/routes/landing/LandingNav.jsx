@@ -14,10 +14,10 @@ function Wordmark({ onClick }) {
       to="/"
       onClick={onClick}
       className="flex items-baseline gap-1.5 text-foreground"
-      aria-label="DoxaEd OMR — home"
+      aria-label="DoxaEd OMR, home"
     >
       <span className="text-[1.05rem] font-semibold tracking-tight">DoxaEd</span>
-      <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
+      <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-indigo">OMR</span>
     </Link>
   )
 }

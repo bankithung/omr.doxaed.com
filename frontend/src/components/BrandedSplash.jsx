@@ -11,9 +11,9 @@ export default function BrandedSplash() {
       aria-live="polite"
       className="flex min-h-screen flex-col items-center justify-center gap-5 bg-background text-foreground"
     >
-      <span className="flex items-baseline gap-1.5" aria-label="DoxaEd OMR — loading">
+      <span className="flex items-baseline gap-1.5" aria-label="DoxaEd OMR, loading">
         <span className="text-lg font-semibold tracking-tight">DoxaEd</span>
-        <span className="font-mono text-xs font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
+        <span className="font-mono text-xs font-medium uppercase tracking-[0.28em] text-indigo">OMR</span>
       </span>
       {/* subtle indeterminate bar — calm under reduced motion */}
       <span className="relative h-1 w-32 overflow-hidden rounded-full bg-surface-2">

@@ -87,7 +87,7 @@ function RoleDialog({ role, catalog, onClose, onSaved }) {
     <Dialog open onOpenChange={(o) => !saving && !o && onClose()}>
       <DialogContent className="max-h-[88vh] w-[95vw] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editing ? `Edit role — ${role.name}` : "New role"}</DialogTitle>
+          <DialogTitle>{editing ? `Edit role, ${role.name}` : "New role"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
           <Label htmlFor="role-name">Name</Label>
@@ -108,13 +108,13 @@ function RoleDialog({ role, catalog, onClose, onSaved }) {
                       aria-pressed={on}
                       className={cn(
                         "flex min-h-[40px] items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
-                        on ? "border-primary bg-primary/5" : "border-border hover:border-primary/50",
+                        on ? "border-indigo bg-indigo/5" : "border-border hover:border-indigo/50",
                       )}
                     >
                       <span
                         className={cn(
                           "grid size-4 shrink-0 place-items-center rounded border",
-                          on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
+                          on ? "border-indigo bg-primary text-primary-foreground" : "border-muted-foreground/40",
                         )}
                         aria-hidden="true"
                       >
@@ -288,7 +288,7 @@ export default function OrgRoles() {
     <PageShell>
       <PageHeader
         title="Roles & permissions"
-        description="Define what each role can do, then assign roles to members — across the whole organization or scoped to a class."
+        description="Set what each role can do, then assign it to members."
         actions={<Button onClick={() => setRoleDialog({})}><Plus className="size-4" aria-hidden="true" /> New role</Button>}
       />
 
@@ -304,7 +304,7 @@ export default function OrgRoles() {
             {roles.map((r) => (
               <div key={r.id} className="rounded-xl border border-border bg-surface-1 p-4">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  <ShieldCheck className="size-4 shrink-0 text-indigo" aria-hidden="true" />
                   <p className="min-w-0 flex-1 truncate font-semibold">{r.name}</p>
                   {r.is_system && <Badge variant="neutral">System</Badge>}
                 </div>

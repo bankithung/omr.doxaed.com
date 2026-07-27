@@ -174,13 +174,13 @@ export default function ClassOverview() {
                 key={s.id}
                 type="button"
                 onClick={() => navigate(`/classes/${s.id}`)}
-                className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left transition-colors hover:border-primary/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left transition-colors hover:border-indigo/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-indigo/10 text-sm font-bold text-indigo">
                   {(s.name?.[0] ?? "?").toUpperCase()}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate font-semibold group-hover:text-primary">{s.name}</p>
+                  <p className="truncate font-semibold group-hover:text-indigo">{s.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{s.kind_label || childLabel}</p>
                 </div>
               </button>
@@ -195,7 +195,7 @@ export default function ClassOverview() {
           <h2 className="text-sm font-semibold">Recent exams</h2>
           <Link
             to={`/classes/${id}/exams`}
-            className="text-xs font-medium text-primary hover:underline"
+            className="text-xs font-medium text-indigo hover:underline"
           >
             View all
           </Link>

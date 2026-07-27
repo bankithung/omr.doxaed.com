@@ -57,6 +57,10 @@ export function matchClassScope(pathname) {
     /^\/classes\/([^/]+)(?:\/(groups|exams|students|subjects|access|settings))?\/?$/,
   )
   if (!m) return null
+  // `new` is the create route, not a class id. Without this guard the shell
+  // treats it as one and fetches /api/v1/classes/new/, which 404s four times
+  // on every visit to /classes/new.
+  if (m[1] === "new") return null
   return { classId: m[1], current: m[2] || "overview" }
 }
 

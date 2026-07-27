@@ -8,7 +8,7 @@ import { PageShell } from "@/components/ui/page-shell"
 import { PageHeader } from "@/components/ui/page-header"
 
 function formatDate(isoString) {
-  if (!isoString) return "—"
+  if (!isoString) return "n/a"
   return new Date(isoString).toLocaleString(undefined, {
     year: "numeric",
     month: "short",
@@ -47,7 +47,7 @@ const COLUMNS = [
             )}
           </>
         ) : (
-          "—"
+          "n/a"
         )}
       </span>
     ),

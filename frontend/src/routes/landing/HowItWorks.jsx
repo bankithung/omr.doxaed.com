@@ -8,13 +8,13 @@ const STEPS = [
     n: "01",
     icon: "checklist",
     title: "Build once",
-    body: "Write your MCQs into one question bank and pick a roster — a named class list or just a count of students.",
+    body: "Write your MCQs into one question bank and pick a roster, a named class list or just a count of students.",
   },
   {
     n: "02",
     icon: "shuffle",
     title: "Generate unique sheets",
-    body: "Every student gets a sheet with question and option order shuffled — each carrying its own stored answer key and a QR code.",
+    body: "Every student gets a sheet with question and option order shuffled, each carrying its own stored answer key and a QR code.",
   },
   {
     n: "03",
@@ -26,7 +26,7 @@ const STEPS = [
     n: "04",
     icon: "analytics",
     title: "Analyse & share",
-    body: "Get score distributions, toppers, the hardest questions, item analysis, and two-page report cards — plus a public result portal.",
+    body: "Get score distributions, toppers, the hardest questions, item analysis, and two-page report cards, plus a public result portal.",
   },
 ]
 
@@ -34,7 +34,7 @@ function StepCard({ n, icon, title, body }) {
   return (
     <RevealItem className="flex h-full flex-col rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong">
       <div className="flex items-center justify-between">
-        <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+        <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
           <MaterialIcon name={icon} className="size-5" />
         </span>
         <span className="font-mono text-sm font-medium tabular text-muted-foreground">{n}</span>
@@ -54,16 +54,16 @@ function StepCard({ n, icon, title, body }) {
 export default function HowItWorks() {
   return (
     <SectionContainer id="how-it-works" className="border-t border-border">
-      <FadeInUp className="mx-auto max-w-2xl text-center">
+ <FadeInUp className="mx-auto text-center">
         <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           How it works
         </span>
         <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-          From a class list to graded analytics — in four steps
+          From a class list to graded analytics, in four steps
         </h2>
       </FadeInUp>
 
-      <Reveal as="div" className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+ <Reveal as="div" className="mx-auto mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s) => (
           <StepCard key={s.n} {...s} />
         ))}
@@ -71,11 +71,11 @@ export default function HowItWorks() {
 
       {/* Deep-dive: each beat illustrated with a flat ANIMATED product graphic.
           Generate (deal-out) → Scan (scan-line sweep) → Analyse (drawn chart). */}
-      <div className="mx-auto mt-12 grid max-w-6xl gap-4 lg:grid-cols-2">
+ <div className="mx-auto mt-12 grid gap-4 lg:grid-cols-2">
         <FadeInUp className="lg:col-span-2">
           <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              <MaterialIcon name="shuffle" className="size-3.5 text-primary" />
+              <MaterialIcon name="shuffle" className="size-3.5 text-indigo" />
               Generate shuffled sheets
             </div>
             <DealOut />
@@ -85,7 +85,7 @@ export default function HowItWorks() {
         <FadeInUp>
           <div className="h-full rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              <MaterialIcon name="scan" className="size-3.5 text-primary" />
+              <MaterialIcon name="scan" className="size-3.5 text-indigo" />
               Scan &amp; auto-grade
             </div>
             <ScanSheet />
@@ -95,13 +95,13 @@ export default function HowItWorks() {
         <FadeInUp delay={0.1}>
           <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              <MaterialIcon name="analytics" className="size-3.5 text-primary" />
+              <MaterialIcon name="analytics" className="size-3.5 text-indigo" />
               Analyse results
             </div>
             <AnalyticsChart label="Class score distribution" />
             <p className="mt-4 text-sm text-muted-foreground">
               Score distributions, toppers, the hardest questions and per-student
-              improvement — every test becomes a full analytics profile.
+              improvement, every test becomes a full analytics profile.
             </p>
           </div>
         </FadeInUp>

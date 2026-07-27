@@ -133,7 +133,7 @@ function AddBlankSheetsDialog({ rosterId, onAdded }) {
           <DialogTitle>Add blank sheets</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Creates N numbered students with blank names (roll numbers 1–N).
+          Creates N numbered students with blank names (roll numbers 1, N).
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -179,7 +179,7 @@ const STUDENT_COLUMNS = [
       s.full_name ? (
         s.full_name
       ) : (
-        <span className="italic text-muted-foreground">—</span>
+        <span className="italic text-muted-foreground">n/a</span>
       ),
   },
   {
@@ -187,7 +187,7 @@ const STUDENT_COLUMNS = [
     header: "Ref",
     cell: (s) => (
       <span className="text-muted-foreground">
-        {s.external_ref || <span className="italic">—</span>}
+        {s.external_ref || <span className="italic">n/a</span>}
       </span>
     ),
   },

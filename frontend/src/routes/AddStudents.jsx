@@ -185,7 +185,7 @@ export default function AddStudents() {
                     aria-hidden="true"
                   />
                   <span className="font-mono text-xs font-medium">{s.roll}</span>
-                  <span className="truncate text-muted-foreground">{s.name || "—"}</span>
+                  <span className="truncate text-muted-foreground">{s.name || "n/a"}</span>
                 </li>
               ))}
             </ul>
@@ -198,7 +198,7 @@ export default function AddStudents() {
         <div>
           <h2 className="text-sm font-semibold">Add blank sheets</h2>
           <p className="text-sm text-muted-foreground">
-            Creates N numbered students with blank names (roll numbers 1–N).
+            Creates N numbered students with blank names (roll numbers 1, N).
           </p>
         </div>
         <form onSubmit={handleAddBlanks} className="flex flex-col gap-4 sm:flex-row sm:items-end">

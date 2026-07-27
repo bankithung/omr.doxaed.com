@@ -29,7 +29,7 @@ const COLUMNS = [
     cell: (org) => (
       <Link
         to={`/organizations/${org.id}/members`}
-        className="font-medium hover:text-primary hover:underline"
+        className="font-medium hover:text-indigo hover:underline"
       >
         {org.name}
       </Link>

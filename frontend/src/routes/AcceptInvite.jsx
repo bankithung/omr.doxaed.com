@@ -52,7 +52,7 @@ export default function AcceptInvite() {
     <AuthLayout title="Accept invitation" subtitle={subtitle}>
       {status === "loading" && (
         <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
+          <Loader2 className="size-8 animate-spin text-indigo" aria-hidden="true" />
           <div className="space-y-1">
             <h2 className="text-base font-semibold">Accepting…</h2>
             <p className="text-sm text-muted-foreground">

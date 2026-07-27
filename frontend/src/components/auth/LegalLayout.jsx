@@ -12,7 +12,7 @@ export default function LegalLayout({ title, children }) {
     <div className="min-h-screen bg-background text-foreground">
       <LandingNav />
 
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+ <main className="mx-auto px-4 py-10 sm:py-14">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
@@ -22,7 +22,7 @@ export default function LegalLayout({ title, children }) {
           role="note"
           className="mt-6 rounded-lg border border-[var(--color-warning)]/30 bg-[color-mix(in_oklch,var(--color-warning)_10%,transparent)] px-4 py-3 text-sm text-foreground"
         >
-          <strong>Template for review</strong> — have legal counsel finalise before
+          <strong>Template for review</strong>, have legal counsel finalise before
           production.
         </div>
 
@@ -32,10 +32,10 @@ export default function LegalLayout({ title, children }) {
 
         <footer className="mt-12 border-t border-border pt-6 text-sm text-muted-foreground">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Link to="/terms" className="text-primary underline-offset-4 hover:underline">
+            <Link to="/terms" className="text-indigo underline-offset-4 hover:underline">
               Terms of Service
             </Link>
-            <Link to="/privacy" className="text-primary underline-offset-4 hover:underline">
+            <Link to="/privacy" className="text-indigo underline-offset-4 hover:underline">
               Privacy Policy
             </Link>
             <span className="ml-auto">© DoxaEd OMR</span>

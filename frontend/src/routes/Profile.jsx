@@ -185,7 +185,7 @@ export default function Profile() {
             className={cn(
               "min-h-[40px] border-b-2 px-3 text-sm font-medium transition-colors",
               active === s.id
-                ? "border-primary text-foreground"
+                ? "border-indigo text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
@@ -291,7 +291,7 @@ export default function Profile() {
               <CardHeader className="flex-col items-start gap-1">
                 <CardTitle>Password</CardTitle>
                 <CardDescription>
-                  Change your password — you'll stay signed in on this device.
+                  Change your password, you'll stay signed in on this device.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -331,7 +331,7 @@ export default function Profile() {
                   type="button"
                   onClick={handleSendReset}
                   disabled={sendingReset || !user?.email}
-                  className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                  className="text-xs font-medium text-indigo hover:underline disabled:opacity-50"
                 >
                   {sendingReset ? "Sending…" : "Forgot your current password? Email a reset link"}
                 </button>
@@ -367,7 +367,7 @@ export default function Profile() {
             <CardHeader className="flex-col items-start gap-1">
               <CardTitle className="text-destructive">Delete account</CardTitle>
               <CardDescription>
-                Permanently delete your account and every organization you own — with all
+                Permanently delete your account and every organization you own, with all
                 their classes, exams and students. This can't be undone.
               </CardDescription>
             </CardHeader>

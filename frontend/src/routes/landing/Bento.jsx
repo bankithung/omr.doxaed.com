@@ -15,10 +15,10 @@ const FEATURES = [
     className: "md:col-span-12 xl:col-span-6 xl:row-span-2",
     big: true,
   },
-  { icon: "groups", title: "Roster-native", body: "Start from a class list — name students or just pick a count.", className: "md:col-span-6 xl:col-span-3" },
+  { icon: "groups", title: "Roster-native", body: "Start from a class list, name students or just pick a count.", className: "md:col-span-6 xl:col-span-3" },
   { icon: "checklist", title: "One question bank", body: "Write MCQs once; reuse across tests and sections.", className: "md:col-span-6 xl:col-span-3" },
-  { icon: "scan", title: "Scan from any device", body: "Phone, scanner, or a stack of photos — auto-aligned by fiducials + QR.", className: "md:col-span-6 xl:col-span-3" },
-  { icon: "shield", title: "Never guessed", body: "Faint, double-marked or missing reads go to a review queue — not a guess.", className: "md:col-span-6 xl:col-span-3" },
+  { icon: "scan", title: "Scan from any device", body: "Phone, scanner, or a stack of photos, auto-aligned by fiducials + QR.", className: "md:col-span-6 xl:col-span-3" },
+  { icon: "shield", title: "Never guessed", body: "Faint, double-marked or missing reads go to a review queue, not a guess.", className: "md:col-span-6 xl:col-span-3" },
   { icon: "target", title: "Competitive / sectional", body: "NEET- and UPSC-style sectional papers with configurable multi-mark and negative-marking rules.", className: "md:col-span-6 xl:col-span-4" },
   { icon: "analytics", title: "Analytics & report cards", body: "Distributions, toppers, the hardest questions, item analysis and two-page report cards.", className: "md:col-span-6 xl:col-span-4" },
   { icon: "folder", title: "Public results & sharing", body: "A public result portal per test, plus folders, organisations and roles for your team.", className: "md:col-span-12 xl:col-span-4" },
@@ -34,7 +34,7 @@ function FeatureCard({ icon, title, body, className, big }) {
       transition={{ type: "spring", stiffness: 300, damping: 24 }}
     >
       <div className="group/tile flex h-full flex-col rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong hover:shadow-md">
-        <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+        <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
           <MaterialIcon name={icon} className="size-5" />
         </span>
         <div className="mt-4 flex items-start justify-between gap-3">
@@ -60,22 +60,22 @@ function FeatureCard({ icon, title, body, className, big }) {
 export default function Bento() {
   return (
     <SectionContainer id="features">
-      <FadeInUp className="mx-auto max-w-2xl text-center">
+ <FadeInUp className="mx-auto text-center">
         <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Why DoxaEd OMR
         </span>
         <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-          Everything you need to grade faster — and fairer
+          Everything you need to grade faster, and fairer
         </h2>
-        <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-          From a class list to a graded, analysed exam — every step is shuffled, scanned,
+ <p className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
+          From a class list to a graded, analysed exam, every step is shuffled, scanned,
           and auditable.
         </p>
       </FadeInUp>
 
       <Reveal
         as="div"
-        className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-12"
+ className="mx-auto mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-12"
       >
         {FEATURES.map((f) => (
           <FeatureCard key={f.title} {...f} />

@@ -90,12 +90,12 @@ export default function Footer() {
         <div className="grid gap-x-8 gap-y-10 lg:grid-cols-[1.6fr_1fr_1fr_1.3fr_1.3fr_1fr_1fr]">
           {/* brand block */}
           <RevealItem className="max-w-sm lg:pr-6">
-            <Link to="/" className="flex items-baseline gap-1.5 text-foreground" aria-label="DoxaEd OMR — home">
+            <Link to="/" className="flex items-baseline gap-1.5 text-foreground" aria-label="DoxaEd OMR, home">
               <span className="text-[1.05rem] font-semibold tracking-tight">DoxaEd</span>
-              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-primary">OMR</span>
+              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.28em] text-indigo">OMR</span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              Shuffled OMR sheets, scanned and auto-graded — every test a full analytics profile.
+              Shuffled OMR sheets, scanned and auto-graded, every test a full analytics profile.
             </p>
             <Button asChild className="mt-5 h-10 px-4 text-sm">
               <Link to="/register">Start free</Link>
@@ -166,13 +166,13 @@ export default function Footer() {
             <ul className="mt-4 space-y-2.5">
               <li>
                 <a href="mailto:doxaed@gmail.com" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-                  <MaterialIcon name="task" className="size-3.5 shrink-0 text-primary" />
+                  <MaterialIcon name="task" className="size-3.5 shrink-0 text-indigo" />
                   doxaed@gmail.com
                 </a>
               </li>
               <li>
                 <a href="https://doxaed.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-                  <MaterialIcon name="devices" className="size-3.5 shrink-0 text-primary" />
+                  <MaterialIcon name="devices" className="size-3.5 shrink-0 text-indigo" />
                   doxaed.com
                 </a>
               </li>

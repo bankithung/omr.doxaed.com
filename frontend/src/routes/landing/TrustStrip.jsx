@@ -7,13 +7,13 @@ const TRUST_POINTS = [
   "Encrypted student PII",
   "Per-organisation data isolation",
   "Works with any phone or scanner",
-  "Never guessed — low-confidence reads go to review",
+  "Never guessed, low-confidence reads go to review",
 ]
 
 function TrustItem({ children }) {
   return (
     <span className="flex shrink-0 items-center gap-2 px-6 text-sm text-muted-foreground">
-      <MaterialIcon name="task" className="size-4 shrink-0 text-primary" />
+      <MaterialIcon name="task" className="size-4 shrink-0 text-indigo" />
       {children}
     </span>
   )

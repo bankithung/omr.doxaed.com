@@ -40,7 +40,7 @@ const COLUMNS = [
     cell: (folder) => (
       <Link
         to={`/folders/${folder.id}`}
-        className="flex items-center gap-2 font-medium hover:text-primary hover:underline"
+        className="flex items-center gap-2 font-medium hover:text-indigo hover:underline"
       >
         <FolderIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         {folder.name}
@@ -170,7 +170,7 @@ export default function Folders() {
           icon: FolderIcon,
           title: "No folders yet",
           description:
-            "Create a folder to organise your classes — and share whole folders with colleagues.",
+            "Create a folder to organise your classes, and share whole folders with colleagues.",
           action: <Button onClick={openDialog}>New folder</Button>,
         }}
       />
@@ -185,7 +185,7 @@ export default function Folders() {
               <Label htmlFor="folder-name">Name</Label>
               <Input
                 id="folder-name"
-                placeholder="e.g. Term 1 — Grade 8"
+                placeholder="e.g. Term 1, Grade 8"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus

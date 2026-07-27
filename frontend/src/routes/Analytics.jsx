@@ -40,12 +40,12 @@ const HEAD_CLASS = "sticky top-0 z-10 h-9 bg-surface-1 px-3 text-xs font-medium 
 // ────────────────────────────────────────────────
 
 function pct(score, max) {
-  if (!max) return "—"
+  if (!max) return "n/a"
   return `${Math.round((score / max) * 100)}%`
 }
 
 function fmtRate(rate) {
-  if (rate == null) return "—"
+  if (rate == null) return "n/a"
   const n = typeof rate === "number" ? rate : parseFloat(rate)
   return `${Math.round(n * 100)}%`
 }
@@ -109,10 +109,10 @@ function ToppersSection({ toppers }) {
           {toppers.map((t, i) => (
             <TableRow key={t.student?.roll ?? i}>
               <TableCell className="tabular text-muted-foreground">{i + 1}</TableCell>
-              <TableCell className="font-mono text-xs tabular">{t.student?.roll ?? "—"}</TableCell>
-              <TableCell>{t.student?.name ?? "—"}</TableCell>
+              <TableCell className="font-mono text-xs tabular">{t.student?.roll ?? "n/a"}</TableCell>
+              <TableCell>{t.student?.name ?? "n/a"}</TableCell>
               <TableCell className="tabular">
-                {t.score ?? "—"}/{t.max_score ?? "—"}
+                {t.score ?? "n/a"}/{t.max_score ?? "n/a"}
               </TableCell>
               <TableCell className="tabular">{pct(t.score, t.max_score)}</TableCell>
             </TableRow>
@@ -144,9 +144,9 @@ function HardestQuestionsSection({ hardestQuestions }) {
           {hardestQuestions.map((q) => (
             <TableRow key={q.question_id ?? q.order_index}>
               <TableCell className="font-mono text-xs tabular text-muted-foreground">
-                {q.order_index != null ? q.order_index + 1 : "—"}
+                {q.order_index != null ? q.order_index + 1 : "n/a"}
               </TableCell>
-              <TableCell className="max-w-xs truncate text-sm">{q.text ?? "—"}</TableCell>
+              <TableCell className="max-w-xs truncate text-sm">{q.text ?? "n/a"}</TableCell>
               <TableCell>
                 <Badge
                   variant={
@@ -161,7 +161,7 @@ function HardestQuestionsSection({ hardestQuestions }) {
                 </Badge>
               </TableCell>
               <TableCell className="tabular text-sm text-muted-foreground">
-                {q.n ?? "—"}
+                {q.n ?? "n/a"}
               </TableCell>
             </TableRow>
           ))}
@@ -202,7 +202,7 @@ function OptionDistributionSection({ optionDistribution }) {
                     <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted">
                       <div
                         className={`absolute inset-y-0 left-0 rounded transition-all ${
-                          isCorrect ? "bg-[var(--color-success)]" : "bg-primary/40"
+                          isCorrect ? "bg-[var(--color-success)]" : "bg-indigo/40"
                         }`}
                         style={{ width: `${barPct}%` }}
                       />
@@ -272,7 +272,7 @@ function ImprovementTab({ testId }) {
     return (
       <EmptyState
         title="No retest chain"
-        description="This test hasn't been retested yet. Create a retest to track improvement over attempts."
+        description="No retest yet. Create one to track improvement."
       />
     )
   }
@@ -348,11 +348,11 @@ function ImprovementTab({ testId }) {
                     <TableCell className="font-mono text-xs tabular">{row.roll}</TableCell>
                     <TableCell className="tabular">{row.attempts}</TableCell>
                     <TableCell className="tabular">
-                      {row.lastPct != null ? `${row.lastPct}%` : "—"}
+                      {row.lastPct != null ? `${row.lastPct}%` : "n/a"}
                     </TableCell>
                     <TableCell className="tabular">
                       {row.delta == null ? (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">n/a</span>
                       ) : row.delta > 0 ? (
                         <span className="text-[var(--color-success)]">+{row.delta}%</span>
                       ) : row.delta < 0 ? (
@@ -396,10 +396,10 @@ function ItemFlag({ flags }) {
 }
 
 function fmtMetric(val) {
-  if (val == null) return "—"
-  if (typeof val === "object" && val.status === "insufficient_sample") return "—"
+  if (val == null) return "n/a"
+  if (typeof val === "object" && val.status === "insufficient_sample") return "n/a"
   if (typeof val === "number") return val.toFixed(3)
-  return "—"
+  return "n/a"
 }
 
 function DistractorSummary({ items }) {
@@ -552,7 +552,7 @@ function ItemAnalysisTab({ testId }) {
               <TableBody>
                 {items.map((item, idx) => {
                   const pVal = typeof item.difficulty === "number" ? item.difficulty : null
-                  const pDisplay = pVal != null ? pVal.toFixed(3) : "—"
+                  const pDisplay = pVal != null ? pVal.toFixed(3) : "n/a"
                   const pColour =
                     pVal == null
                       ? ""
@@ -571,14 +571,14 @@ function ItemAnalysisTab({ testId }) {
                       </TableCell>
                       <TableCell className="tabular text-sm">
                         {smallCohort ? (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground">n/a</span>
                         ) : (
                           fmtMetric(item.discrimination)
                         )}
                       </TableCell>
                       <TableCell className="tabular text-sm">
                         {smallCohort ? (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground">n/a</span>
                         ) : (
                           fmtMetric(item.point_biserial)
                         )}
@@ -593,7 +593,7 @@ function ItemAnalysisTab({ testId }) {
             </Table>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            p-value: proportion correct (higher = easier). Discrimination: top 27% − bottom 27% correct rate. Point-biserial: item–total correlation.
+            p-value: proportion correct (higher = easier). Discrimination: top 27% − bottom 27% correct rate. Point-biserial: item, total correlation.
           </p>
         </div>
       )}
@@ -763,12 +763,12 @@ export default function Analytics() {
               <StatCard label="Graded" value={summary.graded} />
               <StatCard
                 label="Average"
-                value={avg != null ? `${Math.round(avg * 10) / 10}` : "—"}
+                value={avg != null ? `${Math.round(avg * 10) / 10}` : "n/a"}
                 sub={summary.max_score ? `/ ${summary.max_score}` : undefined}
               />
               <StatCard
                 label="Median"
-                value={median != null ? `${Math.round(median * 10) / 10}` : "—"}
+                value={median != null ? `${Math.round(median * 10) / 10}` : "n/a"}
               />
               <StatCard
                 label="Needs review"
@@ -780,10 +780,10 @@ export default function Analytics() {
             {(summary.max != null || summary.min != null) && (
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span>
-                  High: <strong className="text-foreground">{summary.max ?? "—"}</strong>
+                  High: <strong className="text-foreground">{summary.max ?? "n/a"}</strong>
                 </span>
                 <span>
-                  Low: <strong className="text-foreground">{summary.min ?? "—"}</strong>
+                  Low: <strong className="text-foreground">{summary.min ?? "n/a"}</strong>
                 </span>
               </div>
             )}

@@ -21,22 +21,22 @@ const SAFEGUARDS = [
   {
     icon: "shield",
     title: "Server-side grading",
-    body: "Every answer sheet is graded on the server against that sheet's own stored answer key — never in the browser. Scores can't be computed or tampered with on the client, so a published result always traces back to the key the test was generated with.",
+    body: "Every answer sheet is graded on the server against that sheet's own stored answer key, never in the browser. Scores can't be computed or tampered with on the client, so a published result always traces back to the key the test was generated with.",
   },
   {
     icon: "task",
-    title: "Never guessed — review queue",
+    title: "Never guessed",
     body: "Faint, double-marked or ambiguous bubbles aren't guessed. Low-confidence reads are routed to a review queue with the cropped bubble image so a human makes the call. A grade is either confidently read or explicitly reviewed.",
   },
   {
     icon: "lock",
     title: "Encrypted student PII",
-    body: "Student names and roll numbers are encrypted at rest. Only the fields a public result actually needs are ever exposed on the result portal — the rest of a student's data stays scoped to its owner.",
+    body: "Student names and roll numbers are encrypted at rest. Only the fields a public result actually needs are ever exposed on the result portal, the rest of a student's data stays scoped to its owner.",
   },
   {
     icon: "folder",
     title: "Owner-scoped multi-tenancy",
-    body: "Every test, sheet, roster and result belongs to exactly one owner — a user XOR an organisation. Access is role-checked on every request, so one tenant's data is never reachable from another's session.",
+    body: "Every test, sheet, roster and result belongs to exactly one owner, a user XOR an organisation. Access is role-checked on every request, so one tenant's data is never reachable from another's session.",
   },
   {
     icon: "checklist",
@@ -54,7 +54,7 @@ const SAFEGUARDS = [
 const PIPELINE = [
   {
     title: "Keyed at generation",
-    body: "Each generated sheet carries its own answer key. Grading reads that stored key — it is never inferred from other students' sheets.",
+    body: "Each generated sheet carries its own answer key. Grading reads that stored key, it is never inferred from other students' sheets.",
   },
   {
     title: "Aligned, then read",
@@ -62,7 +62,7 @@ const PIPELINE = [
   },
   {
     title: "Confident or reviewed",
-    body: "High-confidence reads are graded automatically; anything uncertain goes to the review queue with its cropped image — nothing is silently assumed.",
+    body: "High-confidence reads are graded automatically; anything uncertain goes to the review queue with its cropped image, nothing is silently assumed.",
   },
   {
     title: "Recorded & owner-scoped",
@@ -73,7 +73,7 @@ const PIPELINE = [
 function SafeguardCard({ item }) {
   return (
     <RevealItem className="flex h-full flex-col rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong">
-      <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+      <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
         <MaterialIcon name={item.icon} className="size-5" />
       </span>
       <h3 className="mt-4 text-base font-medium text-foreground">{item.title}</h3>
@@ -96,17 +96,17 @@ export default function Security() {
           }}
         />
         <SectionContainer className="pt-14 pb-8 sm:pt-16 text-center">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Security
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-              Built so a grade can be <span className="text-primary">trusted</span>
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+              Built so a grade can be <span className="text-indigo">trusted</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
               DoxaEd OMR grades on the server against each sheet's stored key,
               never guesses an uncertain read, and keeps every student record
-              owned, encrypted and auditable. Here's exactly how — and what's
+              owned, encrypted and auditable. Here's exactly how, and what's
               honestly your operator's responsibility to deploy.
             </p>
           </FadeInUp>
@@ -115,7 +115,7 @@ export default function Security() {
 
       {/* ── Safeguard cards ────────────────────────────────────────────────── */}
       <SectionContainer className="pt-0">
-        <Reveal as="div" className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+ <Reveal as="div" className="mx-auto grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SAFEGUARDS.map((item) => (
             <SafeguardCard key={item.title} item={item} />
           ))}
@@ -124,27 +124,27 @@ export default function Security() {
 
       {/* ── Grade-protection pipeline ──────────────────────────────────────── */}
       <SectionContainer className="border-t border-border pt-16">
-        <FadeInUp className="mx-auto max-w-2xl text-center">
+ <FadeInUp className="mx-auto text-center">
           <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             End to end
           </span>
           <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
             How a grade is protected
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
+ <p className="mx-auto mt-4 text-base text-muted-foreground">
             From the moment a sheet is generated to the moment a result is shared,
             every step is keyed, checked and recorded.
           </p>
         </FadeInUp>
 
-        <Reveal as="ol" className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+ <Reveal as="ol" className="mx-auto mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PIPELINE.map((step, i) => (
             <RevealItem
               as="li"
               key={step.title}
               className="flex h-full flex-col rounded-xl border border-border bg-card p-5"
             >
-              <span className="flex size-8 items-center justify-center rounded-lg border border-border bg-surface-2 font-mono text-sm font-medium text-primary">
+              <span className="flex size-8 items-center justify-center rounded-lg border border-border bg-surface-2 font-mono text-sm font-medium text-indigo">
                 {i + 1}
               </span>
               <h3 className="mt-4 text-sm font-medium text-foreground">{step.title}</h3>
@@ -156,7 +156,7 @@ export default function Security() {
 
       {/* ── Secrets & data handling ────────────────────────────────────────── */}
       <SectionContainer className="border-t border-border pt-16">
-        <div className="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-[1fr_1fr] lg:gap-14">
+ <div className="mx-auto grid items-start gap-10 lg:grid-cols-[1fr_1fr] lg:gap-14">
           <FadeInUp>
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Data handling
@@ -168,7 +168,7 @@ export default function Security() {
               <p>
                 You upload only the student data you choose. Names and roll
                 numbers are encrypted at rest, and the public result portal
-                surfaces just the minimal fields a result needs — never a
+                surfaces just the minimal fields a result needs, never a
                 student's full record.
               </p>
               <p>
@@ -177,7 +177,7 @@ export default function Security() {
                 path: one account cannot reach another's tests, sheets or results.
               </p>
               <p>
-                Application secrets — keys, database credentials, tokens — are
+                Application secrets, keys, database credentials, tokens, are
                 read from environment variables only. They are never committed to
                 the codebase or hard-coded.
               </p>
@@ -192,7 +192,7 @@ export default function Security() {
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 DoxaEd OMR is honest about its boundary. The application provides
                 the safeguards above, but the production posture below depends on
-                how an operator deploys it — and we make no certification or
+                how an operator deploys it, and we make no certification or
                 compliance claim on their behalf.
               </p>
               <ul className="mt-5 space-y-3">
@@ -203,7 +203,7 @@ export default function Security() {
                   "Any third-party security audit or compliance certification",
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2.5 text-sm text-foreground">
-                    <MaterialIcon name="arrow" className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                    <MaterialIcon name="arrow" className="mt-0.5 size-3.5 shrink-0 text-indigo" />
                     <span>{line}</span>
                   </li>
                 ))}
@@ -218,10 +218,10 @@ export default function Security() {
 
       {/* ── Responsible disclosure ─────────────────────────────────────────── */}
       <SectionContainer className="border-t border-border pt-16">
-        <FadeInUp className="mx-auto max-w-3xl">
+ <FadeInUp className="mx-auto ">
           <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
             <div className="flex items-start gap-4">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
                 <MaterialIcon name="shield" className="size-5" />
               </span>
               <div className="min-w-0">
@@ -263,12 +263,12 @@ export default function Security() {
           }}
         />
         <SectionContainer>
-          <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
             <RevealItem as="h2" className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               Grade with confidence
             </RevealItem>
-            <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Try the full grading engine free — server-side, never guessed, and
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
+              Try the full grading engine free, server-side, never guessed, and
               owned by you from the first sheet.
             </RevealItem>
             <RevealItem className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">

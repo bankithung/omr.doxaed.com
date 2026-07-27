@@ -117,7 +117,7 @@ export default function GoogleButton({ label = "Continue with Google" }) {
     if (loading) return
     if (!CLIENT_ID) {
       toast.error(
-        "Google sign-in isn't configured yet — add your Google client ID (VITE_GOOGLE_CLIENT_ID) to enable it.",
+        "Google sign-in isn't configured yet, add your Google client ID (VITE_GOOGLE_CLIENT_ID) to enable it.",
       )
       return
     }

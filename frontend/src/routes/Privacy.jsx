@@ -15,7 +15,7 @@ export default function Privacy() {
         <P>We collect the following categories of information:</P>
         <List
           items={[
-            "Account data: your name, email address, and authentication details. If you sign in with Google, we receive your email, name, and a verified-email flag from Google — we never receive your Google password.",
+            "Account data: your name, email address, and authentication details. If you sign in with Google, we receive your email, name, and a verified-email flag from Google, we never receive your Google password.",
             "Organisation data: organisation names, member roles, and invitations you create.",
             "Student data you upload: student names, roll numbers, roster entries, scanned answer sheets, exam responses, and computed scores. Names and roll numbers are personally identifiable information (PII) and are stored encrypted at rest.",
             "Usage and technical data: log entries, IP address, device/browser information, and audit records of actions taken in the Service.",
@@ -133,7 +133,7 @@ export default function Privacy() {
           at{" "}
           <a
             href="mailto:doxaed@gmail.com"
-            className="text-primary underline-offset-4 hover:underline"
+            className="text-indigo underline-offset-4 hover:underline"
           >
             doxaed@gmail.com
           </a>

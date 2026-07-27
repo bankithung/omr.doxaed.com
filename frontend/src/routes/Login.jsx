@@ -58,7 +58,7 @@ export default function Login() {
           labelRight={
             <Link
               to="/forgot-password"
-              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+              className="text-xs font-medium text-indigo underline-offset-4 hover:underline"
             >
               Forgot password?
             </Link>
@@ -78,7 +78,7 @@ export default function Login() {
 
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
-        <Link to="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+        <Link to="/register" className="font-medium text-indigo underline-offset-4 hover:underline">
           Sign up
         </Link>
       </p>

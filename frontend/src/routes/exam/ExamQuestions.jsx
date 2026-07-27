@@ -142,7 +142,7 @@ export default function ExamQuestions() {
       toast.success("All questions saved")
     } catch (err) {
       toast.error(
-        `Saved ${done} of ${questions.length} — ` +
+        `Saved ${done} of ${questions.length}, ` +
           (err?.response?.data?.text?.[0] || err?.response?.data?.detail || "check the highlighted question"),
       )
     } finally {
@@ -168,7 +168,7 @@ export default function ExamQuestions() {
       {loading ? (
         <Skeleton className="h-64 w-full rounded-xl" />
       ) : (
-        <div className="max-w-2xl space-y-4">
+ <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {savedCount} / {questions.length} question{questions.length === 1 ? "" : "s"} saved
             {multipleCorrect ? " · multiple correct answers" : ""}
@@ -195,7 +195,7 @@ export default function ExamQuestions() {
           bottom while you scroll so you never have to save each one. */}
       {!loading && (
         <div className="sticky bottom-0 z-20 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+ <div className="mx-auto flex items-center justify-between gap-3">
             <span className="text-sm text-muted-foreground">
               {unsavedCount === 0
                 ? "All questions saved"

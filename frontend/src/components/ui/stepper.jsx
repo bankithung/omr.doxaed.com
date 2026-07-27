@@ -21,7 +21,7 @@ export function StepperCompact({ steps, current = 0, className }) {
             key={s}
             className={cn(
               "h-2 rounded-full transition-all",
-              i === current ? "w-5 bg-primary" : i < current ? "w-2 bg-primary/50" : "w-2 bg-muted-foreground/30",
+              i === current ? "w-5 bg-primary" : i < current ? "w-2 bg-indigo/50" : "w-2 bg-muted-foreground/30",
             )}
           />
         ))}
@@ -41,7 +41,7 @@ export function Stepper({ steps, current = 0, className }) {
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
                 state === "done" && "bg-primary text-primary-foreground",
-                state === "active" && "border-2 border-primary text-primary",
+                state === "active" && "border-2 border-indigo text-indigo",
                 state === "todo" && "border border-muted-foreground/40 text-muted-foreground",
               )}
             >

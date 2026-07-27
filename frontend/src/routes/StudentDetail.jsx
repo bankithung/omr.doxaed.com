@@ -89,7 +89,7 @@ function PerQuestionSection({ perQuestion }) {
                 {q.order_index != null ? q.order_index + 1 : i + 1}
               </TableCell>
               <TableCell className="max-w-xs truncate text-sm">
-                {q.text || <span className="italic text-muted-foreground">—</span>}
+                {q.text || <span className="italic text-muted-foreground">n/a</span>}
               </TableCell>
               <TableCell className="text-sm">
                 {q.marked_options?.length > 0 ? (
@@ -262,7 +262,7 @@ export default function StudentDetail() {
                 {" / "}
                 <span className="text-[var(--color-error)]">{data.wrong ?? 0}✗</span>
                 {" / "}
-                <span>{data.blank ?? 0}—</span>
+                <span>{data.blank ?? 0}</span>
               </span>
             </div>
             <div className="flex flex-col gap-1">
@@ -270,11 +270,11 @@ export default function StudentDetail() {
                 Rank / Percentile
               </span>
               <span className="text-lg font-bold tabular">
-                {data.rank != null ? `#${data.rank}` : "—"}
+                {data.rank != null ? `#${data.rank}` : "n/a"}
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
                   {data.percentile != null
                     ? `${Math.round(data.percentile)}th pct.`
-                    : "—"}
+                    : "n/a"}
                 </span>
               </span>
               {data.cohort_size != null && (

@@ -330,7 +330,7 @@ const CLASS_COLUMNS = [
     cell: (cls) => (
       <Link
         to={`/classes/${cls.id}`}
-        className="font-medium hover:text-primary hover:underline"
+        className="font-medium hover:text-indigo hover:underline"
       >
         {cls.name}
       </Link>
@@ -467,7 +467,7 @@ export default function FolderDetail() {
       <PageShell>
         <ErrorState
           title="Couldn't load this folder"
-          description="Something went wrong while loading the folder. Check your connection and try again."
+          description="Could not load this folder. Try again."
           onRetry={fetchData}
         />
       </PageShell>
@@ -480,7 +480,7 @@ export default function FolderDetail() {
         <EmptyState
           icon={FolderIcon}
           title="Folder not found"
-          description="This folder may have been deleted or you no longer have access."
+          description="Deleted, or you no longer have access."
           action={
             <Button asChild>
               <Link to="/folders">Back to folders</Link>
@@ -610,8 +610,7 @@ export default function FolderDetail() {
             <DialogTitle>Delete folder</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Delete <strong>{folder.name}</strong>? Classes inside it are not deleted —
-            they’ll just no longer belong to a folder. This cannot be undone.
+            Delete <strong>{folder.name}</strong>? Classes inside it are not deleted,             they’ll just no longer belong to a folder. This cannot be undone.
           </p>
           <DialogFooter showCloseButton>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>

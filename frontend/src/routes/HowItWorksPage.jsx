@@ -21,10 +21,10 @@ const MODULES = [
     n: "01",
     label: "Generate",
     icon: "shuffle",
-    title: "One bank, one roster — a unique sheet per student",
+    title: "One bank, one roster, a unique sheet per student",
     body: "Write your MCQs once and pick a roster. DoxaEd OMR shuffles the question and option order uniquely for every student, then prints a sheet that carries its own answer key and a QR code.",
     points: [
-      "Per-student shuffle — neighbours never share an order",
+      "Per-student shuffle, neighbours never share an order",
       "Each sheet stores its own answer key",
       "QR identity + corner fiducials printed on every sheet",
     ],
@@ -35,10 +35,10 @@ const MODULES = [
     label: "Scan",
     icon: "scan",
     title: "Snap the stack from any phone or scanner",
-    body: "Upload photos or scans — no special hardware. Each sheet auto-aligns from its QR code and fiducial markers, so bubbles are read from the exact right positions even from a quick phone photo.",
+    body: "Upload photos or scans, no special hardware. Each sheet auto-aligns from its QR code and fiducial markers, so bubbles are read from the exact right positions even from a quick phone photo.",
     points: [
       "Works with any phone camera or office scanner",
-      "Auto-aligned by QR + fiducials — no manual cropping",
+      "Auto-aligned by QR + fiducials, no manual cropping",
       "Batch a whole class in a single pass",
     ],
     graphic: <ScanSheet />,
@@ -47,10 +47,10 @@ const MODULES = [
     n: "03",
     label: "Grade",
     icon: "shield",
-    title: "Graded server-side against the stored key — never guessed",
-    body: "Grading runs on the server against each sheet's own key, so a score can't be computed or tampered with in the browser. Faint or double-marked bubbles aren't guessed — they go to a review queue with the cropped image for you to confirm.",
+    title: "Graded server-side against the stored key, never guessed",
+    body: "Grading runs on the server against each sheet's own key, so a score can't be computed or tampered with in the browser. Faint or double-marked bubbles aren't guessed, they go to a review queue with the cropped image for you to confirm.",
     points: [
-      "Server-side, keyed grading — tamper-resistant",
+      "Server-side, keyed grading, tamper-resistant",
       "Low-confidence reads → review queue, with the bubble image",
       "Configurable multi-mark & negative-marking rules",
     ],
@@ -61,11 +61,11 @@ const MODULES = [
     label: "Analyse & share",
     icon: "analytics",
     title: "Every test becomes a full analytics profile",
-    body: "The whole class is graded and analysed the same evening. See score distributions, toppers, the hardest questions and per-topic mastery — then publish a public result portal and print two-page report cards.",
+    body: "The whole class is graded and analysed the same evening. See score distributions, toppers, the hardest questions and per-topic mastery, then publish a public result portal and print two-page report cards.",
     points: [
       "Distributions, toppers, item analysis & per-topic mastery",
       "Two-page printable report cards",
-      "Shareable public result portal — students check their own",
+      "Shareable public result portal, students check their own",
     ],
     graphic: <AnalyticsChart label="Class score distribution" />,
   },
@@ -74,10 +74,10 @@ const MODULES = [
 function Module({ n, label, icon, title, body, points, graphic, flip }) {
   return (
     <SectionContainer className="border-t border-border">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
+ <div className="mx-auto grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <FadeInUp className={cn(flip && "lg:order-2")}>
           <span className="inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            <span className="flex size-7 items-center justify-center rounded-md border border-border bg-surface-2 text-primary">
+            <span className="flex size-7 items-center justify-center rounded-md border border-border bg-surface-2 text-indigo">
               <MaterialIcon name={icon} className="size-4" />
             </span>
             {n} · {label}
@@ -89,7 +89,7 @@ function Module({ n, label, icon, title, body, points, graphic, flip }) {
           <ul className="mt-6 space-y-3">
             {points.map((p) => (
               <li key={p} className="flex items-start gap-2.5 text-sm text-foreground">
-                <MaterialIcon name="task" className="mt-0.5 size-4 shrink-0 text-primary" />
+                <MaterialIcon name="task" className="mt-0.5 size-4 shrink-0 text-indigo" />
                 <span>{p}</span>
               </li>
             ))}
@@ -116,16 +116,16 @@ export default function HowItWorksPage() {
           }}
         />
         <SectionContainer className="pt-14 pb-6 text-center sm:pt-16">
-          <FadeInUp className="mx-auto max-w-2xl">
+ <FadeInUp className="mx-auto ">
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               How it works
             </span>
-            <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+ <h1 className="mx-auto mt-3 text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
               From a class list to graded{" "}
-              <span className="text-primary">analytics</span>
+              <span className="text-indigo">analytics</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Four steps — generate, scan, grade, analyse. Here is exactly what
+ <p className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
+              Four steps, generate, scan, grade, analyse. Here is exactly what
               happens at each one, and why the result holds up to scrutiny.
             </p>
           </FadeInUp>
@@ -148,12 +148,12 @@ export default function HowItWorksPage() {
           }}
         />
         <SectionContainer>
-          <Reveal className="mx-auto max-w-2xl text-center">
+ <Reveal className="mx-auto text-center">
             <RevealItem as="h2" className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               See the whole loop on your next test
             </RevealItem>
-            <RevealItem as="p" className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Generate, scan and grade a real exam in minutes — free to start, no
+ <RevealItem as="p" className="mx-auto mt-4 text-base text-muted-foreground sm:text-lg">
+              Generate, scan and grade a real exam in minutes, free to start, no
               card required.
             </RevealItem>
             <RevealItem className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">

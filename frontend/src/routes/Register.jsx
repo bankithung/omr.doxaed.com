@@ -29,7 +29,7 @@ export default function Register() {
     setLoading(true)
     try {
       await authApi.register({ email, password, full_name: fullName })
-      toast.success("Account created — check your email to verify")
+      toast.success("Account created, check your email to verify")
       navigate("/login")
     } catch (err) {
       const data = err?.response?.data
@@ -107,7 +107,7 @@ export default function Register() {
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+        <Link to="/login" className="font-medium text-indigo underline-offset-4 hover:underline">
           Sign in
         </Link>
       </p>

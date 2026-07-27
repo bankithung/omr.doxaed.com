@@ -2,15 +2,15 @@ import { cn } from "@/lib/utils"
 
 /**
  * Card — flat workhorse surface for detail / settings / dashboard screens.
- * Depth comes from a hairline border + surface fill, never a shadow. The subtle
- * border-strengthen on hover is the Supabase affordance (flat, no gradient).
+ * Depth comes from a hairline border plus a surface fill, never a gradient.
+ * Hover raises the soft ink lift fet uses on every card and panel.
  */
 function Card({ className, ...props }) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "rounded-xl border border-border bg-card text-card-foreground transition-colors hover:border-border-strong",
+        "ink-lift rounded-lg border border-border bg-card text-card-foreground",
         className
       )}
       {...props}
@@ -19,16 +19,15 @@ function Card({ className, ...props }) {
 }
 
 /**
- * Panel — the flat replacement for Supabase's 1px gradient-border card (owner
- * rule forbids gradients). Same surface + hairline depth, plus a soft hover
- * lift. Use for marketing / feature tiles where a richer panel is wanted.
+ * Panel — one solid, non transparent section used to group a page body.
+ * Same surface and hairline as Card with roomier padding.
  */
 function Panel({ className, ...props }) {
   return (
     <div
       data-slot="panel"
       className={cn(
-        "rounded-xl border border-border bg-surface-1 p-6 transition-colors hover:border-border-strong hover:shadow-md",
+        "ink-lift rounded-lg border border-border bg-card p-5 md:p-6",
         className
       )}
       {...props}

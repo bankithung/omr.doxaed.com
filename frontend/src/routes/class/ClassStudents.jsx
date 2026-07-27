@@ -212,7 +212,7 @@ export default function ClassStudents() {
           <Users className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
           <p className="mt-3 font-medium">No students yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Add students into {lower}s — you can create a {lower} right as you add the first one.
+            Add students into {lower}s, you can create a {lower} right as you add the first one.
           </p>
           <Button className="mt-4" onClick={() => setAddOpen(true)}>
             <Plus className="size-4" aria-hidden="true" /> Add student
@@ -259,7 +259,7 @@ export default function ClassStudents() {
                 <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
                   <span className="w-12 shrink-0 font-mono text-xs font-medium tabular-nums">{s.roll_number}</span>
                   <span className="min-w-0 flex-1 truncate">
-                    {s.full_name || <span className="italic text-muted-foreground">—</span>}
+                    {s.full_name || <span className="italic text-muted-foreground">n/a</span>}
                   </span>
                   {s._section && <Badge variant="neutral">{s._section}</Badge>}
                 </li>

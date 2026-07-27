@@ -29,7 +29,7 @@ function ResultCard({ result }) {
     <div className="mt-6 rounded-xl border bg-card p-4 shadow-sm sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-lg font-semibold">{name || "—"}</p>
+          <p className="truncate text-lg font-semibold">{name || "n/a"}</p>
           <p className="text-sm text-muted-foreground">Roll: {roll_number}</p>
         </div>
         <div
@@ -123,10 +123,10 @@ function LeaderboardSection({ slug }) {
                 className="border-b last:border-0 hover:bg-muted/20"
               >
                 <td className="px-4 py-2.5 font-mono text-muted-foreground">#{row.rank}</td>
-                <td className="px-4 py-2.5 font-medium">{row.name || "—"}</td>
+                <td className="px-4 py-2.5 font-medium">{row.name || "n/a"}</td>
                 <td className="px-4 py-2.5 tabular-nums">{row.score}</td>
                 <td className="px-4 py-2.5 tabular-nums">
-                  {row.percentile != null ? `${Math.round(row.percentile * 10) / 10}` : "—"}
+                  {row.percentile != null ? `${Math.round(row.percentile * 10) / 10}` : "n/a"}
                 </td>
               </tr>
             ))}

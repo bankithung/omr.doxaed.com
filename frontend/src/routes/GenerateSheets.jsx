@@ -298,7 +298,7 @@ export default function GenerateSheets() {
       <PageShell>
         <ErrorState
           title="Couldn't load this test"
-          description="Something went wrong while loading the test. Please try again."
+          description="Could not load this test. Try again."
           onRetry={loadTest}
         />
       </PageShell>
@@ -449,7 +449,7 @@ export default function GenerateSheets() {
               This class has no rosters yet.{" "}
               <Link
                 to={`/classes/${test.class_group}`}
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-indigo hover:underline"
               >
                 Add one in the class
               </Link>
@@ -480,7 +480,7 @@ export default function GenerateSheets() {
                 <button
                   type="button"
                   onClick={toggleAllStudents}
-                  className="text-xs font-medium text-primary hover:underline"
+                  className="text-xs font-medium text-indigo hover:underline"
                 >
                   {allSelected ? "Clear all" : "Select all"}
                 </button>
@@ -507,7 +507,7 @@ export default function GenerateSheets() {
                         <span className="w-10 shrink-0 font-mono text-xs tabular-nums">
                           {s.roll_number}
                         </span>
-                        <span className="truncate text-sm">{s.full_name || "—"}</span>
+                        <span className="truncate text-sm">{s.full_name || "n/a"}</span>
                       </label>
                     )
                   })}

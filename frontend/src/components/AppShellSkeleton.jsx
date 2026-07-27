@@ -84,7 +84,7 @@ export default function AppShellSkeleton() {
         </header>
 
         <main className="flex-1 overflow-auto p-4 pb-16 sm:p-6 lg:pb-6">
-          <div className="mx-auto w-full max-w-6xl space-y-6">
+ <div className="mx-auto w-full space-y-6">
             {/* Page header */}
             <div className="space-y-2">
               <Skeleton className={cn("h-6 w-56 rounded", pulse)} />

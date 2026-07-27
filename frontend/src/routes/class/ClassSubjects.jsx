@@ -114,7 +114,7 @@ export default function ClassSubjects() {
           {subjects.map((s) => (
             <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-xs font-bold text-primary">
+                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-indigo/10 text-xs font-bold text-indigo">
                   {(s.name?.[0] ?? "?").toUpperCase()}
                 </span>
                 <span className="truncate font-medium">{s.name}</span>

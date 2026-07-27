@@ -8,7 +8,7 @@ const TRUST = [
   {
     icon: "shield",
     title: "Server-side grading",
-    body: "Every sheet is graded against its own stored answer key on the server — never in the browser — so a score can't be tampered with client-side.",
+    body: "Every sheet is graded against its own stored answer key on the server, never in the browser, so a score can't be tampered with client-side.",
   },
   {
     icon: "task",
@@ -36,7 +36,7 @@ const TRUST = [
 export default function TrustSection() {
   return (
     <SectionContainer id="why" className="border-t border-border">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
+ <div className="mx-auto grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <div>
           <FadeInUp>
             <span className="block font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -45,7 +45,7 @@ export default function TrustSection() {
             <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               Grading you can defend
             </h2>
-            <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+ <p className="mt-4 text-base text-muted-foreground sm:text-lg">
               Results that hold up to scrutiny: every score is computed server-side,
               every uncertain read is reviewed, and every record is owned and auditable.
             </p>
@@ -54,7 +54,7 @@ export default function TrustSection() {
           <Reveal as="ul" className="mt-8 grid gap-4 sm:grid-cols-2">
             {TRUST.map((t) => (
               <RevealItem as="li" key={t.title} className="rounded-xl border border-border bg-card p-5">
-                <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-surface-2 text-primary">
+                <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-surface-2 text-indigo">
                   <MaterialIcon name={t.icon} className="size-[18px]" />
                 </span>
                 <h3 className="mt-3 text-sm font-medium text-foreground">{t.title}</h3>
@@ -66,11 +66,11 @@ export default function TrustSection() {
 
         <FadeInUp delay={0.1} className="lg:pl-4">
           {/* The denser two-column 20-question sheet so this card's height
-              matches the heading + 4 trust points on the left — balancing the
+              matches the heading + 4 trust points on the left, balancing the
               row at lg. Other ScanSheet usages keep the default compact sheet. */}
           <ScanSheet variant="full" />
           <p className="mt-3 text-center font-mono text-[11px] text-muted-foreground">
-            Low-confidence reads go to review — never a guess.
+            Low-confidence reads go to review, never a guess.
           </p>
         </FadeInUp>
       </div>

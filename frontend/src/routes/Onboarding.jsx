@@ -29,7 +29,7 @@ function Wordmark({ className = "" }) {
       className={`inline-flex items-baseline gap-1.5 font-bold tracking-tight ${className}`}
     >
       <span className="text-foreground">DoxaEd</span>
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo">
         OMR
       </span>
     </span>
@@ -231,7 +231,7 @@ export default function Onboarding() {
           {step === 0 && (
             <Card>
               <CardContent className="space-y-6 p-6 text-center sm:p-8">
-                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-primary">
+                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-indigo">
                   <Sparkles className="size-7" aria-hidden="true" />
                 </span>
                 <div className="space-y-2">
@@ -417,16 +417,16 @@ export default function Onboarding() {
                       if (classId) finish(`/classes/${classId}/tests/new`)
                       else finish("/classes")
                     }}
-                    className="flex min-h-[40px] flex-col items-center gap-2 rounded-xl border border-border bg-background p-5 text-center transition-colors hover:border-primary/40 hover:bg-muted"
+                    className="flex min-h-[40px] flex-col items-center gap-2 rounded-xl border border-border bg-background p-5 text-center transition-colors hover:border-indigo/40 hover:bg-muted"
                   >
-                    <PenLine className="size-6 text-primary" aria-hidden="true" />
+                    <PenLine className="size-6 text-indigo" aria-hidden="true" />
                     <span className="text-base font-semibold">Start blank</span>
                     <span className="text-sm text-muted-foreground">Add questions now.</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => finish()}
-                    className="flex min-h-[40px] flex-col items-center gap-2 rounded-xl border border-border bg-background p-5 text-center transition-colors hover:border-primary/40 hover:bg-muted"
+                    className="flex min-h-[40px] flex-col items-center gap-2 rounded-xl border border-border bg-background p-5 text-center transition-colors hover:border-indigo/40 hover:bg-muted"
                   >
                     <FileText className="size-6 text-muted-foreground" aria-hidden="true" />
                     <span className="text-base font-semibold">Skip</span>

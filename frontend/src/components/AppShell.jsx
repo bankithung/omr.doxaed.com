@@ -51,7 +51,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ThemeToggle } from "@/components/ThemeToggle"
 import CommandMenu from "@/components/CommandMenu"
 import { SubNavProvider, useSubNavState } from "@/components/shell/sub-nav-context"
 import {
@@ -129,14 +128,14 @@ function NavSection({ title, items, onNavigate }) {
                       aria-hidden="true"
                       className={cn(
                         "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
-                        isActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                        isActive ? "bg-indigo/15 text-indigo" : "bg-muted text-muted-foreground",
                       )}
                     >
                       {badge}
                     </span>
                   ) : Icon ? (
                     <Icon
-                      className={cn("size-4 shrink-0", isActive ? "text-primary" : "text-sidebar-foreground/70")}
+                      className={cn("size-4 shrink-0", isActive ? "text-indigo" : "text-sidebar-foreground/70")}
                       aria-hidden="true"
                     />
                   ) : (
@@ -270,7 +269,7 @@ function RailItem({ item }) {
               aria-hidden="true"
               className={cn(
                 "grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold",
-                isActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                isActive ? "bg-indigo/15 text-indigo" : "bg-muted text-muted-foreground",
               )}
             >
               {badge}
@@ -303,7 +302,7 @@ function PrimaryRail({ panel }) {
         <Link
           to="/organizations"
           aria-label="All organizations"
-          className="mx-2 mb-1 flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-bold text-primary"
+          className="mx-2 mb-1 flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-bold text-indigo"
         >
           <span className="grid size-5 shrink-0 place-items-center">DX</span>
           <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
@@ -328,9 +327,6 @@ function PrimaryRail({ panel }) {
           ))}
         </nav>
         <div className="mt-auto flex flex-col gap-1">
-          <div className="mx-2 flex h-9 items-center px-0.5">
-            <ThemeToggle />
-          </div>
           <div className="mx-2 flex h-9 items-center px-0.5">
             <AccountMenu compact />
           </div>
@@ -625,13 +621,13 @@ function BottomTabBar() {
           className={({ isActive }) =>
             cn(
               "flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium motion-safe-card",
-              isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              isActive ? "text-indigo" : "text-muted-foreground hover:text-foreground",
             )
           }
         >
           {({ isActive }) => (
             <>
-              <Icon className={cn("size-5 shrink-0", isActive && "text-primary")} aria-hidden="true" />
+              <Icon className={cn("size-5 shrink-0", isActive && "text-indigo")} aria-hidden="true" />
               <span>{label}</span>
             </>
           )}

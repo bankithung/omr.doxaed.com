@@ -33,7 +33,7 @@ export default function Hero() {
 
       <SectionContainer className="pt-12 pb-16 sm:pt-16 md:pt-20">
         {/* Centered copy column */}
-        <Reveal className="mx-auto max-w-3xl text-center">
+ <Reveal className="mx-auto text-center">
           <RevealItem className="flex justify-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
               <span className="relative flex size-1.5">
@@ -44,14 +44,13 @@ export default function Hero() {
             </span>
           </RevealItem>
 
-          <RevealItem as="h1" className="mx-auto mt-6 max-w-3xl text-4xl font-medium tracking-tight text-foreground sm:text-5xl sm:leading-[1.05] lg:text-7xl">
+ <RevealItem as="h1" className="mx-auto mt-6 text-4xl font-medium tracking-tight text-foreground sm:text-5xl sm:leading-[1.05] lg:text-7xl">
             <span className="block">Grade a stack of bubble sheets</span>
-            <span className="block text-primary">in minutes.</span>
+            <span className="block text-indigo">in minutes.</span>
           </RevealItem>
 
-          <RevealItem as="p" className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-            One question bank. One roster. A unique, shuffled sheet for every student —
-            scanned, auto-graded, and turned into analytics.
+ <RevealItem as="p" className="mx-auto mt-5 text-base text-muted-foreground sm:text-lg">
+            One question bank. One roster. A unique, shuffled sheet for every student,             scanned, auto-graded, and turned into analytics.
           </RevealItem>
 
           <RevealItem className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:items-center">
@@ -70,10 +69,10 @@ export default function Hero() {
         </Reveal>
 
         {/* Large animated product visual BELOW the hero (Supabase dashboard shot) */}
-        <FadeInUp delay={0.15} className="mx-auto mt-14 max-w-5xl sm:mt-16">
+ <FadeInUp delay={0.15} className="mx-auto mt-14 sm:mt-16">
           <DashboardPreview />
           <p className="mt-3 text-center font-mono text-[11px] text-muted-foreground">
-            A real test in DoxaEd OMR — graded, distributed, and analysed.
+            A real test in DoxaEd OMR, graded, distributed, and analysed.
           </p>
         </FadeInUp>
       </SectionContainer>

@@ -65,7 +65,7 @@ function LogoPositionPicker({ value, onChange }) {
 function MultiMarkPolicyPicker({ value, onChange }) {
   const OPTIONS = [
     { value: "review", label: "Flag for review", hint: "Send overmarked questions to the review queue to resolve manually." },
-    { value: "disqualify", label: "Disqualify", hint: "Void the question — zero marks, no negative penalty." },
+    { value: "disqualify", label: "Disqualify", hint: "Void the question, zero marks, no negative penalty." },
     { value: "wrong", label: "Mark wrong", hint: "Count as incorrect and apply negative marking." },
     { value: "correct_if_all", label: "Correct if key marked", hint: "Accept if every correct option is marked (extras ignored)." },
   ]
@@ -82,7 +82,7 @@ function MultiMarkPolicyPicker({ value, onChange }) {
             className={[
               "w-full text-left rounded-lg border p-3 transition-colors min-h-[40px]",
               active
-                ? "border-primary ring-1 ring-primary bg-background"
+                ? "border-indigo ring-1 ring-primary bg-background"
                 : "border-border bg-background hover:bg-muted",
             ].join(" ")}
           >
@@ -91,7 +91,7 @@ function MultiMarkPolicyPicker({ value, onChange }) {
               <span
                 className={[
                   "h-4 w-4 shrink-0 rounded-full border",
-                  active ? "border-primary bg-primary" : "border-muted-foreground/40",
+                  active ? "border-indigo bg-primary" : "border-muted-foreground/40",
                 ].join(" ")}
                 aria-hidden="true"
               />
@@ -352,7 +352,7 @@ function StepDetails({ classId, onNext }) {
             <RadioGroupItem id="mode-roster" value="roster_prebubbled" className="mt-0.5" />
             <div>
               <Label htmlFor="mode-roster" className="cursor-pointer font-medium">
-                Roster — pre-bubbled roll numbers
+                Roster, pre-bubbled roll numbers
               </Label>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Each student's roll number is auto-printed (pre-filled) on their sheet, so scanning
@@ -574,7 +574,7 @@ function StepQuestions({ testId, multipleCorrect, initialQuestions, onBack, onNe
   }
 
   return (
-    <div className="space-y-4 max-w-2xl">
+ <div className="space-y-4 ">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {savedCount} / {questions.length} question{questions.length !== 1 ? "s" : ""} saved
@@ -632,7 +632,7 @@ function StepReview({ testId, classId, questions, onBack }) {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+ <div className="space-y-6 ">
       <p className="text-sm text-muted-foreground">
         {savedQuestions.length} question{savedQuestions.length !== 1 ? "s" : ""} will be included.
       </p>
@@ -729,7 +729,7 @@ export default function TestWizard() {
           ← Back to class
         </button>
       </header>
-      <PageShell className="max-w-5xl">
+ <PageShell className="">
         {/* Page header */}
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">Create test</h1>

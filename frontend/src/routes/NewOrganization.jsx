@@ -72,9 +72,9 @@ export default function NewOrganization() {
 
   return (
     <div className="min-h-screen bg-canvas px-4 py-10">
-      <div className="mx-auto w-full max-w-2xl">
+ <div className="mx-auto w-full ">
         <div className="mb-8">
-          <p className="text-sm font-bold tracking-tight text-primary">DoxaEd OMR</p>
+          <p className="text-sm font-bold tracking-tight text-indigo">DoxaEd OMR</p>
           <h1 className="mt-3 text-2xl font-bold tracking-tight">Create your organization</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Your classes, exams, students and team live inside an organization.
@@ -97,7 +97,7 @@ export default function NewOrganization() {
           <div className="space-y-2">
             <Label>Type</Label>
             <p className="text-xs text-muted-foreground">
-              Sets the default names for your structure — you can rename and nest anything later.
+              Sets the default names for your structure, you can rename and nest anything later.
             </p>
             <div role="radiogroup" aria-label="Organization type" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {TYPES.map((t) => {
@@ -113,11 +113,11 @@ export default function NewOrganization() {
                     className={cn(
                       "flex min-h-[40px] flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
                       on
-                        ? "border-primary ring-1 ring-primary bg-primary/5"
-                        : "border-border bg-surface-1 hover:border-primary/50",
+                        ? "border-indigo ring-1 ring-primary bg-indigo/5"
+                        : "border-border bg-surface-1 hover:border-indigo/50",
                     )}
                   >
-                    <Icon className={cn("size-5", on ? "text-primary" : "text-muted-foreground")} aria-hidden="true" />
+                    <Icon className={cn("size-5", on ? "text-indigo" : "text-muted-foreground")} aria-hidden="true" />
                     <span className="text-sm font-medium">{t.label}</span>
                     <span className="text-xs text-muted-foreground">{t.structure}</span>
                   </button>
@@ -142,15 +142,15 @@ export default function NewOrganization() {
                     className={cn(
                       "flex flex-col gap-1 rounded-lg border p-4 text-left transition-colors",
                       on
-                        ? "border-primary ring-1 ring-primary bg-primary/5"
-                        : "border-border bg-surface-1 hover:border-primary/50",
+                        ? "border-indigo ring-1 ring-primary bg-indigo/5"
+                        : "border-border bg-surface-1 hover:border-indigo/50",
                     )}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold">{p.name}</span>
                       <span className="flex items-center gap-1.5">
                         <span className="text-sm font-medium tabular-nums">{p.price}</span>
-                        {on && <Check className="size-4 text-primary" aria-hidden="true" />}
+                        {on && <Check className="size-4 text-indigo" aria-hidden="true" />}
                       </span>
                     </div>
                     <ul className="text-xs text-muted-foreground">

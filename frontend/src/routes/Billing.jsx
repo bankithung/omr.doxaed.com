@@ -144,10 +144,10 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
           detail.toLowerCase().includes("api key") ||
           detail.toLowerCase().includes("not configured"))
       ) {
-        toast.error("Razorpay isn't configured yet — add your API keys to enable checkout.")
+        toast.error("Razorpay isn't configured yet, add your API keys to enable checkout.")
       } else {
         toast.error(
-          detail || "Razorpay isn't configured yet — add your API keys to enable checkout."
+          detail || "Razorpay isn't configured yet, add your API keys to enable checkout."
         )
       }
     } finally {
@@ -159,7 +159,7 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
     <div
       className={[
         "relative flex flex-col rounded-lg border p-6",
-        isHighlight ? "border-primary" : "border-border",
+        isHighlight ? "border-indigo" : "border-border",
         isCurrent ? "bg-surface-2" : "bg-card",
       ].join(" ")}
     >
@@ -190,7 +190,7 @@ function PlanCard({ plan, currentPlanCode, orgId, onSubscribeSuccess }) {
       <ul className="mb-6 space-y-2 text-sm">
         {limitLines.map((label, i) => (
           <li key={i} className="flex items-center gap-2 text-muted-foreground">
-            <CheckIcon className="size-3.5 shrink-0 text-primary" />
+            <CheckIcon className="size-3.5 shrink-0 text-indigo" />
             {label}
           </li>
         ))}
