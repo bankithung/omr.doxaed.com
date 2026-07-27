@@ -64,22 +64,8 @@ info "running migrations"
 .venv/bin/python manage.py seed_plans >/dev/null 2>&1 || true
 
 if [ "${1:-}" = "--seed" ]; then
-  info "seeding demo account  demo@doxaed.com / DemoPass123!"
-  .venv/bin/python - <<'PY'
-import os, django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings'); django.setup()
-from django.contrib.auth import get_user_model
-from organizations.models import Organization, OrganizationMembership
-U = get_user_model()
-u, _ = U.objects.get_or_create(email='demo@doxaed.com', defaults={'is_active': True})
-u.set_password('DemoPass123!'); u.is_active = True; u.is_email_verified = True; u.save()
-org, _ = Organization.objects.get_or_create(
-    slug='demo-school', defaults=dict(name='Demo School', owner=u, type='school'))
-OrganizationMembership.objects.get_or_create(
-    organization=org, user=u, defaults=dict(role='admin', status='active'))
-print('  demo@doxaed.com / DemoPass123!  org:', org.slug)
-PY
-  .venv/bin/python manage.py seed_roles >/dev/null 2>&1 || true
+  info "seeding demo data"
+  .venv/bin/python manage.py seed_demo
 fi
 
 info "starting API on http://localhost:8000"
