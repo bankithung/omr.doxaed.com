@@ -36,32 +36,52 @@ from omr.scan.pipeline import _parse_test_id_from_sheet_code, _normalize_roll
 # ---------------------------------------------------------------------------
 
 class ParseTestIdTests(TestCase):
-    """_parse_test_id_from_sheet_code extracts the test_id prefix correctly."""
+    """
+    _parse_test_id_from_sheet_code extracts the test-identifying prefix.
 
-    def test_standard_format_parses(self):
-        self.assertEqual(_parse_test_id_from_sheet_code("000042-AB3DEFGH"), 42)
+    Sheet codes are "{first 8 hex of the test UUID}-{token}" (omr/codes.py).
+    These tests previously asserted a retired integer format ("000042-TOKEN"
+    parsing to 42) and passed only because the helper returned None for every
+    input, which is also why the test-identity guard never fired.
+    """
 
-    def test_leading_zeros_stripped(self):
-        self.assertEqual(_parse_test_id_from_sheet_code("000001-XXXXXXXX"), 1)
+    def test_uuid_prefix_parses(self):
+        code = "8f3a9c1e-AB3DEFGH"
+        self.assertEqual(_parse_test_id_from_sheet_code(code), "8f3a9c1e")
 
-    def test_large_test_id(self):
-        self.assertEqual(_parse_test_id_from_sheet_code("999999-XXXXXXXX"), 999999)
+    def test_parse_is_case_insensitive(self):
+        self.assertEqual(_parse_test_id_from_sheet_code("8F3A9C1E-XXXXXXXX"), "8f3a9c1e")
 
     def test_make_sheet_code_round_trip(self):
-        """make_sheet_code produces a code whose test_id parses back correctly."""
+        """make_sheet_code produces a code whose prefix parses back to the test."""
+        import uuid as _uuid
         from omr.codes import make_sheet_code
-        sheet_code, _ = make_sheet_code(123, 9999)
-        self.assertEqual(_parse_test_id_from_sheet_code(sheet_code), 123)
+        from omr.scan.pipeline import _test_id_prefix
 
-    def test_legacy_format_without_six_digits(self):
-        """If the prefix is a valid int (even without 6 chars), it parses."""
-        self.assertEqual(_parse_test_id_from_sheet_code("42-TOKEN"), 42)
+        test_id = _uuid.uuid4()
+        sheet_code, _ = make_sheet_code(test_id, 9999)
+        self.assertEqual(
+            _parse_test_id_from_sheet_code(sheet_code), _test_id_prefix(test_id)
+        )
 
-    def test_no_dash_returns_none(self):
-        """Unparseable code (no dash) returns None — no crash."""
-        result = _parse_test_id_from_sheet_code("NODASH")
-        # The whole string is tried as int; "NODASH" is not a valid int
-        self.assertIsNone(result)
+    def test_different_tests_produce_different_prefixes(self):
+        """The guard is only useful if two tests disagree."""
+        import uuid as _uuid
+        from omr.codes import make_sheet_code
+
+        a, _ = make_sheet_code(_uuid.UUID("11111111-1111-1111-1111-111111111111"), 1)
+        b, _ = make_sheet_code(_uuid.UUID("22222222-2222-2222-2222-222222222222"), 1)
+        self.assertNotEqual(
+            _parse_test_id_from_sheet_code(a), _parse_test_id_from_sheet_code(b)
+        )
+
+    def test_non_hex_prefix_returns_none(self):
+        """Unparseable prefix returns None rather than crashing the scan."""
+        self.assertIsNone(_parse_test_id_from_sheet_code("NOTHEX!!-TOKEN"))
+
+    def test_no_dash_hex_string_still_parses(self):
+        """A bare hex string is treated as the prefix (legacy tolerance)."""
+        self.assertEqual(_parse_test_id_from_sheet_code("abcdef12"), "abcdef12")
 
     def test_empty_string_returns_none(self):
         self.assertIsNone(_parse_test_id_from_sheet_code(""))
@@ -161,7 +181,8 @@ def _build_omr_sheet(
         for q in Question.objects.filter(test=test).order_by("order_index")
     ]
     if seed is None:
-        seed = test.id * 1000 + int(roll_number.lstrip("0") or "0")
+        # Test ids are UUIDs; derive a deterministic int seed from one.
+        seed = (test.id.int % 1_000_000) * 1000 + int(roll_number.lstrip("0") or "0")
 
     plan = build_sheet_plan(questions_data, seed=seed,
                             shuffle_questions=False, shuffle_options=False)
@@ -339,16 +360,20 @@ class LegacyDecodeTests(TestCase):
 
     def test_make_sheet_code_format_parses_test_id(self):
         """
-        make_sheet_code embeds test_id as the first 6-digit zero-padded prefix.
-        _parse_test_id_from_sheet_code must recover the original test_id.
+        make_sheet_code embeds the first 8 hex characters of the test UUID.
+        _parse_test_id_from_sheet_code must recover exactly that prefix, which
+        is what the identity guard compares against.
         """
-        for test_id in [1, 42, 999, 123456]:
+        import uuid as _uuid
+        from omr.scan.pipeline import _test_id_prefix
+
+        for test_id in [_uuid.uuid4() for _ in range(4)]:
             sheet_code, _ = make_sheet_code(test_id, seed=42)
             parsed = _parse_test_id_from_sheet_code(sheet_code)
             self.assertEqual(
-                parsed, test_id,
-                f"test_id={test_id}: expected {test_id} but got {parsed!r} "
-                f"from sheet_code={sheet_code!r}"
+                parsed, _test_id_prefix(test_id),
+                f"test_id={test_id}: expected {_test_id_prefix(test_id)} but got "
+                f"{parsed!r} from sheet_code={sheet_code!r}"
             )
 
     def test_pipeline_resolves_existing_sheet_on_correct_batch(self):

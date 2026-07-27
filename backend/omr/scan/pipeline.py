@@ -202,7 +202,7 @@ def process_scan_job(job) -> None:
     # A mismatch means a sheet from a different test was uploaded into this batch —
     # flag it and stop (do NOT grade against the wrong key).
     parsed_test_id = _parse_test_id_from_sheet_code(sheet_code)
-    if parsed_test_id is not None and parsed_test_id != job.batch.test_id:
+    if parsed_test_id is not None and parsed_test_id != _test_id_prefix(job.batch.test_id):
         job.status = job.STATUS_NEEDS_REVIEW
         job.error_reason = "test_mismatch"
         job.reads = {}
@@ -550,18 +550,38 @@ def _flag_to_reason(flag: str) -> str | None:
 
 def _parse_test_id_from_sheet_code(sheet_code: str):
     """
-    Parse the test UUID from a sheet_code of the form "{test_uuid_hex}-{token}".
+    Return the test-identifying prefix of a sheet_code, lowercased, or None.
 
-    Returns the test's UUID if the prefix is a valid hex UUID, or None if the
-    code is not parseable (legacy tolerance: never crash). This is an early
-    sanity check; the OmrSheet lookup by full sheet_code + test still enforces
-    the match downstream.
+    ``make_sheet_code`` builds "{first 8 hex of the test UUID}-{token}"
+    (omr/codes.py), deliberately short so the printed QR stays easy to decode.
+
+    This used to call ``uuid.UUID(hex=prefix)`` on that 8 character prefix.
+    A UUID needs 32 hex characters, so the call ALWAYS raised, this ALWAYS
+    returned None, and the test-identity guard that depends on it never fired
+    once: a sheet printed for a different exam was accepted and graded against
+    the wrong answer key, with no flag.
+
+    Comparing prefixes is a cheap pre-check, not the authority. The OmrSheet
+    lookup by full sheet_code + batch test still enforces the real match, so an
+    8 hex collision costs nothing beyond a missed early exit.
     """
     try:
-        prefix = sheet_code.split("-")[0]
-        return uuid.UUID(hex=prefix)
-    except (ValueError, IndexError, AttributeError):
+        prefix = sheet_code.split("-")[0].strip().lower()
+    except (IndexError, AttributeError):
         return None
+    if not prefix:
+        return None
+    # Must look like the hex prefix we emit; anything else is unparseable.
+    try:
+        int(prefix, 16)
+    except ValueError:
+        return None
+    return prefix
+
+
+def _test_id_prefix(test_id) -> str:
+    """The sheet_code prefix a given test id would produce. Mirrors make_sheet_code."""
+    return str(test_id).replace("-", "")[:8].lower()
 
 
 def _normalize_roll(roll: str, width: int) -> str:
