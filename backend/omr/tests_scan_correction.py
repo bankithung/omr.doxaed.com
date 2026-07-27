@@ -74,13 +74,15 @@ def _build_omr_sheet(test, user, roll_number="001", n_questions=5, roll_digits=3
                                      full_name=f"Student {roll_number}")
     questions_data = [
         {
-            "id": q.id,
+            "id": str(q.id),
             "options": [{"label": o.label, "is_correct": o.is_correct}
                         for o in q.options.all()],
         }
         for q in Question.objects.filter(test=test).order_by("order_index")
     ]
-    seed = test.id * 1000 + int(roll_number.lstrip("0") or "0")
+    # Test ids are UUIDs, so derive a deterministic int seed from the UUID rather
+    # than multiplying it. Same test + same roll always yields the same sheet.
+    seed = (test.id.int % 1_000_000) * 1000 + int(roll_number.lstrip("0") or "0")
     plan = build_sheet_plan(questions_data, seed=seed,
                             shuffle_questions=False, shuffle_options=False)
     descriptor = build_template(num_questions=n_questions, num_options=4,

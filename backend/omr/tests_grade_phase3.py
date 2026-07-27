@@ -351,7 +351,7 @@ class ChooseKBestKTests(TestCase):
     def _build_plan(self, seed):
         questions_data = [
             {
-                "id": q.id,
+                "id": str(q.id),
                 "options": [
                     {"label": o.label, "is_correct": o.is_correct}
                     for o in q.options.all()
@@ -718,7 +718,7 @@ class PersistenceTests(TestCase):
 
         # Build a sheet with shuffled question order
         qs_data = [
-            {"id": q.id, "options": [{"label": o.label, "is_correct": o.is_correct} for o in q.options.all()]}
+            {"id": str(q.id), "options": [{"label": o.label, "is_correct": o.is_correct} for o in q.options.all()]}
             for q in self.questions
         ]
         plan = build_sheet_plan(qs_data, seed=12345, shuffle_questions=True, shuffle_options=False)

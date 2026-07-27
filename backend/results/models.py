@@ -190,6 +190,15 @@ class ReviewItem(UUIDModel):
         on_delete=models.SET_NULL,
         related_name="review_items",
     )
+    # Which question on the sheet this flag was raised for, 1-based, matching
+    # QuestionResponse.q_pos. NULL means the flag is sheet-level (no_qr,
+    # alignment, roll_unreadable, roll_mismatch, missing_page, test_mismatch)
+    # and there is no single answer to correct.
+    #
+    # Without this, resolving a review item had to guess which response the
+    # teacher meant and picked the first flagged one on the sheet, so
+    # correcting Q7 silently rewrote Q3.
+    q_pos = models.PositiveIntegerField(null=True, blank=True)
     reason = models.CharField(max_length=32, choices=REASON_CHOICES)
     resolved = models.BooleanField(default=False)
     resolved_by = models.ForeignKey(

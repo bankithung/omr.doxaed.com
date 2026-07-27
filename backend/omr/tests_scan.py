@@ -1496,7 +1496,7 @@ def _build_omr_sheet(test, user, n_questions=10, n_options=4, roll_digits=3):
     for q in Question.objects.filter(test=test).order_by("order_index"):
         opts = [{"label": o.label, "is_correct": o.is_correct}
                 for o in q.options.all()]
-        questions_data.append({"id": q.id, "options": opts})
+        questions_data.append({"id": str(q.id), "options": opts})
 
     seed = 12345
     plan = build_sheet_plan(questions_data, seed=seed,
@@ -2272,9 +2272,28 @@ class ReviewQueueEndpointTest(TestCase):
         # Inject a SECOND open double_mark ReviewItem so we exercise the
         # multi-item resolve path (the second resolve hits the fallback branch,
         # since the only flagged response is cleared by the first resolve).
+        #
+        # It must name the question it is about. Review items carry a q_pos so
+        # that resolving one edits the answer it was raised for; an item without
+        # one is refused rather than applied to whichever response happens to be
+        # flagged first.
+        from results.models import QuestionResponse
+        used = set(
+            ReviewItem.objects.filter(omr_sheet=self.omr_sheet)
+            .exclude(q_pos=None)
+            .values_list("q_pos", flat=True)
+        )
+        spare_q_pos = (
+            QuestionResponse.objects.filter(student_result=sr)
+            .exclude(q_pos__in=used)
+            .values_list("q_pos", flat=True)
+            .first()
+        )
+        self.assertIsNotNone(spare_q_pos, "Expected a second question to flag")
         ReviewItem.objects.create(
             omr_sheet=self.omr_sheet,
             reason=ReviewItem.REASON_DOUBLE_MARK,
+            q_pos=spare_q_pos,
         )
 
         open_ids = list(

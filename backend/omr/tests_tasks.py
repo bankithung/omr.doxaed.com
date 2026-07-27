@@ -50,7 +50,7 @@ def _build_omr_sheet(test, user, n_questions=10, n_options=4, roll_digits=3):
 
     questions_data = [
         {
-            "id": q.id,
+            "id": str(q.id),
             "options": [{"label": o.label, "is_correct": o.is_correct}
                         for o in q.options.all()],
         }

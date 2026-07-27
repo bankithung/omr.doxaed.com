@@ -154,7 +154,7 @@ def _build_omr_sheet(
 
     questions_data = [
         {
-            "id": q.id,
+            "id": str(q.id),
             "options": [{"label": o.label, "is_correct": o.is_correct}
                         for o in q.options.all()],
         }

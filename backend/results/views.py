@@ -144,12 +144,43 @@ class ResolveReviewItemView(APIView):
         if omr_sheet is not None:
             student_result = StudentResult.objects.filter(omr_sheet=omr_sheet).first()
 
-        # If we have a StudentResult, update the first flagged response (if any).
+        # Update the response this item was actually raised for.
+        #
+        # This used to take the FIRST flagged response on the sheet, so with
+        # flags open on Q3 and Q7, resolving the Q7 card rewrote Q3 and the
+        # teacher was never told. Target by q_pos and refuse the write when the
+        # item does not identify a question.
         if student_result is not None:
+            if review_item.q_pos is None:
+                # Sheet-level reasons (no_qr, alignment, roll_*, missing_page,
+                # test_mismatch) have no single answer to correct. Older items
+                # created before q_pos existed also land here.
+                return Response(
+                    {
+                        "detail": (
+                            "This review item is not about a single question, so an "
+                            "answer cannot be applied to it. Re-scan the sheet instead."
+                        ),
+                        "reason": review_item.reason,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             flagged_response = QuestionResponse.objects.filter(
                 student_result=student_result,
-                flagged=True,
+                q_pos=review_item.q_pos,
             ).first()
+
+            if flagged_response is None:
+                return Response(
+                    {
+                        "detail": (
+                            f"No recorded answer for question {review_item.q_pos} on "
+                            "this sheet. Re-scan the sheet instead."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             if flagged_response is not None:
                 # Update the marked_options on the flagged response.

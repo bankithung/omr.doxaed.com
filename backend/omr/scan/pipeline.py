@@ -285,11 +285,36 @@ def process_scan_job(job) -> None:
 
     job.save(update_fields=update_fields)
 
-    # Create ReviewItems for each flag
+    # Create ReviewItems for each flag.
+    #
+    # Per-question flags ("faint") must carry the q_pos they were raised for,
+    # otherwise resolution cannot tell which answer the teacher is correcting.
+    # `flags` is a flat list, so recover the positions from the per-question
+    # reads, which is where those flags originated.
+    per_question_flags: dict[str, list[int]] = {}
+    for _q_pos, _entry in result.get("reads", {}).items():
+        _flag = _entry.get("flag")
+        if _flag:
+            per_question_flags.setdefault(_flag, []).append(int(_q_pos))
+
+    seen_per_question: dict[str, int] = {}
     for flag in flags:
         reason = _flag_to_reason(flag)
-        if reason:
-            _create_review_item(job=job, omr_sheet=omr_sheet, reason=reason)
+        if not reason:
+            continue
+        positions = per_question_flags.get(flag)
+        if positions:
+            # One ReviewItem per flagged question, in the order the flags were
+            # appended, so N faint questions raise N distinct correctable items
+            # instead of N identical ones pointing nowhere.
+            idx = seen_per_question.get(flag, 0)
+            seen_per_question[flag] = idx + 1
+            q_pos = positions[idx] if idx < len(positions) else None
+        else:
+            q_pos = None  # sheet-level flag
+        _create_review_item(
+            job=job, omr_sheet=omr_sheet, reason=reason, q_pos=q_pos
+        )
 
     # Attempt grading if all pages are now done
     _maybe_grade(omr_sheet)
@@ -436,6 +461,7 @@ def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
     # multi_mark_policy is "review". Other policies (disqualify / wrong /
     # correct_if_all) resolve the question automatically — no review item.
     multi_mark_review = False
+    review_q_positions: list[int] = []
 
     for pq in grading["per_question"]:
         q_pos = pq["q_pos"]
@@ -444,6 +470,7 @@ def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
         flagged = bool(pq.get("flagged"))
         if pq.get("needs_review"):
             multi_mark_review = True
+            review_q_positions.append(q_pos)
 
         # Resolve the underlying Question FK from the sheet's question_order.
         # question_order[q_pos] is the Question id in the original (underlying) order.
@@ -461,12 +488,15 @@ def _persist_grading_result(omr_sheet, grading: dict, done_jobs: list) -> None:
             section_id=qpos_to_section_id.get(q_pos),
         )
 
-    # Create exactly one open double_mark ReviewItem for the sheet when the
-    # policy routes overmark(s) to review. Idempotent across regrades.
-    if multi_mark_review:
+    # One open double_mark ReviewItem PER over-marked question when the policy
+    # routes overmarks to review. It used to be a single sheet-level item for
+    # any number of over-marked questions, which left the teacher no way to say
+    # which question they were correcting. Idempotent across regrades.
+    for _q_pos in review_q_positions:
         ReviewItem.objects.get_or_create(
             omr_sheet=omr_sheet,
             reason=ReviewItem.REASON_DOUBLE_MARK,
+            q_pos=_q_pos,
             resolved=False,
         )
 
@@ -554,13 +584,20 @@ def _normalize_roll(roll: str, width: int) -> str:
     return digits_only.zfill(width)
 
 
-def _create_review_item(*, job=None, omr_sheet=None, reason: str) -> None:
-    """Create a ReviewItem for the given scan job / sheet and reason."""
+def _create_review_item(*, job=None, omr_sheet=None, reason: str, q_pos=None) -> None:
+    """
+    Create a ReviewItem for the given scan job / sheet and reason.
+
+    ``q_pos`` is the 1-based question this flag was raised for, or None for a
+    sheet-level flag. It MUST be passed for per-question reasons: resolution
+    targets the response by q_pos, and an item without one cannot be corrected.
+    """
     from results.models import ReviewItem
     ReviewItem.objects.create(
         scan_job=job,
         omr_sheet=omr_sheet,
         reason=reason,
+        q_pos=q_pos,
     )
 
 

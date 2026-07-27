@@ -76,17 +76,13 @@ class ReviewItemSerializer(serializers.ModelSerializer):
         return None
 
     def get_q_pos(self, obj):
-        # Try to infer q_pos from the omr_sheet's question responses that are flagged
-        # and match this review item's reason
-        if obj.omr_sheet and obj.reason in ("double_mark", "faint"):
-            # Find flagged question responses for this sheet's student result
-            from results.models import QuestionResponse
-            flagged = QuestionResponse.objects.filter(
-                student_result__omr_sheet=obj.omr_sheet,
-                flagged=True,
-            ).values_list("q_pos", flat=True).first()
-            return flagged
-        return None
+        # The question this flag was raised for, recorded at scan time.
+        #
+        # This used to infer q_pos by taking the first flagged response on the
+        # sheet, so every faint/double_mark card on a sheet reported the same
+        # question no matter which one it was actually about. NULL here means
+        # the reason is sheet-level and there is no single answer to correct.
+        return obj.q_pos
 
 
 class ResolveReviewSerializer(serializers.Serializer):
