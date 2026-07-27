@@ -74,9 +74,26 @@ import {
   SettingsIcon,
   HomeIcon,
   BookOpenIcon,
+  PencilRulerIcon,
+  PrinterIcon,
+  ScanLineIcon,
+  ClipboardCheckIcon,
+  ListChecksIcon,
+  BarChart3Icon,
 } from "lucide-react"
 
 const PANEL_COLLAPSE_KEY = "nav.panel.collapsed"
+
+// Icons for the exam lifecycle stages. The primary rail collapses to 56px and
+// shows icons only, so every rail item needs one.
+const STAGE_ICON = {
+  build: PencilRulerIcon,
+  generate: PrinterIcon,
+  scan: ScanLineIcon,
+  review: ClipboardCheckIcon,
+  results: ListChecksIcon,
+  analytics: BarChart3Icon,
+}
 
 // ─── Bottom tab bar items (mobile) — workspace-first ──────────────────────────
 const BOTTOM_TABS = [
@@ -170,7 +187,15 @@ function usePanel(section) {
     const items = STAGES
       .map((s) => {
         const to = stageHref({ key: s.key, testId: testScope.testId, classId })
-        return to ? { label: s.label, to, badge: STAGES.indexOf(s) + 1, key: s.key } : null
+        return to
+          ? {
+              label: s.label,
+              to,
+              badge: STAGES.indexOf(s) + 1,
+              key: s.key,
+              icon: STAGE_ICON[s.key],
+            }
+          : null
       })
       .filter(Boolean)
       .map((it) => ({ ...it, end: true }))
@@ -264,24 +289,41 @@ function RailItem({ item }) {
     >
       {({ isActive }) => (
         <>
-          {badge != null ? (
+          {/* The rail collapses to 56px, so the leading slot must be the icon.
+             A step number in that slot reads as a bare digit with no context. */}
+          {Icon ? (
+            <Icon className="size-5 shrink-0" aria-hidden="true" />
+          ) : badge != null ? (
             <span
               aria-hidden="true"
               className={cn(
                 "grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold",
-                isActive ? "bg-indigo/15 text-indigo" : "bg-muted text-muted-foreground",
+                isActive
+                  ? "bg-nav-active-fg/25 text-nav-active-fg"
+                  : "bg-muted text-muted-foreground",
               )}
             >
               {badge}
             </span>
-          ) : Icon ? (
-            <Icon className="size-5 shrink-0" aria-hidden="true" />
           ) : (
             <span className="size-5 shrink-0" aria-hidden="true" />
           )}
-          <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100">
             {label}
           </span>
+          {/* Step number rides at the end, visible only once the rail expands,
+             so ordering is still legible without crowding the icon. */}
+          {Icon && badge != null && (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "shrink-0 text-[11px] font-semibold tabular opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100",
+                isActive ? "text-nav-active-fg/70" : "text-muted-foreground",
+              )}
+            >
+              {badge}
+            </span>
+          )}
         </>
       )}
     </NavLink>
