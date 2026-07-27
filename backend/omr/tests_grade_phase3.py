@@ -182,7 +182,7 @@ class FlatNegativeMarkingTests(TestCase):
         return _make_mock_sheet(
             answer_key,
             ms_marks=1, ms_neg=0,
-            question_order=[q.id for q in self.questions],
+            question_order=[str(q.id) for q in self.questions],
         )
 
     def test_correct_gets_4_wrong_gets_minus1(self):
@@ -256,7 +256,7 @@ class FractionalNegativeMarkingTests(TestCase):
     def _make_sheet(self, answer_key):
         return _make_mock_sheet(
             answer_key,
-            question_order=[q.id for q in self.questions],
+            question_order=[str(q.id) for q in self.questions],
         )
 
     def test_fractional_penalty_value(self):
@@ -518,7 +518,7 @@ class SectionalCutoffTests(TestCase):
     def _make_sheet(self, answer_key):
         return _make_mock_sheet(
             answer_key,
-            question_order=[q.id for q in self.questions],
+            question_order=[str(q.id) for q in self.questions],
         )
 
     def test_qualifying_section_excluded_from_aggregate(self):
@@ -638,14 +638,14 @@ class ResolverFallbackTests(TestCase):
     def _make_sheet(self, answer_key):
         return _make_mock_sheet(
             answer_key,
-            question_order=[q.id for q in self.questions],
+            question_order=[str(q.id) for q in self.questions],
         )
 
     def _make_sheet(self, answer_key, marks=3):
         return _make_mock_sheet(
             answer_key,
             ms_marks=marks,
-            question_order=[q.id for q in self.questions],
+            question_order=[str(q.id) for q in self.questions],
         )
 
     def test_section_without_sms_uses_test_scheme(self):

@@ -441,10 +441,16 @@ class SheetCodesTests(TestCase):
         self.assertNotEqual(c1, c2)
 
     def test_format(self):
+        import uuid as _uuid
         from omr.codes import make_sheet_code
-        code, human = make_sheet_code(7, 42)
-        # sheet_code must be "000007-XXXXXXXX"
-        self.assertTrue(code.startswith("000007-"), f"Bad prefix: {code}")
+        from omr.scan.pipeline import _test_id_prefix
+
+        test_id = _uuid.uuid4()
+        code, human = make_sheet_code(test_id, 42)
+        # sheet_code is "{first 8 hex of the test UUID}-XXXXXXXX"
+        self.assertTrue(
+            code.startswith(f"{_test_id_prefix(test_id)}-"), f"Bad prefix: {code}"
+        )
         token = code.split("-")[1]
         self.assertEqual(len(token), 8)
         self.assertEqual(token, human)
@@ -884,8 +890,12 @@ class GenerateEndpointTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.content)
         data = resp.json()
         # All returned sheets must belong to this test
-        sheet_ids = [s["id"] for s in data.get("results", data)]
-        db_ids = list(OmrSheet.objects.filter(test=self.test).values_list("id", flat=True))
+        sheet_ids = [str(s["id"]) for s in data.get("results", data)]
+        db_ids = {
+            str(i)
+            for i in OmrSheet.objects.filter(test=self.test).values_list("id", flat=True)
+        }
+        self.assertTrue(sheet_ids, "Expected at least one sheet back")
         for sid in sheet_ids:
             self.assertIn(sid, db_ids)
 

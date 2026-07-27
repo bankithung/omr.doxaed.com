@@ -374,7 +374,7 @@ class AcceptInviteView(APIView):
         return Response(
             {
                 "detail": "Invitation accepted. You are now a member.",
-                "organization": org.id,
+                "organization": str(org.id),
                 "role": membership.role,
             }
         )
@@ -588,14 +588,14 @@ class ClassAccessGrantViewSet(viewsets.ModelViewSet):
         serializer.save(organization=org, granted_by=self.request.user)
         _log(org, self.request.user, "access.granted",
              target_type="class_grant", target_id=serializer.instance.id,
-             metadata={"user_id": serializer.instance.user_id,
-                       "class_group_id": serializer.instance.class_group_id})
+             metadata={"user_id": str(serializer.instance.user_id),
+                       "class_group_id": str(serializer.instance.class_group_id)})
 
     def perform_destroy(self, instance):
         org = get_active_org(self.request)
         _log(org, self.request.user, "access.revoked",
              target_type="class_grant", target_id=instance.id,
-             metadata={"user_id": instance.user_id, "class_group_id": instance.class_group_id})
+             metadata={"user_id": str(instance.user_id), "class_group_id": str(instance.class_group_id)})
         instance.delete()
 
 

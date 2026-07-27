@@ -137,7 +137,7 @@ def _make_student(user, roll, name="Student"):
 
 def _make_omr_sheet(test, questions, seed=1, student=None):
     """Identity shuffle sheet."""
-    q_ids = [q.id for q in questions]
+    q_ids = [str(q.id) for q in questions]
     option_order = {str(q.id): ["A", "B", "C", "D"] for q in questions}
     answer_key = {str(i): ["A"] for i in range(len(questions))}
     sheet = OmrSheet.objects.create(

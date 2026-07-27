@@ -236,10 +236,10 @@ class FolderShareViewSet(viewsets.ModelViewSet):
                 target_type="FolderShare",
                 target_id=share.id,
                 metadata={
-                    "folder_id": folder.id,
+                    "folder_id": str(folder.id),
                     "share_scope": share.share_scope,
                     "permission": share.permission,
-                    "shared_with": share.shared_with_id,
+                    "shared_with": str(share.shared_with_id),
                 },
             )
         except Exception:

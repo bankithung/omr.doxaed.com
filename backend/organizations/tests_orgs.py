@@ -615,7 +615,7 @@ def _make_org_omr_sheet(test, student, seed=1):
     from omr.models import OmrSheet
 
     questions = list(test.questions.order_by("order_index", "id"))
-    q_ids = [q.id for q in questions]
+    q_ids = [str(q.id) for q in questions]
     option_order = {str(q.id): ["A", "B", "C", "D"] for q in questions}
     answer_key = {str(i): ["A"] for i in range(len(questions))}
     return OmrSheet.objects.create(

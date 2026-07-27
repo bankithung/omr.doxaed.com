@@ -68,7 +68,7 @@ def _make_student(user, roll="001", name="Student One"):
 
 def _make_omr_sheet(test, questions, seed=1):
     """Build an OmrSheet with identity shuffle (question_order and option_order)."""
-    q_ids = [q.id for q in questions]
+    q_ids = [str(q.id) for q in questions]
     option_order = {str(q.id): ["A", "B", "C", "D"] for q in questions}
     # answer_key: printed position → [correct printed labels] (same as original, no shuffle)
     answer_key = {str(i): ["A"] for i in range(len(questions))}
@@ -92,7 +92,7 @@ def _make_omr_sheet_shuffled(test, questions, seed=99):
     So printed label 'A' (printed pos 1) corresponds to original 'B'.
     And printed label 'B' (printed pos 0) corresponds to original 'A' (correct).
     """
-    q_ids = [q.id for q in questions]
+    q_ids = [str(q.id) for q in questions]
     q0_id = str(questions[0].id)
     # question[0]: printed order is [B, A, D, C]
     # question[1], question[2]: identity
