@@ -66,6 +66,14 @@ FILL_LOW: float = 0.05
 # a decision for a human, not for a threshold.
 MARGIN_MIN: float = 0.06
 
+# A second mark only counts as a real second mark if it is at least this
+# fraction of the first. A genuine double mark is two comparable marks; a
+# photocopy speck or a smudge sitting just over the absolute threshold next to
+# a solid answer is not. Without this, dirt on a second generation photocopy
+# turned a clear single answer into a double mark and sent it to review at
+# 0.11 against 0.62.
+DOUBLE_MARK_RATIO: float = 0.45
+
 
 def to_binary(canonical_gray: np.ndarray) -> np.ndarray:
     """
@@ -427,6 +435,14 @@ def read_answers(
         runner_val = ranked[1][1] if len(ranked) > 1 else 0.0
 
         filled = [lbl for lbl, v in darkness.items() if v >= FILL_HIGH]
+        # Drop marks that are technically over the line but nowhere near the
+        # strongest one: that is dirt beside an answer, not a second answer.
+        if len(filled) >= 2 and top_val > 0:
+            filled = [
+                lbl for lbl in filled
+                if darkness[lbl] >= DOUBLE_MARK_RATIO * top_val
+            ]
+
         marked: list[str] = []
         flag: str | None = None
 
