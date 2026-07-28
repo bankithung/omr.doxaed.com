@@ -25,8 +25,15 @@ import cv2
 import numpy as np
 from decimal import Decimal
 
-from omr.scan.align import decode_qr, detect_fiducials, warp_to_canonical
-from omr.scan.read import to_binary, read_roll, read_answers, bubble_fill_ratio
+from omr.scan.align import (
+    crop_to_page,
+    decode_qr,
+    decode_qr_fast,
+    decode_qr_from_canonical,
+    detect_fiducials,
+    warp_to_canonical,
+)
+from omr.scan.read import to_binary, read_roll, read_answers, page_ink_level
 from omr.scan.grade import grade_sheet
 
 
@@ -59,93 +66,126 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
     """
     flags: list[str] = []
 
-    # ---- Stage 1: QR decode ----
-    qr_result = decode_qr(image)
+    gray = image if image.ndim == 2 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # ---- Stage 0: crop to the sheet ----
+    # Everything downstream assumes the frame is paper. A photograph is not: it
+    # contains a desk, and a global threshold over desk-plus-paper separates
+    # those two rather than ink from paper, which dissolves every fiducial.
+    page_img = crop_to_page(gray, descriptor)
+
+    # ---- Stage 1: align ----
+    # Alignment comes BEFORE the QR now. Searching a multi-megapixel frame for
+    # an 80 px block fails on precisely the captures a phone produces, and
+    # fails slowly. Rectifying first turns the QR into a known square that can
+    # be upscaled and deblurred on its own, which is both faster and more
+    # capable. Fiducials survive blur far better than a QR does, so they are
+    # the more reliable thing to find first.
+    src_pts = detect_fiducials(page_img, descriptor)
+    if src_pts is None and page_img is not gray:
+        src_pts = detect_fiducials(gray, descriptor)
+        if src_pts is not None:
+            page_img = gray
+
+    canonical = None
+    qr_result = None
+    if src_pts is not None:
+        canonical = warp_to_canonical(page_img, src_pts, descriptor)
+        found = decode_qr_from_canonical(canonical, descriptor)
+        if found is not None:
+            qr_result, upside_down = found
+            if upside_down:
+                # The QR landing in the opposite corner IS the orientation
+                # test. Four identical corner squares are rotationally
+                # symmetric, so an upside down sheet warps perfectly and would
+                # otherwise be graded against mirrored positions, which used to
+                # produce a confident near-zero score.
+                canonical = cv2.rotate(canonical, cv2.ROTATE_180)
+
+    # Fall back to the raw frame ONLY when alignment failed. That covers a
+    # sheet whose corners are damaged or cropped, where the page cannot be
+    # squared up but the code may still be legible, so the upload can at least
+    # be attributed to a student.
+    #
+    # If alignment succeeded and the QR still would not read from the position
+    # the template puts it in, searching the whole frame cannot do better: the
+    # code itself is destroyed. Running the full ladder anyway cost 8.6 s per
+    # sheet on badly blurred captures and never once succeeded.
+    if qr_result is None and canonical is None:
+        qr_result = decode_qr_fast(page_img)
+        if qr_result is None and page_img is not gray:
+            qr_result = decode_qr_fast(gray)
+        if qr_result is None:
+            qr_result = decode_qr(page_img)
+
     if qr_result is None:
         return {
-            "sheet_code": None,
-            "page": None,
-            "total": None,
-            "reads": {},
-            "fill_ratios": {},
-            "roll": None,
-            "flags": ["no_qr"],
-            "canonical": None,
+            "sheet_code": None, "page": None, "total": None,
+            "reads": {}, "fill_ratios": {}, "roll": None,
+            "flags": ["no_qr"], "canonical": None, "confidence": 0.0,
         }
 
     sheet_code, page_1based, total = qr_result
     page = page_1based - 1  # convert to 0-based
 
-    # ---- Stage 2: Fiducial detection ----
-    src_pts = detect_fiducials(image, descriptor)
-    if src_pts is None:
+    if canonical is None:
+        # QR readable but the page could not be squared up. Never grade off an
+        # unrectified image: the bubble coordinates would be meaningless.
         return {
-            "sheet_code": sheet_code,
-            "page": page,
-            "total": total,
-            "reads": {},
-            "fill_ratios": {},
-            "roll": None,
-            "flags": ["alignment"],
-            "canonical": None,
+            "sheet_code": sheet_code, "page": page, "total": total,
+            "reads": {}, "fill_ratios": {}, "roll": None,
+            "flags": ["alignment"], "canonical": None, "confidence": 0.0,
         }
 
-    # ---- Stage 3: Warp to canonical space ----
-    canonical = warp_to_canonical(image, src_pts, descriptor)
-
-    # ---- Stage 4: Binarise ----
-    binary = to_binary(canonical)
+    # ---- Stage 4: Per-page ink reference ----
+    # Calibrated from the fiducials, which are the only marks guaranteed to be
+    # solid print on this page, so exposure cancels out of every measurement.
+    ink_level = page_ink_level(canonical, descriptor)
 
     # ---- Stage 5: Read roll (page 0 only) ----
     roll: str | None = None
     if page == 0:
-        roll, roll_flag = read_roll(binary, descriptor)
+        roll, roll_flag = read_roll(canonical, descriptor)
         if roll_flag:
             flags.append(roll_flag)
 
     # ---- Stage 6: Read answers ----
-    reads = read_answers(binary, descriptor, page=page)
+    reads = read_answers(canonical, descriptor, page=page, ink_level=ink_level)
 
-    # Collect per-question flags
     for q_pos, entry in reads.items():
         if entry.get("flag"):
             flags.append(entry["flag"])
 
-    # ---- Stage 7: Derive per-question fill_ratio (confidence proxy) ----
-    # Measure the actual pixel fill of the most-filled marked option.
-    # Using bubble_fill_ratio on the warped canonical binary image gives an
-    # accurate, scale-independent measurement: a solidly filled bubble reads
-    # near 1.0 regardless of image scale or per-question flag.
-    #
-    # For blank questions (no marked options), the ratio is 0.0.
-    #
-    # Build a lookup: q_pos -> {label -> (cx, cy, r)} for bubbles on this page.
-    _bubble_coords: dict[int, dict[str, tuple]] = {}
-    for _entry in descriptor["answer_bubbles"]:
-        if _entry["page"] != page:
-            continue
-        _q_pos = _entry["q_pos"]
-        _bubble_coords[_q_pos] = {
-            opt["label"]: (opt["cx"], opt["cy"], opt["r"])
-            for opt in _entry["options"]
-        }
-
+    # ---- Stage 7: Per-question darkness, kept as fill_ratios ----
+    # Same field name and meaning as before (0 blank, 1 solidly marked), but
+    # now a normalised greyness rather than a count of post-threshold pixels,
+    # so a faint mark reads as a small number instead of rounding to zero.
     fill_ratios: dict[int, float] = {}
     for q_pos, entry in reads.items():
+        dk = entry.get("darkness") or {}
         marked = entry.get("marked", [])
-        if not marked:
-            fill_ratios[q_pos] = 0.0
+        if marked:
+            fill_ratios[q_pos] = float(max(dk.get(l, 0.0) for l in marked))
+        elif dk:
+            fill_ratios[q_pos] = float(max(dk.values()))
         else:
-            # Take the maximum fill ratio across all marked options.
-            max_ratio = 0.0
-            coords_for_q = _bubble_coords.get(q_pos, {})
-            for label in marked:
-                if label in coords_for_q:
-                    cx, cy, r = coords_for_q[label]
-                    ratio = bubble_fill_ratio(binary, cx, cy, r)
-                    if ratio > max_ratio:
-                        max_ratio = ratio
-            fill_ratios[q_pos] = float(max_ratio)
+            fill_ratios[q_pos] = 0.0
+
+    # ---- Stage 8: Confidence ----
+    # The smallest margin by which any single question escaped being decided
+    # differently. This used to be the fraction of unflagged questions, which
+    # is 1.0 exactly when nothing was flagged, so a page read entirely wrong
+    # reported full confidence.
+    if reads:
+        confidence = float(min(e.get("margin", 0.0) for e in reads.values()))
+        confidence = float(np.clip(confidence / 0.30, 0.0, 1.0))
+    else:
+        confidence = 0.0
+
+    # A page where nothing at all was marked is far more often a misread than a
+    # genuinely blank sheet, and it costs one click to confirm.
+    if reads and all(not e.get("marked") for e in reads.values()):
+        flags.append("all_blank")
 
     return {
         "sheet_code": sheet_code,
@@ -156,6 +196,7 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
         "roll": roll,
         "flags": flags,
         "canonical": canonical,
+        "confidence": confidence,
     }
 
 
@@ -258,13 +299,11 @@ def process_scan_job(job) -> None:
     else:
         job.status = job.STATUS_DONE
 
-    # Confidence: fraction of unflagged questions
-    n_questions = len(result["reads"])
-    n_flagged = sum(1 for f in flags if f in ("double_mark", "faint"))
-    if n_questions:
-        job.confidence = max(0.0, (n_questions - n_flagged) / n_questions)
-    else:
-        job.confidence = 1.0
+    # Confidence comes from process_image: the smallest margin by which any
+    # question escaped a different decision. The old formula was the fraction
+    # of unflagged questions, which reports 1.0 precisely when nothing was
+    # flagged, including on a page that was read entirely wrong.
+    job.confidence = float(result.get("confidence", 0.0))
 
     update_fields = ["omr_sheet", "page_no", "reads", "status", "error_reason", "confidence"]
 
@@ -541,6 +580,9 @@ def _flag_to_reason(flag: str) -> str | None:
         # creates the ReviewItem only when multi_mark_policy == "review".
         "faint": "faint",
         "missing_page": "missing_page",
+        # Nothing at all was marked. Far more often a misread page than a
+        # genuinely blank one, and it costs a teacher one click to confirm.
+        "all_blank": "alignment",
         # Phase 1B
         "test_mismatch": "test_mismatch",
         "roll_mismatch": "roll_mismatch",

@@ -308,7 +308,7 @@ class FiveOptionsEndToEndTests(TestCase):
         marked = {0: ["E"]}
         img = simulate_scan(desc, meta, marked=marked, roll="001", page=0)
         binary = to_binary(img)
-        result = read_answers(binary, desc, page=0)
+        result = read_answers(img, desc, page=0)
 
         self.assertIn(0, result, "q_pos 0 missing from read result")
         self.assertIn("E", result[0]["marked"],
@@ -327,7 +327,7 @@ class FiveOptionsEndToEndTests(TestCase):
         marked = {i: [chr(ord("A") + i)] for i in range(nq)}  # Q0→A, Q1→B, … Q4→E
         img = simulate_scan(desc, meta, marked=marked, roll="001", page=0)
         binary = to_binary(img)
-        result = read_answers(binary, desc, page=0)
+        result = read_answers(img, desc, page=0)
 
         for i in range(nq):
             expected = chr(ord("A") + i)
@@ -400,8 +400,8 @@ class ScannerIgnoresSectionTagsTests(TestCase):
         bin_plain = to_binary(img_plain)
         bin_tagged = to_binary(img_tagged)
 
-        result_plain = read_answers(bin_plain, desc_plain, page=0)
-        result_tagged = read_answers(bin_tagged, desc_tagged, page=0)
+        result_plain = read_answers(img_plain, desc_plain, page=0)
+        result_tagged = read_answers(img_tagged, desc_tagged, page=0)
 
         self.assertEqual(
             len(result_plain), len(result_tagged),
@@ -455,7 +455,7 @@ class ScannerIgnoresSectionTagsTests(TestCase):
         }
         img = simulate_scan(desc, meta, marked={0: ["A"]}, roll="001", page=0)
         binary = to_binary(img)
-        result = read_answers(binary, desc, page=0)
+        result = read_answers(img, desc, page=0)
 
         for qp, val in result.items():
             self.assertIn("marked", val, f"'marked' missing at q_pos={qp}")

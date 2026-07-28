@@ -183,6 +183,12 @@ class PrebubbedPDFRoundTripTests(TestCase):
         rg["col_pitch"] = rg["col_pitch"] * scale
         rg["row_pitch"] = rg["row_pitch"] * scale
         rg["radius"] = rg["radius"] * scale
+        # Fiducials must scale too: the reader calibrates this page's ink level
+        # from them, so leaving them at canonical coordinates samples blank
+        # paper and every bubble then measures against a nonsense reference.
+        for f in d.get("fiducials", []):
+            f["cx"] = f["cx"] * scale
+            f["cy"] = f["cy"] * scale
         # Scale answer bubbles too (needed by read_answers, not used here)
         for b in d["answer_bubbles"]:
             for opt in b["options"]:
@@ -200,7 +206,7 @@ class PrebubbedPDFRoundTripTests(TestCase):
         binary = to_binary(img)
         scaled_desc = self._scale_descriptor(descriptor, self.SCALE)
 
-        roll_str, flag = read_roll(binary, scaled_desc)
+        roll_str, flag = read_roll(img, scaled_desc)
 
         self.assertEqual(roll_str, self.ROLL,
                          f"Expected roll {self.ROLL!r}, got {roll_str!r} (flag={flag})")

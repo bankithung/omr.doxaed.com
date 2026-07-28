@@ -846,8 +846,7 @@ class CanonicalRoundTripTests(TestCase):
         roll = "042"
 
         img = self._simulate(marked, roll)
-        binary = to_binary(img)
-        answers = read_answers(binary, self.descriptor, page=0)
+        answers = read_answers(img, self.descriptor, page=0)
 
         # Check marked questions
         for q_pos, labels in marked.items():
@@ -873,8 +872,7 @@ class CanonicalRoundTripTests(TestCase):
 
         roll = "042"
         img = self._simulate({}, roll)
-        binary = to_binary(img)
-        roll_str, flag = read_roll(binary, self.descriptor)
+        roll_str, flag = read_roll(img, self.descriptor)
 
         self.assertEqual(
             roll_str, roll,
@@ -901,28 +899,37 @@ class CanonicalRoundTripTests(TestCase):
 
         marked = {0: ["A"]}
         img = self._simulate(marked, "0")
-        binary = to_binary(img)
 
+        # Measure the way the reader does: normalised greyness on the grayscale
+        # page, not a count of pixels in a binarised one. The legacy pixel-count
+        # shim reports ~0.13 for an EMPTY bubble because the option letter is
+        # printed inside it, which is exactly the confusion that made faint
+        # marks unreadable.
+        from omr.scan.read import bubble_darkness, page_ink_level, _blank_baseline
+
+        ink = page_ink_level(img, self.descriptor)
         q0 = next(b for b in self.descriptor["answer_bubbles"] if b["q_pos"] == 0)
         opts = {o["label"]: o for o in q0["options"]}
 
-        ratio_A = bubble_fill_ratio(
-            binary, opts["A"]["cx"], opts["A"]["cy"], opts["A"]["r"]
-        )
-        # Sample option C (not adjacent to A) for a cleaner empty measurement
-        ratio_C = bubble_fill_ratio(
-            binary, opts["C"]["cx"], opts["C"]["cy"], opts["C"]["r"]
-        )
+        # Baseline for label C from every C bubble on the page, almost all blank.
+        c_raw = [
+            bubble_darkness(img, o["cx"], o["cy"], o["r"], ink)
+            for b in self.descriptor["answer_bubbles"] if b["page"] == 0
+            for o in b["options"] if o["label"] == "C"
+        ]
+        base_c = _blank_baseline(c_raw)
+
+        ratio_A = bubble_darkness(img, opts["A"]["cx"], opts["A"]["cy"], opts["A"]["r"], ink)
+        ratio_C = (bubble_darkness(img, opts["C"]["cx"], opts["C"]["cy"], opts["C"]["r"], ink)
+                   - base_c) / max(1e-6, 1.0 - base_c)
 
         self.assertGreaterEqual(
             ratio_A, FILL_HIGH + 0.10,
-            f"Filled bubble A ratio ({ratio_A:.3f}) should be >= {FILL_HIGH + 0.10:.2f} "
-            f"(FILL_HIGH={FILL_HIGH})",
+            f"Filled bubble A ({ratio_A:.3f}) should clear FILL_HIGH={FILL_HIGH}",
         )
         self.assertLess(
             ratio_C, FILL_LOW,
-            f"Empty bubble C ratio ({ratio_C:.3f}) should be < FILL_LOW={FILL_LOW} "
-            "(correct side of threshold)",
+            f"Empty bubble C ({ratio_C:.3f}) should be below FILL_LOW={FILL_LOW}",
         )
 
 
@@ -972,8 +979,7 @@ class WarpedRoundTripTests(TestCase):
         canonical = warp_to_canonical(img, pts, self.descriptor)
         self.assertEqual(canonical.shape, (H_canon, W_canon))
 
-        binary = to_binary(canonical)
-        answers = read_answers(binary, self.descriptor, page=0)
+        answers = read_answers(canonical, self.descriptor, page=0)
 
         for q_pos, labels in marked.items():
             got = answers[q_pos]["marked"]
@@ -1006,8 +1012,7 @@ class WarpedRoundTripTests(TestCase):
         self.assertIsNotNone(pts, "detect_fiducials failed on warped scan")
         canonical = warp_to_canonical(img, pts, self.descriptor)
 
-        binary = to_binary(canonical)
-        roll_str, flag = read_roll(binary, self.descriptor)
+        roll_str, flag = read_roll(canonical, self.descriptor)
 
         self.assertEqual(
             roll_str, roll,
@@ -1028,14 +1033,13 @@ class DoubleMark_BlankTests(TestCase):
             test_id=22, seed=77,
         )
 
-    def _binary(self, marked, roll="000"):
+    def _page(self, marked, roll="000"):
+        """The canonical GRAYSCALE page, which is what the reader measures."""
         from omr.simulate import simulate_scan
-        from omr.scan.read import to_binary
-        img = simulate_scan(
+        return simulate_scan(
             self.descriptor, self.sheet_meta,
             marked=marked, roll=roll, page=0, scale=1.0,
         )
-        return to_binary(img)
 
     def test_double_mark_sets_flag(self):
         """
@@ -1045,8 +1049,8 @@ class DoubleMark_BlankTests(TestCase):
         from omr.scan.read import read_answers
 
         marked = {0: ["A", "C"]}
-        binary = self._binary(marked)
-        answers = read_answers(binary, self.descriptor, page=0, multiple_allowed=False)
+        page = self._page(marked)
+        answers = read_answers(page, self.descriptor, page=0, multiple_allowed=False)
 
         q0 = answers[0]
         self.assertEqual(q0["flag"], "double_mark",
@@ -1062,8 +1066,8 @@ class DoubleMark_BlankTests(TestCase):
         from omr.scan.read import read_answers
 
         marked = {0: ["A", "B"]}
-        binary = self._binary(marked)
-        answers = read_answers(binary, self.descriptor, page=0, multiple_allowed=True)
+        page = self._page(marked)
+        answers = read_answers(page, self.descriptor, page=0, multiple_allowed=True)
 
         q0 = answers[0]
         self.assertNotEqual(
@@ -1080,8 +1084,8 @@ class DoubleMark_BlankTests(TestCase):
         from omr.scan.read import read_answers
 
         # Mark nothing
-        binary = self._binary(marked={})
-        answers = read_answers(binary, self.descriptor, page=0)
+        page = self._page(marked={})
+        answers = read_answers(page, self.descriptor, page=0)
 
         for q_pos in range(10):
             q = answers[q_pos]
@@ -1099,8 +1103,8 @@ class DoubleMark_BlankTests(TestCase):
         from omr.scan.read import read_answers
 
         marked = {5: ["B"]}
-        binary = self._binary(marked)
-        answers = read_answers(binary, self.descriptor, page=0)
+        page = self._page(marked)
+        answers = read_answers(page, self.descriptor, page=0)
 
         q5 = answers[5]
         self.assertEqual(sorted(q5["marked"]), ["B"])
@@ -1111,8 +1115,8 @@ class DoubleMark_BlankTests(TestCase):
         """read_answers must return an entry for every question on the page."""
         from omr.scan.read import read_answers
 
-        binary = self._binary(marked={0: ["A"]})
-        answers = read_answers(binary, self.descriptor, page=0)
+        page = self._page(marked={0: ["A"]})
+        answers = read_answers(page, self.descriptor, page=0)
 
         page_qs = self.descriptor["page_map"][0]
         for q_pos in page_qs:
