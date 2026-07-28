@@ -693,7 +693,7 @@ class OrgSharedQuestionsTests(_OrgApiBase):
         q = self.questions[0]
         r = self.client.get(f"/api/v1/questions/{q.id}/", **self._org_header())
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["id"], q.id)
+        self.assertEqual(str(r.data["id"]), str(q.id))
 
     def test_cross_org_member_sees_zero_questions(self):
         """C (org2 admin) gets no questions for org1's test via org2 header."""
@@ -1066,7 +1066,7 @@ class OrgSharedStudentsTests(_OrgApiBase):
             **self._org_header(),
         )
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["id"], self.student.id)
+        self.assertEqual(str(r.data["id"]), str(self.student.id))
 
     def test_org_member_b_sees_student_in_roster_list(self):
         """B can list org1-owned students filtered by ?roster= under org1 header."""

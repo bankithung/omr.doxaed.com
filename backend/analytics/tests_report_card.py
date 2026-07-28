@@ -236,8 +236,12 @@ class StudentReportCardEndpointTest(TestCase):
 
     def test_nonexistent_student_gets_404(self):
         """A student that has no result for this test returns 404."""
+        import uuid as _uuid
+
         self.client.force_authenticate(self.user)
-        resp = self.client.get(self._url(student_id=99999))
+        # Student ids are UUIDs; an integer no longer matches the URL pattern,
+        # so reverse() raised instead of the view returning 404.
+        resp = self.client.get(self._url(student_id=_uuid.uuid4()))
         self.assertEqual(resp.status_code, 404)
 
 

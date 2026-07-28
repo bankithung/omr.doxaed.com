@@ -35,7 +35,7 @@ class GroupTreeTests(APITestCase):
             format="json",
         )
         self.assertEqual(sec.status_code, 201, sec.data)
-        self.assertEqual(sec.data["parent"], cid)
+        self.assertEqual(str(sec.data["parent"]), str(cid))
         self.assertEqual(sec.data["kind_label"], "Section")
         sid = sec.data["id"]
 

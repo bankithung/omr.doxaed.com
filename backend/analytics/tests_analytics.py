@@ -205,8 +205,8 @@ class PipelineQuestionFKTest(TestCase):
                 f"QuestionResponse at q_pos={q_pos} should have question set",
             )
             self.assertEqual(
-                resp.question_id,
-                expected_question_id,
+                str(resp.question_id),
+                str(expected_question_id),
                 f"q_pos={q_pos}: expected question_id={expected_question_id}, "
                 f"got {resp.question_id}",
             )
@@ -562,7 +562,7 @@ class AnalyticsEndpointTest(TestCase):
         t_block = data["test"]
         for key in ("id", "title", "subject", "attempt_number"):
             self.assertIn(key, t_block, f"test block missing key {key!r}")
-        self.assertEqual(t_block["id"], self.test.id)
+        self.assertEqual(str(t_block["id"]), str(self.test.id))
         self.assertEqual(t_block["title"], self.test.title)
 
     def test_response_with_results(self):

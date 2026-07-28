@@ -110,7 +110,7 @@ class TestApiTests(ClassApiTests):  # reuse _auth/setUp (cache.clear included)
         tid = self.client.post("/api/v1/tests/", {"class_group": cid, "title": "T1"}, format="json").data["id"]
         r = self.client.post(f"/api/v1/tests/{tid}/retest/")
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(r.data["parent_test"], tid)
+        self.assertEqual(str(r.data["parent_test"]), str(tid))
         self.assertEqual(r.data["attempt_number"], 2)
 
     def test_create_test_with_mode_roster_prebubbled(self):

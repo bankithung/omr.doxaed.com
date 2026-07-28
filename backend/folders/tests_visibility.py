@@ -440,8 +440,8 @@ class FolderEndpointTests(_VisBase):
         self.assertIn(str(f_mine.id), by_id)
         self.assertIn(str(f_shared.id), by_id)
         self.assertNotIn(str(f_hidden.id), by_id)
-        self.assertEqual(by_id[f_mine.id]["permission"], "edit")
-        self.assertEqual(by_id[f_shared.id]["permission"], "view")
+        self.assertEqual(by_id[str(f_mine.id)]["permission"], "edit")
+        self.assertEqual(by_id[str(f_shared.id)]["permission"], "view")
 
     def test_create_folder_stamps_org_and_creator(self):
         r = self.client.post(
