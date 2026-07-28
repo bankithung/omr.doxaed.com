@@ -26,8 +26,28 @@ if ! pg_isready -q 2>/dev/null; then
 fi
 pg_isready -q 2>/dev/null || { warn "postgres is not reachable on :5432"; exit 1; }
 
-psql -U postgres -lqt 2>/dev/null | cut -d\| -f1 | grep -qw omrflow \
-  || { info "creating database omrflow"; createdb -U postgres omrflow; }
+# Connect over TCP with the password the app itself uses, not a local socket as
+# the current OS user. A bare `psql -U postgres` hits peer authentication and
+# fails even when the database is present and healthy.
+PGUSER_=${PGUSER:-postgres}
+PGPASS_=${PGPASSWORD:-postgress}
+DBNAME_=${PGDATABASE:-omrflow}
+
+db_exists() {
+  PGPASSWORD="$PGPASS_" psql -h localhost -U "$PGUSER_" -tAc \
+    "SELECT 1 FROM pg_database WHERE datname='${DBNAME_}'" postgres 2>/dev/null | grep -q 1
+}
+
+if ! db_exists; then
+  info "creating database ${DBNAME_}"
+  if ! PGPASSWORD="$PGPASS_" createdb -h localhost -U "$PGUSER_" "$DBNAME_" 2>/dev/null; then
+    # First run on a fresh cluster: the postgres role may have no password yet.
+    info "setting a local password for the ${PGUSER_} role"
+    sudo -u postgres psql -qc "ALTER USER ${PGUSER_} PASSWORD '${PGPASS_}';" >/dev/null 2>&1 || true
+    sudo -u postgres createdb "$DBNAME_" >/dev/null 2>&1 || true
+  fi
+  db_exists || { warn "could not create or reach database ${DBNAME_}"; exit 1; }
+fi
 
 # ── 2. Backend ───────────────────────────────────────────────────────────────
 cd backend
