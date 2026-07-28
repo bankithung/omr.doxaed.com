@@ -63,6 +63,13 @@ cd ../frontend && npm install && npm run dev
 ```
 
 ## Environment gotchas found the hard way
+- **zbar is a required system library and pip will not tell you.** `pyzbar` is a
+  ctypes wrapper; it installs fine and only fails when `omr.scan.align` is first
+  imported. Without it every scan upload fails to find a QR and the entire
+  grading path is dead. Install `libzbar0` (apt, may be `libzbar0t64` on newer
+  Ubuntu) or `zbar` (brew). `scripts/dev.sh` now does this, and
+  `common.tests.NativeLibImportTests` catches it. Symptom if missed: 60+ test
+  errors that look unrelated.
 - `backend/requirements.txt` is **UTF-16 encoded**. `pip install -r` fails on it
   directly; convert with `iconv` first.
 - The system `cryptography` module is broken in some images (`_cffi_backend`

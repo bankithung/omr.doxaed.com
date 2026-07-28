@@ -14,6 +14,26 @@ cd "$ROOT"
 info() { printf '\033[1;34m▸\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!\033[0m %s\n' "$*"; }
 
+# ── 0. Native libraries ──────────────────────────────────────────────────────
+# pyzbar is a thin ctypes wrapper: pip installs it happily and it only fails at
+# import time, when the scan pipeline first tries to decode a QR. Without zbar
+# every upload fails to find a QR code and the whole grading path is dead, so
+# check it up front rather than letting a teacher discover it mid exam.
+if ! python3 -c "import ctypes.util,sys; sys.exit(0 if ctypes.util.find_library('zbar') else 1)" 2>/dev/null; then
+  info "installing the zbar library (needed to decode the QR on each sheet)"
+  if command -v brew >/dev/null 2>&1; then
+    brew install zbar >/dev/null 2>&1 || true
+  elif command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -q >/dev/null 2>&1 || true
+    sudo apt-get install -y -q --no-install-recommends libzbar0 >/dev/null 2>&1 \
+      || sudo apt-get install -y -q --no-install-recommends libzbar0t64 >/dev/null 2>&1 || true
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y zbar >/dev/null 2>&1 || true
+  fi
+  python3 -c "import ctypes.util,sys; sys.exit(0 if ctypes.util.find_library('zbar') else 1)" 2>/dev/null \
+    || warn "zbar is still missing. Scanning will fail until it is installed (apt: libzbar0, brew: zbar)."
+fi
+
 # ── 1. Postgres ──────────────────────────────────────────────────────────────
 if ! pg_isready -q 2>/dev/null; then
   info "starting postgres"
