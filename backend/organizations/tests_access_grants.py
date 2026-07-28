@@ -151,14 +151,14 @@ class ClassVisibilityViaGrantTests(APITestCase):
         self._login(self.teacher)
         code, ids = self._class_ids()
         self.assertEqual(code, 200)
-        self.assertNotIn(self.cls.id, ids)
+        self.assertNotIn(str(self.cls.id), ids)
         self.assertEqual(self.client.get(f"/api/v1/classes/{self.cls.id}/", **self._h()).status_code, 404)
 
     def test_member_with_grant_sees_and_reads_class(self):
         self._grant()
         self._login(self.teacher)
         code, ids = self._class_ids()
-        self.assertIn(self.cls.id, ids)
+        self.assertIn(str(self.cls.id), ids)
         self.assertEqual(self.client.get(f"/api/v1/classes/{self.cls.id}/", **self._h()).status_code, 200)
 
     def test_member_without_grant_cannot_create_test(self):
@@ -175,7 +175,7 @@ class ClassVisibilityViaGrantTests(APITestCase):
     def test_admin_sees_all_classes(self):
         self._login(self.admin)
         _, ids = self._class_ids()
-        self.assertIn(self.cls.id, ids)
+        self.assertIn(str(self.cls.id), ids)
 
     def test_grant_does_not_leak_into_other_org(self):
         self._grant()

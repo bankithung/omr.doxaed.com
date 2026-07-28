@@ -685,7 +685,7 @@ class OrgSharedQuestionsTests(_OrgApiBase):
         self.assertEqual(r.status_code, 200)
         ids_returned = {item["id"] for item in r.data["results"]}
         for q in self.questions:
-            self.assertIn(q.id, ids_returned)
+            self.assertIn(str(q.id), ids_returned)
 
     def test_org_member_b_can_retrieve_question_detail(self):
         """B can GET a specific question that belongs to an org-owned test."""
@@ -746,8 +746,8 @@ class OrgSharedOmrSheetsTests(_OrgApiBase):
         )
         self.assertEqual(r.status_code, 200)
         ids = {item["id"] for item in r.data["results"]}
-        self.assertIn(self.sheet1.id, ids)
-        self.assertIn(self.sheet2.id, ids)
+        self.assertIn(str(self.sheet1.id), ids)
+        self.assertIn(str(self.sheet2.id), ids)
 
     def test_cross_org_sees_no_sheets(self):
         """C (org2) sees no sheets when querying org1's test with org2 header."""
@@ -794,8 +794,8 @@ class OrgSharedStudentResultsTests(_OrgApiBase):
         )
         self.assertEqual(r.status_code, 200)
         ids = {item["id"] for item in r.data["results"]}
-        self.assertIn(self.result1.id, ids)
-        self.assertIn(self.result2.id, ids)
+        self.assertIn(str(self.result1.id), ids)
+        self.assertIn(str(self.result2.id), ids)
 
     def test_cross_org_sees_no_results(self):
         """C (org2) sees no results for org1's test with org2 header."""
@@ -857,7 +857,7 @@ class OrgSharedReviewItemsTests(_OrgApiBase):
         )
         self.assertEqual(r.status_code, 200)
         ids = {item["id"] for item in r.data["results"]}
-        self.assertIn(self.review_item.id, ids)
+        self.assertIn(str(self.review_item.id), ids)
 
     def test_cross_org_sees_no_review_items(self):
         """C (org2) sees no review items for org1's test with org2 header."""
@@ -1078,7 +1078,7 @@ class OrgSharedStudentsTests(_OrgApiBase):
         self.assertEqual(r.status_code, 200)
         ids = {item["id"] for item in r.data["results"]}
         for s in self.students:
-            self.assertIn(s.id, ids)
+            self.assertIn(str(s.id), ids)
 
     def test_org_member_b_can_update_org_student(self):
         """B can PATCH an org1-owned student under org1 header."""

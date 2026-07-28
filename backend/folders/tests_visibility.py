@@ -125,12 +125,12 @@ class MemberVisibilityTests(_VisBase):
         r = self.client.get("/api/v1/classes/", **self._h())
         self.assertEqual(r.status_code, 200)
         ids = {c["id"] for c in r.data["results"]}
-        self.assertIn(c_mine.id, ids)
-        self.assertIn(c_shared.id, ids)
-        self.assertIn(c_org.id, ids)
-        self.assertIn(c_loose_mine.id, ids)
-        self.assertNotIn(c_hidden.id, ids)
-        self.assertNotIn(c_loose_m2.id, ids)
+        self.assertIn(str(c_mine.id), ids)
+        self.assertIn(str(c_shared.id), ids)
+        self.assertIn(str(c_org.id), ids)
+        self.assertIn(str(c_loose_mine.id), ids)
+        self.assertNotIn(str(c_hidden.id), ids)
+        self.assertNotIn(str(c_loose_m2.id), ids)
 
     def test_hidden_class_test_roster_students_invisible_no_idor(self):
         f_hidden = self._folder(self.m2, name="hidden")
@@ -163,7 +163,7 @@ class MemberVisibilityTests(_VisBase):
         r = self.client.get(f"/api/v1/tests/?test={t_hidden.id}", **self._h())
         # ?test isn't a Test filter, but the test itself must not appear in list
         r = self.client.get("/api/v1/tests/", **self._h())
-        self.assertNotIn(t_hidden.id, {t["id"] for t in r.data["results"]})
+        self.assertNotIn(str(t_hidden.id), {t["id"] for t in r.data["results"]})
 
     def test_member_share_makes_test_and_students_visible(self):
         f = self._folder(self.m2, name="shared")
@@ -192,7 +192,7 @@ class AdminOverrideTests(_VisBase):
 
         self._login(self.admin)
         r = self.client.get("/api/v1/classes/", **self._h())
-        self.assertIn(c_hidden.id, {c["id"] for c in r.data["results"]})
+        self.assertIn(str(c_hidden.id), {c["id"] for c in r.data["results"]})
         self.assertEqual(
             self.client.get(f"/api/v1/tests/{t_hidden.id}/", **self._h()).status_code, 200
         )
@@ -213,7 +213,7 @@ class AdminOverrideTests(_VisBase):
         # admin of org1, sending org1 header, must not see org2 class
         self._login(self.admin)
         r = self.client.get("/api/v1/classes/", **self._h())
-        self.assertNotIn(c_other.id, {c["id"] for c in r.data["results"]})
+        self.assertNotIn(str(c_other.id), {c["id"] for c in r.data["results"]})
         self.assertEqual(
             self.client.get(f"/api/v1/classes/{c_other.id}/", **self._h()).status_code, 404
         )
@@ -305,18 +305,18 @@ class LooseClassTests(_VisBase):
         c_loose = self._class(self.m1, folder=None, name="loose")
         # creator m1 sees it
         r = self.client.get("/api/v1/classes/", **self._h())
-        self.assertIn(c_loose.id, {c["id"] for c in r.data["results"]})
+        self.assertIn(str(c_loose.id), {c["id"] for c in r.data["results"]})
         # m2 does NOT
         self._login(self.m2)
         r = self.client.get("/api/v1/classes/", **self._h())
-        self.assertNotIn(c_loose.id, {c["id"] for c in r.data["results"]})
+        self.assertNotIn(str(c_loose.id), {c["id"] for c in r.data["results"]})
         self.assertEqual(
             self.client.get(f"/api/v1/classes/{c_loose.id}/", **self._h()).status_code, 404
         )
         # admin DOES
         self._login(self.admin)
         r = self.client.get("/api/v1/classes/", **self._h())
-        self.assertIn(c_loose.id, {c["id"] for c in r.data["results"]})
+        self.assertIn(str(c_loose.id), {c["id"] for c in r.data["results"]})
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +382,7 @@ class SamePredicateTests(_VisBase):
 
         # Not in list
         r = self.client.get("/api/v1/tests/", **self._h())
-        self.assertNotIn(t.id, {x["id"] for x in r.data["results"]})
+        self.assertNotIn(str(t.id), {x["id"] for x in r.data["results"]})
         # 404 on retrieve / update / delete
         self.assertEqual(
             self.client.get(f"/api/v1/tests/{t.id}/", **self._h()).status_code, 404
@@ -421,7 +421,7 @@ class GrandfatherMigrationTests(_VisBase):
         # m2 (a different member) must still see m1's pre-migration class.
         self._login(self.m2)
         r = self.client.get("/api/v1/classes/", **self._h())
-        self.assertIn(c.id, {x["id"] for x in r.data["results"]})
+        self.assertIn(str(c.id), {x["id"] for x in r.data["results"]})
 
 
 # ---------------------------------------------------------------------------
@@ -437,9 +437,9 @@ class FolderEndpointTests(_VisBase):
         r = self.client.get("/api/v1/folders/", **self._h())
         self.assertEqual(r.status_code, 200)
         by_id = {x["id"]: x for x in r.data["results"]}
-        self.assertIn(f_mine.id, by_id)
-        self.assertIn(f_shared.id, by_id)
-        self.assertNotIn(f_hidden.id, by_id)
+        self.assertIn(str(f_mine.id), by_id)
+        self.assertIn(str(f_shared.id), by_id)
+        self.assertNotIn(str(f_hidden.id), by_id)
         self.assertEqual(by_id[f_mine.id]["permission"], "edit")
         self.assertEqual(by_id[f_shared.id]["permission"], "view")
 

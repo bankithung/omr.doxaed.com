@@ -127,8 +127,8 @@ class RbacApiIntegrationTests(APITestCase):
         )
         self._login(self.teacher)
         ids = self._class_ids()
-        self.assertIn(self.a.id, ids)
-        self.assertNotIn(self.b.id, ids)
+        self.assertIn(str(self.a.id), ids)
+        self.assertNotIn(str(self.b.id), ids)
         # can create a test under A
         ra = self.client.post("/api/v1/tests/", {"class_group": self.a.id, "title": "T"}, format="json", **self._h())
         self.assertNotEqual(ra.status_code, 403, ra.data)
