@@ -256,3 +256,47 @@ def cap_rotate180(img: np.ndarray) -> np.ndarray:
 def cap_resize(img: np.ndarray, scale: float) -> np.ndarray:
     interp = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_CUBIC
     return cv2.resize(img, None, fx=scale, fy=scale, interpolation=interp)
+
+
+def cap_occlude(img, *, frac=0.10, corner="tl", value=30, rng=None):
+    """A finger or a shadow over one corner, taking a fiducial with it."""
+    h, w = img.shape[:2]
+    ch, cw = int(h * frac), int(w * frac)
+    out = img.copy()
+    ys = slice(0, ch) if "t" in corner else slice(h - ch, h)
+    xs = slice(0, cw) if "l" in corner else slice(w - cw, w)
+    out[ys, xs] = value
+    return out
+
+
+def cap_fold(img, *, strength=0.06, rng=None):
+    """
+    A crease down the sheet. The page is no longer planar, so a single
+    homography cannot rectify both halves and bubble centres drift.
+    """
+    h, w = img.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    shift = strength * w * np.sin(np.pi * yy / max(h, 1))
+    map_x = np.clip(xx + shift, 0, w - 1).astype(np.float32)
+    out = cv2.remap(img, map_x, yy.astype(np.float32), cv2.INTER_LINEAR,
+                    borderMode=cv2.BORDER_REPLICATE)
+    # A crease also catches the light.
+    band = int(h * 0.5)
+    out[max(0, band - 2):band + 2, :] = np.clip(
+        out[max(0, band - 2):band + 2, :].astype(np.float32) * 0.75, 0, 255
+    ).astype(np.uint8)
+    return out
+
+
+def cap_photocopy(img, *, rng=None):
+    """
+    A generation-two photocopy: contrast crushed, thin lines thickened, dirt
+    specks added. Common when a school prints one master and copies it.
+    """
+    rng = rng or np.random.default_rng(0)
+    x = img.astype(np.float32)
+    x = np.clip((x - 110) * 1.9 + 128, 0, 255)
+    out = cv2.erode(x.astype(np.uint8), np.ones((2, 2), np.uint8), iterations=1)
+    specks = rng.random(out.shape) < 0.0012
+    out[specks] = 0
+    return out

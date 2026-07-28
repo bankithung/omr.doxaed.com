@@ -164,10 +164,23 @@ def _fiducials():
 
 def _qr():
     """
-    QR block placed in the top-right of the header band, clear of the TR
-    fiducial.  We use size=80 px (≈ module size 8 for a version-2 code).
+    QR block in the top-right of the header band, clear of the TR fiducial.
+
+    Size drives how much blur the code survives. The payload needs a version 2
+    symbol (25x25 modules), so 80 px gave only 3.2 px per module: enough for a
+    flatbed, not enough for a phone. Benchmarked, motion blur and the combined
+    worst case destroyed the code entirely while the page itself still aligned
+    perfectly, so a readable sheet was thrown away purely on the QR.
+
+    112 px gives 4.5 px per module, a 40% gain, and still clears everything:
+    the block spans y 68..180 against a roll grid that starts at y 188, and it
+    sits on the opposite side of the page from it.
+
+    Existing sheets are unaffected. Every sheet stores the descriptor it was
+    printed with, so already printed papers keep their own geometry and grade
+    exactly as before.
     """
-    size = 80
+    size = 112
     # x: right-align inside safe margin, clear of TR fiducial (MARGIN + FID)
     x = W - MARGIN - size
     # y: just below the fiducial square's bottom edge, staying inside HEADER_H

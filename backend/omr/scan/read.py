@@ -196,6 +196,76 @@ def _blank_baseline(values: list[float]) -> float:
     return float(min(np.percentile(values, 40), 0.35))
 
 
+def _ring_template(r: float) -> np.ndarray:
+    """A synthetic printed bubble outline, used to find where the real one is."""
+    size = int(round(r * 2)) * 2 + 1
+    t = np.full((size, size), 255, dtype=np.uint8)
+    c = size // 2
+    cv2.circle(t, (c, c), int(round(r)), 0, 1, lineType=cv2.LINE_AA)
+    return t
+
+
+def registration_score(canonical: np.ndarray, descriptor: dict, page: int = 0) -> float:
+    """
+    How closely the rectified page lines up with the template, 0 to 1.
+
+    Aligning the four fiducials proves the CORNERS match. It does not prove the
+    middle does. A creased or curled sheet is not planar, so no single
+    homography can rectify it: the corners land perfectly while bubbles toward
+    the centre drift by several pixels. Nothing noticed, and a folded sheet was
+    graded confidently against the wrong bubbles, 52 answers wrong and
+    unflagged on the benchmark. That is the worst failure this product can
+    produce, because the teacher has no signal that anything went wrong.
+
+    Every bubble is printed as a ring at a known position, which makes them a
+    dense, page-wide registration target we already pay to print. This locates
+    the real ring near each expected centre and measures how far it moved.
+    Presence is not enough: a drifted grid still has rings, just not where the
+    coordinates say. Only the DISPLACEMENT distinguishes a good rectification
+    from a plausible but wrong one.
+    """
+    entries = [e for e in descriptor.get("answer_bubbles", []) if e["page"] == page]
+    if not entries:
+        return 1.0
+
+    # Spread the sample: distortion is worst away from the corners the warp was
+    # fitted to, so a clustered sample would miss exactly what this looks for.
+    step = max(1, len(entries) // 14)
+    sample = entries[::step]
+    if not sample:
+        return 1.0
+
+    h, w = canonical.shape[:2]
+    r = float(sample[0]["options"][0]["r"])
+    tmpl = _ring_template(r)
+    search = int(round(r * 1.4))          # how far we will look for the ring
+    half = tmpl.shape[0] // 2
+    pad = half + search
+
+    good = 0
+    total = 0
+    for e in sample:
+        opt = e["options"][0]
+        cx, cy = int(round(opt["cx"])), int(round(opt["cy"]))
+        y0, y1 = cy - pad, cy + pad + 1
+        x0, x1 = cx - pad, cx + pad + 1
+        if y0 < 0 or x0 < 0 or y1 > h or x1 > w:
+            continue
+        window = canonical[y0:y1, x0:x1]
+        if window.shape[0] < tmpl.shape[0] or window.shape[1] < tmpl.shape[1]:
+            continue
+        res = cv2.matchTemplate(window, tmpl, cv2.TM_CCOEFF_NORMED)
+        _minv, maxv, _minl, maxl = cv2.minMaxLoc(res)
+        total += 1
+        # Where the best match sits relative to the expected centre.
+        dx = maxl[0] - search
+        dy = maxl[1] - search
+        if maxv > 0.25 and (dx * dx + dy * dy) <= 4.0:   # within 2 px
+            good += 1
+
+    return good / total if total else 1.0
+
+
 def classify(ratio: float) -> str:
     """"filled" above FILL_HIGH, "empty" below FILL_LOW, "ambiguous" between."""
     if ratio >= FILL_HIGH:

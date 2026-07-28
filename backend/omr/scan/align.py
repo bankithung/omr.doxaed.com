@@ -346,6 +346,16 @@ def decode_qr_from_canonical(canonical: np.ndarray, descriptor: dict):
     the whole interpolation budget goes into the modules that matter.
 
     Which corner it is found in doubles as the orientation test.
+
+    Operating envelope, measured with `manage.py scan_bench`: the code reads
+    reliably while a motion smear stays within about one module width (4.5 px
+    at the current 112 px block), and fails beyond roughly 1.5. That limit is
+    close to fundamental, since once the smear exceeds a module the adjacent
+    modules merge and the information is gone. Wiener deconvolution along the
+    estimated smear direction was tried and recovered nothing at any blur
+    length while costing 2.5 s per sheet, so it was removed. Beyond the
+    envelope the honest outcome is to refuse and ask for another photograph,
+    which is what happens.
     """
     if not descriptor.get("qr"):
         return None
@@ -363,7 +373,10 @@ def decode_qr_from_canonical(canonical: np.ndarray, descriptor: dict):
         if hit:
             return hit, flipped
 
-        for factor in (5, 9):
+        # Upscale only as far as pyzbar needs. The block is 112 px across 25
+        # modules, so x4 already gives ~18 px per module; x9 was 40 px per
+        # module, four times the pixels to scan for no additional information.
+        for factor in (4, 7):
             big = cv2.resize(patch, None, fx=factor, fy=factor,
                              interpolation=cv2.INTER_CUBIC)
             flat = flatten_illumination(big, sigma_frac=0.30)
@@ -375,6 +388,7 @@ def decode_qr_from_canonical(canonical: np.ndarray, descriptor: dict):
                 hit = _try_decode(candidate)
                 if hit:
                     return hit, flipped
+
     return None
 
 

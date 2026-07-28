@@ -33,7 +33,13 @@ from omr.scan.align import (
     detect_fiducials,
     warp_to_canonical,
 )
-from omr.scan.read import to_binary, read_roll, read_answers, page_ink_level
+from omr.scan.read import (
+    page_ink_level,
+    read_answers,
+    read_roll,
+    registration_score,
+    to_binary,
+)
 from omr.scan.grade import grade_sheet
 
 
@@ -100,7 +106,14 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
                 # symmetric, so an upside down sheet warps perfectly and would
                 # otherwise be graded against mirrored positions, which used to
                 # produce a confident near-zero score.
-                canonical = cv2.rotate(canonical, cv2.ROTATE_180)
+                #
+                # Re-warp with the corners relabelled rather than rotating the
+                # output image. Rotating maps x to W-1-x, half a pixel off the
+                # symmetry the fiducials actually have, and that residual shift
+                # was enough to fail the registration check on a page that was
+                # otherwise perfect.
+                src_pts = src_pts[[3, 2, 1, 0]]
+                canonical = warp_to_canonical(page_img, src_pts, descriptor)
 
     # Fall back to the raw frame ONLY when alignment failed. That covers a
     # sheet whose corners are damaged or cropped, where the page cannot be
@@ -135,6 +148,21 @@ def process_image(image: np.ndarray, descriptor: dict) -> dict:
             "sheet_code": sheet_code, "page": page, "total": total,
             "reads": {}, "fill_ratios": {}, "roll": None,
             "flags": ["alignment"], "canonical": None, "confidence": 0.0,
+        }
+
+    # ---- Stage 3c: Registration check ----
+    # Matching the four fiducials proves the CORNERS line up. It does not prove
+    # the middle does. A creased or curled sheet is not planar, so no single
+    # homography can rectify it: the corners land perfectly while bubbles near
+    # the centre drift by several pixels. Nothing caught this, and a folded
+    # sheet graded confidently against the wrong bubbles, 52 answers wrong and
+    # unflagged on the benchmark. Verify against the printed rings, which are a
+    # dense page-wide target we already print, before trusting any coordinate.
+    if registration_score(canonical, descriptor, page) < 0.85:
+        return {
+            "sheet_code": sheet_code, "page": page, "total": total,
+            "reads": {}, "fill_ratios": {}, "roll": None,
+            "flags": ["alignment"], "canonical": canonical, "confidence": 0.0,
         }
 
     # ---- Stage 4: Per-page ink reference ----

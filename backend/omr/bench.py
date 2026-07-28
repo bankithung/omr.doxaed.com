@@ -145,6 +145,26 @@ def _cases():
     def handheld(im, rng):
         return dg.cap_on_surface(im, surface=120, keystone=0.18, rotate_deg=3.0, rng=rng)
 
+    def occluded(im, rng):
+        im = dg.cap_on_surface(im, surface=100, keystone=0.10, rng=rng)
+        return dg.cap_occlude(im, frac=0.09, corner="tl", value=25)
+
+    def folded(im, rng):
+        im = dg.cap_fold(im, strength=0.05)
+        return dg.cap_on_surface(im, surface=110, keystone=0.10, rng=rng)
+
+    def photocopy(im, rng):
+        return dg.cap_jpeg(dg.cap_photocopy(im, rng=rng), quality=50)
+
+    def extreme_angle(im, rng):
+        return dg.cap_on_surface(im, surface=85, keystone=0.34, rotate_deg=-8.0, rng=rng)
+
+    def tiny_dark(im, rng):
+        im = dg.cap_on_surface(im, surface=55, keystone=0.12, rng=rng)
+        im = dg.cap_low_light(im, gain=0.28, gamma=1.8)
+        im = dg.cap_noise(im, sigma=14, rng=rng)
+        return dg.cap_resize(im, 0.38)
+
     def worst(im, rng):
         """Everything a real bad capture does at once."""
         im = dg.cap_on_surface(im, surface=70, keystone=0.22, rotate_deg=-4.0, rng=rng)
@@ -181,6 +201,11 @@ def _cases():
         ("desk_wood",        biro,  desk_wood),
         ("desk_dark",        biro,  desk_dark),
         ("handheld_angle",   biro,  handheld),
+        ("occluded_corner",  biro,  occluded),
+        ("folded_sheet",     hb,    folded),
+        ("photocopied",      hb,    photocopy),
+        ("extreme_angle",    biro,  extreme_angle),
+        ("tiny_dark_noisy",  hb,    tiny_dark),
         ("worst_case",       hb,    worst),
         ("worst_case_pencil", light, worst),
     ]
